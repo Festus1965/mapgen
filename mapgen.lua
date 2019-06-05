@@ -27,7 +27,8 @@ local VN = vector.new
 
 local altitude_cutoff_high = 30
 local altitude_cutoff_low = -10
-local base_level = 20
+local base_level = mod.chunk_offset + 8
+local cave_level = 20
 local chunk_offset = mod.chunk_offset
 local road_w = 3
 local cave_underground = 5
@@ -229,6 +230,8 @@ function Mapgen:bubble_cave()
 		biome = cave_biomes[pr:next(1, #cave_biomes)] or {}
 	end
 	local biome = cave_biomes[self.gpr:next(1, #cave_biomes)] or {}
+	--------------------
+	biome = {}
 
 	local n_b_stone = node[biome.stone_type] or n_stone
 	local n_ceiling = node[biome.ceiling_node]
@@ -310,13 +313,13 @@ function Mapgen:bubble_cave()
 			end
 			ground = math_floor(ground)
 
-			heightmap[index] = center.y - base_level - ground
+			heightmap[index] = center.y - cave_level - ground
 
 			local ivm = area:index(x, minp.y, z)
 			for y = minp.y, maxp.y - 1 do
 				local diff = math_abs(center.y - y)
-				if diff >= base_level + ground
-				and diff < base_level + ground + surface_depth
+				if diff >= cave_level + ground
+				and diff < cave_level + ground + surface_depth
 				and data[ivm] == n_air then
 					if y < center.y then
 						if c_deco and pr:next(1, c_deco_chance) == 1 then
@@ -340,12 +343,12 @@ function Mapgen:bubble_cave()
 					p2data[ivm] = stalac_p2
 				elseif n_stalag and #n_stalag > 0 and y < center.y
 				and diff == 19 + ground and data[ivm] == n_air
-				and y > center.y - base_level
+				and y > center.y - cave_level
 				and pr:next(1, stalagmite_chance) == 1 then
 					data[ivm] = n_stalag[pr:next(1, #n_stalag)]
 					p2data[ivm] = stalag_p2
-				elseif diff < base_level + ground and data[ivm] == n_air then
-					if n_fluid and y <= center.y - base_level then
+				elseif diff < cave_level + ground and data[ivm] == n_air then
+					if n_fluid and y <= center.y - cave_level then
 						data[ivm] = n_fluid
 						p2data[ivm] = 0
 					else
@@ -392,7 +395,7 @@ function Mapgen:bubble_cave()
 
 			if y < center.y - 10 and data[ivm] == n_air then
 				for _, sch in pairs(schematics) do
-					if (y > center.y - base_level or sch.underfluid) and pr:next(1, sch.chance or 1) == 1 then
+					if (y > center.y - cave_level or sch.underfluid) and pr:next(1, sch.chance or 1) == 1 then
 						self:place_schematic(sch.schematic, {x=x,y=y,z=z}, "place_center_x, place_center_z")
 						break
 					end
@@ -446,7 +449,6 @@ function Mapgen:erosion(height, index, depth, factor)
 		return depth
 	end
 	e = depth - math_floor(height * height / factor / factor * (e + 1))
-	assert(e <= depth)
 	return e
 end
 
@@ -478,6 +480,7 @@ function Mapgen:generate(timed)
 	sup_chunk.y = sup_chunk.y + 5
 	sup_chunk = vector.mod(sup_chunk, 10)
 	local f_alt = (sup_chunk.y - 5) * 80
+	self.f_alt = f_alt
 	self.sup_chunk = sup_chunk
 
 	local decorate = true
@@ -490,7 +493,7 @@ function Mapgen:generate(timed)
 		end
 
 		--print(minp.y, sup_chunk.y, f_alt)
-		self:terrain(base_heat, f_alt)
+		self:terrain(base_heat)
 
 		local do_ore = true
 		if sup_chunk.x == 0 and sup_chunk.z == 0 then
@@ -1604,10 +1607,11 @@ end
 
 
 -- check
-function Mapgen:terrain(base_heat, f_alt)
+function Mapgen:terrain(base_heat)
 	local csize, area = self.csize, self.area
 	local biomes = mod.biomes
 	local data = self.data
+	local f_alt = self.f_alt
 	local heightmap = self.heightmap
 	local biomemap = self.biomemap
 	local maxp = self.maxp
@@ -1802,12 +1806,12 @@ else
 end
 
 
-function Mapgen:place_all_decorations(baseline)
+function Mapgen:place_all_decorations()
 	local ps = PcgRandom(self.seed + 53)
 
 	for _, deco in pairs(mod.decorations) do
 		if not deco.bad_schem then
-			self:place_deco(ps, deco, baseline)
+			self:place_deco(ps, deco)
 		end
 	end
 end
@@ -1821,21 +1825,32 @@ for _, d in pairs(minetest.registered_nodes) do
 end
 function Mapgen:find_break(y_s, x, z, dir, typ)
 	local minp, maxp = self.minp, self.maxp
+	local csize = self.csize
 	local data, area = self.data, self.area
 	local ystride = self.area.ystride
+	local heightmap = self.heightmap
+
 	if dir == 'up' then
 		local ivm = area:index(x, minp.y, z)
 		for y = minp.y, maxp.y - 1 do
 			if data[ivm] == n_air and data[ivm + ystride] ~= n_air then
-				table.insert(y_s, y + ystride)
+				table.insert(y_s, y - minp.y + 1)
 			end
 			ivm = ivm + ystride
 		end
 	else
+		-- Don't check heightmap. It doesn't work in bubble caves.
 		local ivm = area:index(x, maxp.y, z)
 		for y = maxp.y, minp.y + 1, -1 do
-			if (data[ivm] == n_air and typ == 'liquid' and liquids[data[ivm - ystride]]) or (data[ivm] == n_air and typ ~= 'liquid' and data[ivm - ystride] ~= n_air and not liquids[data[ivm - ystride]]) then
-				table.insert(y_s, y - ystride)
+			if (
+				data[ivm] == n_air and typ == 'liquid'
+				and liquids[data[ivm - ystride]]
+			) or (
+				data[ivm] == n_air and typ ~= 'liquid'
+				and data[ivm - ystride] ~= n_air
+				and not liquids[data[ivm - ystride]]
+			) then
+				table.insert(y_s, y - minp.y - 1)
 			end
 			ivm = ivm - ystride
 		end
@@ -1852,7 +1867,7 @@ function Mapgen:place_deco(ps, deco)
     local minp, maxp = self.minp, self.maxp
     local heightmap, schem = self.heightmap, self.schem
 	local biomemap = self.biomemap
-	local ystride = vm_area.ystride
+	local ystride, f_alt = vm_area.ystride, self.f_alt
 
     local csize = self.csize
     local sidelen = deco.sidelen or csize.x
@@ -1886,10 +1901,6 @@ function Mapgen:place_deco(ps, deco)
 			)
 
             local deco_count = area * nval
-			if deco.all_ceilings or deco.all_floors then
-				-- Why is this necessary?
-				deco_count = deco_count * 10
-			end
             if deco_count > 1 then
                 deco_count = math_floor(deco_count)
             elseif deco_count > 0 then
@@ -1915,13 +1926,11 @@ function Mapgen:place_deco(ps, deco)
                 elseif deco.all_floors then
 					self:find_break(y_s, x, z, 'down')
                 elseif heightmap and heightmap[mapindex] then
-                    y = minp.y + heightmap[mapindex]
-					if y >= minp.y and y <= maxp.y then
+                    y = heightmap[mapindex] + f_alt
+					if y >= 0 and y < 80 then
 						table.insert(y_s, y)
 					end
                 end
-
-				--assert(y >= minp.y and y <= maxp.y)
 
 				local biome = self.biome
 				if biomemap[mapindex] then
@@ -1930,8 +1939,10 @@ function Mapgen:place_deco(ps, deco)
 
 				if #y_s > 0 and (not deco.biomes_i or (biome and deco.biomes_i[biome.name])) then
 					for _, y in pairs(y_s) do
-						local ivm = vm_area:index(x, y, z)
-						if (not deco.place_on_i) or deco.place_on_i[data[ivm]] then
+						local ivm = vm_area:index(x, y + minp.y, z)
+						if ((not deco.place_on_i) or deco.place_on_i[data[ivm]])
+						and (not deco.y_max or deco.y_max >= y + f_alt)
+						and (not deco.y_min or deco.y_min <= y + f_alt) then
 							if up then
 								ivm = ivm - ystride
 							else
@@ -1957,7 +1968,7 @@ function Mapgen:place_deco(ps, deco)
 									local rot = self.gpr:next(0, 3)
 									y = y + (deco.place_offset_y or 0)
 									local sch = deco.schematic_array or deco.schematic
-									self:place_schematic(sch, VN(x, y, z), deco.flags, rot)
+									self:place_schematic(sch, VN(x, y + minp.y, z), deco.flags, rot)
 									if up then
 										local my = y + (deco.place_offset_y or 0) - sch.size.y + 1
 										self:place_schematic(sch, VN(x, my, z), deco.flags, rot, 2)
@@ -2290,7 +2301,7 @@ function mod.spawnplayer(player)
 		0,
 		math.random(range) + math.random(range) - range
 	)
-	--pos = vector.new(2,0,1)
+	pos = vector.new(3,0,-3)
 	pos = vector.multiply(pos, 800)
 	pos = vector.subtract(vector.add(pos, vector.divide(csize, 2)), chunk_offset)
 	pos.y = pos.y + base_level - csize.y / 2 + 2

@@ -390,4 +390,17 @@ do
 		inventory_image = 'glowing_fungus.png',
 		groups = {dig_immediate = 3},
 	})
+
+
+	minetest.register_node(mod_name..':bound_spirit', {
+		description = 'Tormented Spirit',
+		tiles = {'spirit.png'},
+		use_texture_alpha = true,
+		light_source = 1,
+		paramtype2 = 'facedir',
+		walkable = false,
+		pointable = false,
+		groups = {poison = 1},
+		drawtype = 'plantlike',
+	})
 end
