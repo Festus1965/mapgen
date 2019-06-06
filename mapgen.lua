@@ -15,11 +15,15 @@ local mod_name = 'mapgen'
 
 
 local math_abs = math.abs
+local math_cos = math.cos
+local math_ceil = math.ceil
 local math_floor = math.floor
 local math_max = math.max
 local math_min = math.min
-local math_sqrt = math.sqrt
+local math_pi = math.pi
 local math_random = math.random
+local math_sin = math.sin
+local math_sqrt = math.sqrt
 local node = mod.node
 local os_clock = os.clock
 local VN = vector.new
@@ -230,8 +234,6 @@ function Mapgen:bubble_cave()
 		biome = cave_biomes[pr:next(1, #cave_biomes)] or {}
 	end
 	local biome = cave_biomes[self.gpr:next(1, #cave_biomes)] or {}
-	--------------------
-	biome = {}
 
 	local n_b_stone = node[biome.stone_type] or n_stone
 	local n_ceiling = node[biome.ceiling_node]
@@ -408,35 +410,20 @@ function Mapgen:bubble_cave()
 end
 
 
--- check
-function Mapgen:dungeon(box_type, nofill)
+function Mapgen:dungeon(box_type)
 		local t_moria = os_clock()
 
 		if not box_type then
-			box_type = box_names[self.gpr:next(1, #box_names)]
+			return
 		end
 
 		local geo = Geomorph.new()
 		local box = geomorphs[box_type] or {}
-		if box.areas and box.areas:find('geomoria') and not nofill then
-			geo:add({
-				action = 'cube',
-				node = 'default:stone',
-				location = VN(0, 0, 0),
-				size = VN(80, 80, 80),
-			})
-		end
 		for n, v in pairs(box.shapes or {}) do
 			geo:add(v)
 		end
 		geo:write_to_map(self, nil, geo_replace[box_type])
 
-		if box.areas and box.areas:find('geomoria') and not nofill then
-			if not let_there_be_light then
-				self:place_torches()
-			end
-			self:dungeon_decor()
-		end
 		mod.moria_chunks = mod.moria_chunks + 1
 		mod.time_moria = mod.time_moria + os_clock() - t_moria
 end
@@ -471,9 +458,7 @@ function Mapgen:generate(timed)
 		end
 	end
 
-	local t_environ = os_clock()
 	self:make_noise()
-	mod.time_env_noise = mod.time_env_noise + os_clock() - t_environ
 
 	local t_terrain = os_clock()
 	local sup_chunk = vector.floor(vector.divide(vector.add(minp, chunk_offset), 80))
@@ -485,6 +470,7 @@ function Mapgen:generate(timed)
 
 	local decorate = true
 	local base_heat = math_abs(90 - ((((minp.z + chunk_offset + 1000) / 6000) * 180) % 180))
+	mod.base_heat = base_heat
 
 	if sup_chunk.y >= 4 or (sup_chunk.x == 0 and sup_chunk.z == 0) then
 		local ground = (sup_chunk.y == 5)
@@ -493,7 +479,7 @@ function Mapgen:generate(timed)
 		end
 
 		--print(minp.y, sup_chunk.y, f_alt)
-		self:terrain(base_heat)
+		self:terrain()
 
 		local do_ore = true
 		if sup_chunk.x == 0 and sup_chunk.z == 0 then
@@ -510,7 +496,7 @@ function Mapgen:generate(timed)
 				do_ore = false
 			end
 		else
-			if math.max(self.height_max, 10) < f_alt then
+			if math_max(self.height_max, 10) < f_alt then
 				self:planets()
 			end
 			if ground then
@@ -579,7 +565,7 @@ local function generate(minp, maxp, seed)
 	end
 
 	mg:generate(true)
-	local mem = math.floor(collectgarbage('count')/1024)
+	local mem = math_floor(collectgarbage('count')/1024)
 	if mem > 200 then
 		print('Lua Memory: ' .. mem .. 'M')
 	end
@@ -596,11 +582,11 @@ function Mapgen:houses()
 	local stone = 'default:sandstone'
 	for _, box in pairs(plots) do
 		local pos = vector.add(box.pos, -2)
-		local sz = vector.add(box.sz, 4)
+		local size = vector.add(box.size, 4)
 		local good = true
 
-		for z = pos.z, pos.z + sz.z do
-			for x = pos.x, pos.x + sz.x do
+		for z = pos.z, pos.z + size.z do
+			for x = pos.x, pos.x + size.x do
 				local index = z * csize.x + x + 1
 				if not heightmap[index] or heightmap[index] < base_level - 1 or heightmap[index] > base_level + 1 then
 					good = false
@@ -620,10 +606,9 @@ function Mapgen:houses()
 			end
 			local walls1 = 'default:'..walls
 			local roof1 = 'default:'..roof
-			local roof2 = 'stairs:stair_'..roof
 			local geo = Geomorph.new()
 			local lev = pr:next(1, 4) - 2
-			if lev == 0 and #self.puzzle_boxes == 0 and box.sz.x >= 7 and box.sz.z >= 7 then
+			if #self.puzzle_boxes == 0 and lev == 0 and box.size.x >= 7 and box.size.z >= 7 then
 				local width = 7
 				table.insert(self.puzzle_boxes, {
 					pos = table.copy(pos),
@@ -635,78 +620,58 @@ function Mapgen:houses()
 				-- foundation
 				pos = table.copy(box.pos)
 				pos.y = pos.y - 1
-				sz = table.copy(box.sz)
-				sz.y = 1
+				size = table.copy(box.size)
+				size.y = 1
 				geo:add({
 					action = 'cube',
 					node = 'default:cobble',
 					location = pos,
-					size = sz,
+					size = size,
 				})
 
 				pos = table.copy(box.pos)
 				pos.y = pos.y + lev * 5
-				sz = table.copy(box.sz)
+				size = table.copy(box.size)
 				if pr:next(1, 3) == 1 then
-					sz.y = 1
+					size.y = 1
 					geo:add({
 						action = 'cube',
 						node = roof1,
 						location = pos,
-						size = sz,
+						size = size,
 					})
-				elseif box.sz.x <= box.sz.z then
-					sz.x = math_floor(sz.x / 2)
+				elseif box.size.x <= box.size.z then
+					size.x = math_floor(size.x / 2)
 
 					local pos2 = table.copy(pos)
-					pos2.x = pos2.x + sz.x
-					pos2.y = pos2.y + sz.x - 1
+					pos2.x = pos2.x + size.x
+					pos2.y = pos2.y + size.x - 1
 
 					pos = table.copy(pos)
-					pos.x = pos.x + box.sz.x - sz.x
+					pos.x = pos.x + box.size.x - size.x
 				else
-					sz.z = math_floor(sz.z / 2)
+					size.z = math_floor(size.z / 2)
 
 					local pos2 = table.copy(pos)
-					pos2.z = pos2.z + sz.z
-					pos2.y = pos2.y + sz.z - 1
-					--[[
-					geo:add({
-						action = 'cube',
-						node = roof1,
-						location = pos2,
-						size = VN(sz.x, 1, 1),
-					})
-					geo:add({
-						action = 'cube',
-						node = roof1,
-						location = VN(pos2.x + box.sz.x - 1, pos.y, pos2.z),
-						size = VN(1, sz.z, 1),
-					})
-					geo:add({
-						action = 'cube',
-						node = roof1,
-						location = VN(pos2.x, pos.y, pos2.z),
-						size = VN(1, sz.z, 1),
-					})
-					--]]
+					pos2.z = pos2.z + size.z
+					pos2.y = pos2.y + size.z - 1
 
 					pos = table.copy(pos)
-					pos.z = pos.z + box.sz.z - sz.z
+					pos.z = pos.z + box.size.z - size.z
 				end
 				pos = table.copy(box.pos)
 				pos.y = box.pos.y
-				sz = table.copy(box.sz)
-				sz.y = lev * 5
+				size = table.copy(box.size)
+				size.y = lev * 5
 				geo:add({
 					action = 'cube',
 					node = walls1,
 					location = pos,
-					size = sz,
+					size = size,
 				})
 				for y = 0, lev - 1 do
 					local pos2 = vector.add(pos, 1)
-					local sz2 = vector.add(sz, -2)
+					local sz2 = vector.add(size, -2)
 					pos2.y = box.pos.y + y * 5 + 1
 					sz2.y = 4
 					geo:add({
@@ -718,49 +683,49 @@ function Mapgen:houses()
 				end
 
 				pos = table.copy(box.pos)
-				sz = table.copy(box.sz)
+				size = table.copy(box.size)
 				for y = 0, lev - 1 do
-					for z = box.pos.z + 2, box.pos.z + box.sz.z, 4 do
+					for z = box.pos.z + 2, box.pos.z + box.size.z, 4 do
 						geo:add({
 							action = 'cube',
 							node = 'air',
 							location = VN(box.pos.x, box.pos.y + y * 5 + 2, z),
-							size = VN(box.sz.x, 2, 2),
+							size = VN(box.size.x, 2, 2),
 						})
 					end
-					for x = box.pos.x + 2, box.pos.x + box.sz.x, 4 do
+					for x = box.pos.x + 2, box.pos.x + box.size.x, 4 do
 						geo:add({
 							action = 'cube',
 							node = 'air',
 							location = VN(x, box.pos.y + y * 5 + 2, box.pos.z),
-							size = VN(2, 2, box.sz.z),
+							size = VN(2, 2, box.size.z),
 						})
 					end
 				end
 
 				do
-					local l = math_max(box.sz.x, box.sz.z)
+					local l = math_max(box.size.x, box.size.z)
 					local f = pr:next(0, 2)
-					pos = vector.round(vector.add(box.pos, vector.divide(box.sz, 2)))
+					pos = vector.round(vector.add(box.pos, vector.divide(box.size, 2)))
 					pos = vector.subtract(pos, math_floor(l / 2 + 0.5) - f)
 					pos.y = pos.y + lev * 5
 					geo:add({
 						action = 'sphere',
 						node = 'air',
-						intersect = {walls1, roof1, roof2},
+						intersect = {walls1, roof1},
 						location = pos,
 						size = VN(l - 2 * f, 20, l - 2 * f),
 					})
 
 					for i = 1, 3 do
 						local pos2 = table.copy(pos)
-						pos2.x = pos2.x + pr:next(0, box.sz.x) - math_floor(box.sz.x / 2)
-						pos2.z = pos2.z + pr:next(0, box.sz.z) - math_floor(box.sz.z / 2)
+						pos2.x = pos2.x + pr:next(0, box.size.x) - math_floor(box.size.x / 2)
+						pos2.z = pos2.z + pr:next(0, box.size.z) - math_floor(box.size.z / 2)
 
 						geo:add({
 							action = 'sphere',
 							node = 'air',
-							intersect = {walls1, roof1, roof2},
+							intersect = {walls1, roof1},
 							location = pos2,
 							size = VN(l, 20, l),
 						})
@@ -771,7 +736,7 @@ function Mapgen:houses()
 			do
 				local ore
 				pos = table.copy(box.pos)
-				local size = table.copy(box.sz)
+				local size = table.copy(box.size)
 				if ore_odds then
 					local orn = pr:next(1, total_ore_odds)
 					local i = 0
@@ -790,7 +755,7 @@ function Mapgen:houses()
 				geo:add({
 					action = 'cube',
 					node = ore,
-					intersect = {walls1, roof1, roof2},
+					intersect = {walls1, roof1},
 					location = pos,
 					size = size,
 					random = 50,
@@ -910,27 +875,27 @@ function Mapgen:map_roads()
 	-- Generate plots for constructions.
 	for ct = 1, 15 do
 		local scale = self.gpr:next(1, 2) * 4
-		local sz = VN(self.gpr:next(1, 2), 1, self.gpr:next(1, 2))
-		sz.x = sz.x * scale + 9
-		sz.y = sz.y * 8
-		sz.z = sz.z * scale + 9
+		local size = VN(self.gpr:next(1, 2), 1, self.gpr:next(1, 2))
+		size.x = size.x * scale + 9
+		size.y = size.y * 8
+		size.z = size.z * scale + 9
 
 		for ct2 = 1, 10 do
-			local pos = VN(self.gpr:next(2, csize.x - sz.x - 3), base_level, self.gpr:next(2, csize.z - sz.z - 3))
+			local pos = VN(self.gpr:next(2, csize.x - size.x - 3), base_level, self.gpr:next(2, csize.z - size.z - 3))
 			local good = true
 			for _, box in pairs(plots) do
-				if box.pos.x + box.sz.x < pos.x
-				or pos.x + sz.x < box.pos.x
-				or box.pos.z + box.sz.z < pos.z
-				or pos.z + sz.z < box.pos.z then
+				if box.pos.x + box.size.x < pos.x
+				or pos.x + size.x < box.pos.x
+				or box.pos.z + box.size.z < pos.z
+				or pos.z + size.z < box.pos.z then
 					-- nop
 				else
 					good = false
 					break
 				end
 			end
-			for z = pos.z, pos.z + sz.z do
-				for x = pos.x, pos.x + sz.x do
+			for z = pos.z, pos.z + size.z do
+				for x = pos.x, pos.x + size.x do
 					local index = z * csize.x + x + 1
 					if roads[index] then
 						good = false
@@ -945,7 +910,7 @@ function Mapgen:map_roads()
 				pos.y = pos.y - 2
 				table.insert(plots, {
 					pos = vector.add(pos, 2),
-					sz = vector.add(sz, -4)
+					size = vector.add(size, -4)
 				})
 				break
 			end
@@ -1348,17 +1313,17 @@ function Mapgen:simple_ruin()
 
 	for ct = 1, 15 do
 		local scale = self.gpr:next(2, 3) * 4
-		local sz = VN(self.gpr:next(1, 3), 1, self.gpr:next(1, 3))
-		sz.x = sz.x * scale + 5
-		sz.y = sz.y * 8
-		sz.z = sz.z * scale + 5
+		local size = VN(self.gpr:next(1, 3), 1, self.gpr:next(1, 3))
+		size.x = size.x * scale + 5
+		size.y = size.y * 8
+		size.z = size.z * scale + 5
 
 		for ct2 = 1, 10 do
-			local pos = VN(self.gpr:next(1, csize.x - sz.x - 2), base_level, self.gpr:next(1, csize.z - sz.z - 2))
+			local pos = VN(self.gpr:next(1, csize.x - size.x - 2), base_level, self.gpr:next(1, csize.z - size.z - 2))
 			local good = true
 			for _, box in pairs(boxes) do
-				if box.pos.x + box.sz.x < pos.x or pos.x + sz.x < box.pos.x
-				or box.pos.z + box.sz.z < pos.z or pos.z + sz.z < box.pos.z then
+				if box.pos.x + box.size.x < pos.x or pos.x + size.x < box.pos.x
+				or box.pos.z + box.size.z < pos.z or pos.z + size.z < box.pos.z then
 					-- nop
 				else
 					good = false
@@ -1366,7 +1331,7 @@ function Mapgen:simple_ruin()
 				end
 			end
 			if good then
-				table.insert(boxes, { pos = pos, sz = sz })
+				table.insert(boxes, { pos = pos, size = size })
 				break
 			end
 		end
@@ -1375,11 +1340,11 @@ function Mapgen:simple_ruin()
 	local stone = 'default:sandstone'
 	for _, box in pairs(boxes) do
 		local pos = table.copy(box.pos)
-		local sz = table.copy(box.sz)
+		local size = table.copy(box.size)
 
-		for z = pos.z, pos.z + sz.z do
+		for z = pos.z, pos.z + size.z do
 			local index = z * csize.x + pos.x + 1
-			for x = pos.x, pos.x + sz.x do
+			for x = pos.x, pos.x + size.x do
 				heightmap[index] = base_level
 				index = index + 1
 			end
@@ -1387,49 +1352,49 @@ function Mapgen:simple_ruin()
 
 		-- foundation
 		pos.y = pos.y - 2
-		sz.y = 3
+		size.y = 3
 		geo:add({
 			action = 'cube',
 			node = stone,
 			location = pos,
-			size = sz,
+			size = size,
 		})
 
 		pos = table.copy(pos)
 		pos.y = pos.y + 3
-		sz = table.copy(sz)
-		sz.y = 1
+		size = table.copy(size)
+		size.y = 1
 		geo:add({
 			action = 'cube',
 			node = 'air',
 			location = pos,
-			size = sz,
+			size = size,
 		})
 
 		box.pos.x = box.pos.x + 2
 		box.pos.z = box.pos.z + 2
-		box.sz.x = box.sz.x - 4
-		box.sz.z = box.sz.z - 4
+		box.size.x = box.size.x - 4
+		box.size.z = box.size.z - 4
 
 		pos = table.copy(box.pos)
 		pos.y = pos.y + 8
-		sz = table.copy(box.sz)
-		sz.y = 1
+		size = table.copy(box.size)
+		size.y = 1
 		geo:add({
 			action = 'cube',
 			node = stone,
 			location = pos,
-			size = sz,
+			size = size,
 		})
 		pos = vector.add(box.pos, 1)
 		pos.y = pos.y + 8
-		sz = vector.add(box.sz, -2)
-		sz.y = 1
+		size = vector.add(box.size, -2)
+		size.y = 1
 		geo:add({
 			action = 'cube',
 			node = stone,
 			location = pos,
-			size = sz,
+			size = size,
 		})
 		pos = table.copy(pos)
 		pos.y = pos.y - 1
@@ -1437,41 +1402,41 @@ function Mapgen:simple_ruin()
 			action = 'cube',
 			node = 'air',
 			location = pos,
-			size = sz,
+			size = size,
 		})
 		local pool = 14
-		if box.sz.x > pool and box.sz.z > pool then
+		if box.size.x > pool and box.size.z > pool then
 			pos = vector.add(box.pos, (pool / 2) - 1)
 			pos.y = box.pos.y + 1
-			sz = vector.add(box.sz, -(pool - 2))
-			sz.y = 1
+			size = vector.add(box.size, -(pool - 2))
+			size.y = 1
 			geo:add({
 				action = 'cube',
 				node = stone,
 				location = pos,
-				size = sz,
+				size = size,
 			})
 			pos = vector.add(box.pos, pool / 2)
 			pos.y = box.pos.y + 1
-			sz = vector.add(box.sz, -pool)
-			sz.y = 1
+			size = vector.add(box.size, -pool)
+			size.y = 1
 			geo:add({
 				action = 'cube',
 				node = 'default:water_source',
 				location = pos,
-				size = sz,
+				size = size,
 			})
 		end
 
-		for z = box.pos.z, box.pos.z + box.sz.z, 4 do
-			for x = box.pos.x, box.pos.x + box.sz.x, 4 do
-				if x == box.pos.x or x == box.pos.x + box.sz.x - 1
-				or z == box.pos.z or z == box.pos.z + box.sz.z - 1 then
+		for z = box.pos.z, box.pos.z + box.size.z, 4 do
+			for x = box.pos.x, box.pos.x + box.size.x, 4 do
+				if x == box.pos.x or x == box.pos.x + box.size.x - 1
+				or z == box.pos.z or z == box.pos.z + box.size.z - 1 then
 					geo:add({
 						action = 'cube',
 						node = stone,
 						location = VN(x, box.pos.y, z),
-						size = VN(1, box.sz.y, 1),
+						size = VN(1, box.size.y, 1),
 					})
 				end
 			end
@@ -1567,9 +1532,9 @@ function Mapgen:spirals()
 
 	for my = minp.y - 2, maxp.y + 2 do
 		for ot = 1, n1 * 2 do
-			local t = my / s1 + math.pi * (ot / n1)
-			local mx = math.floor(minp.x + 40 + r1 * math.cos(t))
-			local mz = math.floor(minp.z + 40 + r1 * math.sin(t))
+			local t = my / s1 + math_pi * (ot / n1)
+			local mx = math_floor(minp.x + 40 + r1 * math_cos(t))
+			local mz = math_floor(minp.z + 40 + r1 * math_sin(t))
 			local ivm = area:index(mx, my, mz)
 			if data[ivm] == n_air or data[ivm] == n_ignore or data[ivm] == n_cloud_hard or data[ivm] == n_leaves then
 				data[ivm] = node['default:tree']
@@ -1607,8 +1572,10 @@ end
 
 
 -- check
-function Mapgen:terrain(base_heat)
+function Mapgen:terrain()
 	local csize, area = self.csize, self.area
+	local csize_y = csize.y
+	local base_heat = mod.base_heat
 	local biomes = mod.biomes
 	local data = self.data
 	local f_alt = self.f_alt
@@ -1619,14 +1586,18 @@ function Mapgen:terrain(base_heat)
 	local ystride = area.ystride
 	local p2data = self.p2data
 	local hx, hz = csize.x / 2, csize.z / 2
+	local ground_noise_map = self.noise['ground_2'].map
+	local humidity_1_map = self.noise['humidity_1'].map
+	local humidity_2_map = self.noise['humidity_2'].map
+	local heat_2_map = self.noise['heat_2'].map
 
-	local ground_noise = 'ground_1'
+	local n_cobble = node['default:cobble']
+	local n_mossy = node['default:mossycobble']
+
 	local roads = self.roads
 
 	f_alt = f_alt or 0
 	base_heat = base_heat or 65
-
-	ground_noise = 'ground_2'
 
 	local biome = {}
 	local local_water_level = base_level - f_alt - 2
@@ -1634,13 +1605,11 @@ function Mapgen:terrain(base_heat)
 
 	local height_min = mod.max_height
 	local height_max = -mod.max_height
-	local height_mod = 0
-	local height_mul = 1
 
 	local index = 1
 	for z = minp.z, maxp.z do
 		for x = minp.x, maxp.x do
-			local ground_1 = self.noise[ground_noise].map[index]
+			local ground_1 = ground_noise_map[index]
 			height_max = math_max(ground_1, height_max)
 			height_min = math_min(ground_1, height_min)
 			index = index + 1
@@ -1662,27 +1631,22 @@ function Mapgen:terrain(base_heat)
 			local dx = x - minp.x
 
 			-- terrain height calculations
-			local ground_1 = self.noise[ground_noise].map[index]
-			local height = ground_1 + height_mod
-			if height_mul ~= 1 then
-				height = (height - base_level) * height_mul + base_level
-			end
-
-			height = base_level
+			local ground_1 = ground_noise_map[index]
+			local height = base_level
 			if ground_1 > altitude_cutoff_high then
 				height = height + ground_1 - altitude_cutoff_high
 			elseif ground_1 < altitude_cutoff_low then
 				local g = altitude_cutoff_low - ground_1
-				g = g * g / 100
+				g = g * g * 0.01
 				height = math_floor(height - g + 0.5)
 			end
 
-			hu2 = self.noise['humidity_2'].map[index]
-			humidity = self.noise['humidity_1'].map[index] + hu2
-			local heat = base_heat + self.noise['heat_2'].map[index]
+			hu2 = humidity_2_map[index]
+			humidity = humidity_1_map[index] + hu2
+			local heat = base_heat + heat_2_map[index]
 			if height > base_level + 20 then
 				local h2 = height - base_level - 20
-				heat = heat - h2 * h2 / 200
+				heat = heat - h2 * h2 * 0.005
 			end
 
 			local biome_diff
@@ -1709,7 +1673,7 @@ function Mapgen:terrain(base_heat)
 			height = math_floor(height - f_alt + 0.5)
 			--print('rel height ' .. height .. ',' .. f_alt)
 			heightmap[index] = height
-			local m_height = csize.y - height - 1
+			local m_height = csize_y - height - 1
 
 			local stone = node['default:stone']
 			if biome.node_stone then
@@ -1726,25 +1690,26 @@ function Mapgen:terrain(base_heat)
 			local wtd = biome.node_water_top_depth or 0
 			if not wt or wt:find('ice') then
 				wt = node['default:ice']
-				wtd = math.ceil(math.max(0, (30 - heat) / 3))
+				wtd = math_ceil(math_max(0, (30 - heat) / 3))
 			else
 				wt = node[wt]
 			end
 
 			local fill_1 = height - depth_top
 			local fill_2 = fill_1 - math_max(0, depth_filler)
-			local m_fill_1 = csize.y - fill_1 - 1
-			local m_fill_2 = csize.y - fill_2 - 1
+			local m_fill_1 = csize_y - fill_1 - 1
+			local m_fill_2 = csize_y - fill_2 - 1
 
 			local t_y_loop = os_clock()
+			local hu2_check = (humidity > 70 and (hu2 > 1 or math_floor(hu2 * 1000) % 2 == 0))
 			local ivm = area:index(x, minp.y, z)
-			for dy = 0, csize.y - 1 do
+			for dy = 0, csize_y - 1 do
 				if f_alt == 0 and dy >= base_level - 1 and dy <= base_level and roads[index] then
 					--print('road '..dump(f_alt))
-					if humidity > 70 and (hu2 > 1 or math_floor(hu2 * 1000) % 2 == 0) then
-						data[ivm] = node['default:mossycobble']
+					if hu2_check then
+						data[ivm] = n_mossy
 					else
-						data[ivm] = node['default:cobble']
+						data[ivm] = n_cobble
 					end
 				elseif dy > height and dy <= local_water_level then
 					--print('water '..dump(local_water_level))
@@ -1988,7 +1953,7 @@ function Mapgen:place_deco(ps, deco)
 								for y2 = y, y + ht - inc, inc do
 									local d = deco.decoration
 									if type(d) == 'table' then
-										d = deco.decoration[math.random(#d)]
+										d = deco.decoration[math_random(#d)]
 									end
 
 									if type(d) == 'string' then
@@ -2297,11 +2262,11 @@ function mod.spawnplayer(player)
 	-- Very simple, compared to typical mapgen spawn code,
 
 	local pos = vector.new(
-		math.random(range) + math.random(range) - range,
+		math_random(range) + math_random(range) - range,
 		0,
-		math.random(range) + math.random(range) - range
+		math_random(range) + math_random(range) - range
 	)
-	pos = vector.new(3,0,-3)
+	--pos = vector.new(3,0,-3)
 	pos = vector.multiply(pos, 800)
 	pos = vector.subtract(vector.add(pos, vector.divide(csize, 2)), chunk_offset)
 	pos.y = pos.y + base_level - csize.y / 2 + 2
