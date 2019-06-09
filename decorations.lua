@@ -9,6 +9,11 @@ local clone_node = mod.clone_node
 local node = mod.node
 
 
+mod.biomes = {}
+mod.cave_biomes = {}
+
+
+--[[
 mod.cave_biomes = {
 	{
 		name = 'stone',
@@ -194,6 +199,29 @@ mod.cave_biomes = {
 		underwater = true,
 	},
 }
+--]]
+
+
+local function register_biome(def)
+	if not def.name then
+		print('No name biome', dump(def))
+		return
+	end
+
+	local w = table.copy(def)
+	mod.biomes[w.name] = w
+	if w.y_max and w.y_max < -19 then
+		mod.cave_biomes[w.name] = w
+	end
+end
+
+
+do
+	for k, v in pairs(minetest.registered_biomes) do
+		register_biome(v)
+	end
+end
+
 
 
 local function invert_table(t, use_node)
@@ -206,8 +234,22 @@ local function invert_table(t, use_node)
 
 	for _, d in ipairs(t) do
 		if type(d) == 'string' then
+			local l = {}
+			if use_node and d:find('^group:') then
+				local gr = d:gsub('^group:', '')
+				for n, v in pairs(minetest.registered_nodes) do
+					if v.groups[gr] then
+						l[#l+1] = n
+					end
+				end
+			elseif use_node then
+				l = {d}
+			end
+
 			if use_node then
-				new_t[node[d]] = node[d]
+				for _, v in pairs(l) do
+					new_t[node[v]] = node[v]
+				end
 			else
 				new_t[d] = d
 			end
@@ -222,92 +264,119 @@ end
 mod.invert_table = invert_table
 
 
+local function register_decoration(def)
+	local deco = table.copy(def)
+	table.insert(mod.decorations, deco)
+
+	if not deco.name then
+		local nname = (deco.decoration or deco.schematic):gsub('^.*[:/]([^%.]+)', '%1')
+		deco.name = nname
+	end
+
+	if deco.flags and deco.flags ~= '' then
+		for flag in deco.flags:gmatch('[^,]+') do
+			deco[flag] = deco[flag] or true
+		end
+	end
+
+	if deco.place_on then
+		deco.place_on_i = invert_table(deco.place_on, true)
+	end
+
+	if deco.biomes then
+		deco.biomes_i = invert_table(deco.biomes)
+	end
+
+	for _, a in pairs(mod.aquatic_decorations or {}) do
+		if deco.decoration == a or deco.schematic == a then
+			deco.aquatic = true
+		end
+	end
+
+	if deco.deco_type == 'schematic' then
+		if deco.schematic and type(deco.schematic) == 'string' then
+			local s = deco.schematic
+			local f = io.open(s, 'r')
+			if f then
+				f:close()
+				local sch = minetest.serialize_schematic(s, 'lua', {})
+				sch = minetest.deserialize('return {'..sch..'}')
+				sch = sch.schematic
+				deco.schematic_array = sch
+			else
+				print(mod_name .. ': ** Error opening: '..mts)
+			end
+
+			--print(dump(deco.schematic_array))
+			if not deco.schematic_array then
+				print(mod_name .. ': ** Error opening: '..mts)
+			end
+		end
+
+		if not deco.schematic_array and deco.schematic and type(deco.schematic) == 'table' then
+			deco.schematic_array = deco.schematic
+		end
+
+		if deco.schematic_array then
+			-- Force air placement to 0 probability.
+			-- This is usually correct.
+			for _, v in pairs(deco.schematic_array.data) do
+				if v.name == 'air' then
+					v.prob = 0
+					if v.param1 then
+						v.param1 = 0
+					end
+				elseif v.name:find('leaves') or v.name:find('needles') then
+					if v.prob > 127 then
+						v.prob = v.prob - 128
+					end
+				end
+			end
+		else
+			print('FAILed to translate schematic: ' .. deco.name)
+			deco.bad_schem = true
+		end
+	end
+
+	return deco
+end
+
+
 do
 	mod.decorations = {}
 	for n, v in pairs(minetest.registered_decorations) do
-		local deco = table.copy(v)
-		--deco.y_max = nil
-		--deco.y_min = nil
-
-		-- Don't use n.
-		table.insert(mod.decorations, deco)
-
-		if not deco.name then
-			local nname = (deco.decoration or deco.schematic):gsub('^.*[:/]([^%.]+)', '%1')
-			deco.name = nname
-		end
-
-		if deco.flags and deco.flags ~= '' then
-			for flag in deco.flags:gmatch('[^,]+') do
-				deco[flag] = deco[flag] or true
-			end
-		end
-
-		if deco.place_on then
-			deco.place_on_i = invert_table(deco.place_on, true)
-		end
-
-		if deco.biomes then
-			deco.biomes_i = invert_table(deco.biomes)
-		end
-
-		for _, a in pairs(mod.aquatic_decorations or {}) do
-			if deco.decoration == a or deco.schematic == a then
-				deco.aquatic = true
-			end
-		end
-
-		if deco.deco_type == 'schematic' then
-			if deco.schematic and type(deco.schematic) == 'string' then
-				local s = deco.schematic
-				local f = io.open(s, 'r')
-				if f then
-					f:close()
-					local sch = minetest.serialize_schematic(s, 'lua', {})
-					sch = minetest.deserialize('return {'..sch..'}')
-					sch = sch.schematic
-					deco.schematic_array = sch
-				else
-					print(mod_name .. ': ** Error opening: '..mts)
-				end
-
-				--print(dump(deco.schematic_array))
-				if not deco.schematic_array then
-					print(mod_name .. ': ** Error opening: '..mts)
-				end
-			end
-
-			if not deco.schematic_array and deco.schematic and type(deco.schematic) == 'table' then
-				deco.schematic_array = deco.schematic
-			end
-
-			if deco.schematic_array then
-				-- Force air placement to 0 probability.
-				-- This is usually correct.
-				for _, v in pairs(deco.schematic_array.data) do
-					if v.name == 'air' then
-						v.prob = 0
-						if v.param1 then
-							v.param1 = 0
-						end
-					elseif v.name:find('leaves') or v.name:find('needles') then
-						if v.prob > 127 then
-							v.prob = v.prob - 128
-						end
-					end
-				end
-			else
-				print('FAILed to translate schematic: ' .. deco.name)
-				deco.bad_schem = true
-			end
-		end
+		register_decoration(v)
 	end
 end
 
 
 -- Catch any registered by other mods.
-local old_register_decoration = minetest.register_decoration
-minetest.register_decoration = function (def)
-	table.insert(mod.decorations, table.copy(def))
-	old_register_decoration(def)
+do
+	local old_register_decoration = minetest.register_decoration
+	minetest.register_decoration = function (def)
+		local d = register_decoration(def)
+		old_register_decoration(def)
+	end
+
+
+	local old_clear_registered_decorations = minetest.clear_registered_decorations
+	minetest.clear_registered_decorations = function ()
+		mod.decorations = {}
+		old_clear_registered_decorations()
+	end
+
+
+	local old_register_biome = minetest.register_biome
+	minetest.register_biome = function (def)
+		local d = register_biome(def)
+		old_register_biome(def)
+	end
+
+
+	local old_clear_registered_biomes = minetest.clear_registered_biomes
+	minetest.clear_registered_biomes = function ()
+		mod.biomes = {}
+		mod.cave_biomes = {}
+		old_clear_registered_biomes()
+	end
 end
