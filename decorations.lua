@@ -13,195 +13,6 @@ mod.biomes = {}
 mod.cave_biomes = {}
 
 
---[[
-mod.cave_biomes = {
-	{
-		name = 'stone',
-		biome_val = 0,
-		stalagmite = {
-			node = 'default:torch',
-			chance = 50,
-			param2 = 1,
-		},
-	},
-	{
-		name = 'lichen',
-		ceiling_node = mod_name..':stone_with_lichen',
-		dirt = 'default:dirt',
-		dirt_chance = 10,
-		floor_node = mod_name..':stone_with_lichen',
-		fungi = true,
-		stalactite = {
-			node = mod_name..':stalactite_lichen',
-			chance = 20,
-		},
-		stalagmite = {
-			node = mod_name..':stalagmite_lichen',
-			chance = 20,
-		},
-		surface_depth = 1,
-		underwater = true,
-	},
-	{
-		name = 'algae',
-		ceiling_node = mod_name..':stone_with_algae',
-		dirt = 'default:dirt',
-		dirt_chance = 10,
-		floor_node = mod_name..':stone_with_algae',
-		fungi = true,
-		stalactite = {
-			node = mod_name..':stalactite_slimy',
-			chance = 20,
-		},
-		stalagmite = {
-			node = mod_name..':stalagmite_slimy',
-			chance = 20,
-		},
-		surface_depth = 1,
-		underwater = true,
-	},
-	{
-		name = 'granite_lava',
-		deco = 'default:mese',
-		deco_chance = 200,
-		fluid = 'default:lava_source',
-		gas = mod_name..':inert_gas',
-		surface_depth = 1,
-		stalactite = {
-			node = 'default:lava_source',
-			chance = 200,
-		},
-		stone_type = mod_name..':granite',
-	},
-	{
-		name = 'granite',
-		stalagmite = {
-			node = 'default:torch',
-			chance = 50,
-			param2 = 1,
-		},
-		stone_type = mod_name..':granite',
-		underwater = true,
-	},
-	{
-		name = 'salt',
-		ceiling_node = mod_name..':stone_with_salt',
-		deco = mod_name..':radioactive_ore',
-		deco_chance = 100,
-		floor_node = mod_name..':stone_with_salt',
-		surface_depth = 2,
-		underwater = false,
-	},
-	{
-		name = 'basalt',
-		stalagmite = {
-			node = 'default:torch',
-			chance = 50,
-			param2 = 1,
-		},
-		stone_type = mod_name..':basalt',
-		underwater = true,
-	},
-	{
-		name = 'moss',
-		ceiling_node = mod_name..':stone_with_moss',
-		deco = mod_name..':glowing_fungal_stone',
-		deco_chance = 50,
-		floor_node = mod_name..':stone_with_moss',
-		fluid = 'default:water_source',
-		stalactite = {
-			node = mod_name..':stalactite_mossy',
-			chance = 20,
-		},
-		stalagmite = {
-			node = mod_name..':stalagmite_mossy',
-			chance = 20,
-		},
-		surface_depth = 1,
-		underwater = true,
-	},
-	{
-		name = 'sand',
-		ceiling_node = 'default:sandstone',
-		floor_node = 'default:sand',
-		deco = mod_name..':phosph_sand',
-		deco_chance = 30,
-		surface_depth = 2,
-		underwater = true,
-	},
-	{
-		name = 'coal',
-		ceiling_node = mod_name..':black_sand',
-		deco = 'default:coalblock',
-		deco_chance = 100,
-		floor_node = mod_name..':black_sand',
-		stalagmite = {
-			node = 'fire:permanent_flame',
-			chance = 50,
-		},
-		stone_type = mod_name..':basalt',
-		surface_depth = 2,
-	},
-	{
-		name = 'lichen_dead',
-		ceiling_node = mod_name..':stone_with_lichen',
-		floor_node = mod_name..':stone_with_lichen',
-		gas = mod_name..':inert_gas',
-		stalactite = {
-			node = mod_name..':stalactite',
-			chance = 12,
-		},
-		stalagmite = {
-			node = {mod_name..':will_o_wisp_glow', mod_name..':stalagmite'},
-			chance = 50,
-		},
-		surface_depth = 1,
-		--underwater = true,
-	},
-	{
-		name = 'hell',
-		fluid = 'default:lava_source',
-		schematics = { { schematic = mod.schematics['hell_tree'], chance = 150 }, },
-		stalagmite = {
-			node = mod_name..':bound_spirit',
-			chance = 20,
-		},
-		stone_type = mod_name..':basalt',
-	},
-	{
-		name = 'hot',
-		ceiling_node = mod_name..':hot_rock',
-		floor_node = mod_name..':hot_rock',
-		fluid = 'default:lava_source',
-		stalagmite = {
-			node = mod.hot_spikes,
-			chance = 50,
-		},
-		stone_type = mod_name..':granite',
-		surface_depth = 1,
-		underwater = false,
-	},
-	{
-		name = 'ice',
-		ceiling_node = 'default:ice',
-		deco = mod_name..':will_o_wisp_glow',
-		deco_chance = 200,
-		floor_node = 'default:ice',
-		stalactite = {
-			node = mod_name..':icicle_down',
-			chance = 12,
-		},
-		stalagmite = {
-			node = mod_name..':icicle_up',
-			chance = 12,
-		},
-		surface_depth = 2,
-		underwater = true,
-	},
-}
---]]
-
-
 local function register_biome(def)
 	if not def.name then
 		print('No name biome', dump(def))
@@ -210,7 +21,8 @@ local function register_biome(def)
 
 	local w = table.copy(def)
 	mod.biomes[w.name] = w
-	if w.y_max and w.y_max < -19 then
+	if (w.y_max and w.y_max < -19)
+	and (w.y_min and w.y_min == -31000) then
 		mod.cave_biomes[w.name] = w
 	end
 end
@@ -274,7 +86,7 @@ local function register_decoration(def)
 	end
 
 	if deco.flags and deco.flags ~= '' then
-		for flag in deco.flags:gmatch('[^,]+') do
+		for flag in deco.flags:gmatch('[^, ]+') do
 			deco[flag] = deco[flag] or true
 		end
 	end

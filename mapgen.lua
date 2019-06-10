@@ -126,14 +126,14 @@ local ore_intersect = {
 	'default:stone',
 	'default:sandstone',
 	'default:desert_stone',
-	mod_name..':basalt',
-	mod_name..':granite',
-	mod_name..':stone_with_lichen',
-	mod_name..':stone_with_algae',
-	mod_name..':stone_with_moss',
-	mod_name..':stone_with_salt',
-	mod_name..':hot_rock',
-	mod_name..':sunny_stone',
+	'environ:basalt',
+	'environ:granite',
+	'environ:stone_with_lichen',
+	'environ:stone_with_algae',
+	'environ:stone_with_moss',
+	'environ:stone_with_salt',
+	'environ:hot_rock',
+	'environ:sunny_stone',
 }
 
 
@@ -158,21 +158,6 @@ local stone_types = {
 	{'default:sandstonebrick', 'default:sandstonebrick', 'default:sandstone', 'default:sandstone_block'},
 	{'default:desert_sandstone_brick', 'default:desert_sandstone_brick', 'default:desert_sandstone', 'default:desert_sandstone_block'},
 	{'default:silver_sandstone_brick', 'default:silver_sandstone_brick', 'default:silver_sandstone', 'default:silver_sandstone_block'},
-}
-
-
-local under_stones = {
-	{'default:stone', 'default:water_source', nil},
-	{'default:sandstone', 'default:water_source', nil},
-	{'default:desert_stone', 'default:water_source', nil},
-	{'default:silver_sandstone', 'default:water_source', nil},
-	{mod_name..':basalt', 'default:lava_source', nil},
-	{mod_name..':granite', 'default:lava_source', nil},
-	{mod_name..':stone_with_lichen', 'default:water_source', nil},
-	{mod_name..':stone_with_algae', 'default:water_source', mod_name..':glowing_fungal_stone'},
-	{mod_name..':stone_with_moss', 'default:water_source', mod_name..':glowing_fungal_stone'},
-	{mod_name..':stone_with_salt', 'default:water_source', mod_name..':radioactive_ore'},
-	{mod_name..':hot_rock', 'default:lava_source', nil},
 }
 
 
@@ -247,10 +232,10 @@ function Mapgen:bubble_cave()
 
 	local n_b_stone = node[biome.node_stone] or n_stone
 	local n_ceiling = node[biome.ceiling_node]
-	local n_lining = node[biome.node_lining] or n_stone
+	local n_lining = node[biome.node_lining]
 	local n_floor = node[biome.floor_node]
 	local n_fluid = node[biome.node_cave_liquid]
-	local n_gas = node[biome.gas] or n_air
+	local n_gas = node[biome.node_gas] or n_air
 	local n_stalac, n_stalag, stalac_p2, stalag_p2
 	local schematics = biome.schematics or {}
 	local stalactite_chance, stalagmite_chance
@@ -298,7 +283,7 @@ function Mapgen:bubble_cave()
 	local size = VN(80,80,80)
 	geo:add({
 		action = 'cube',
-		node = biome.stone_type or 'default:stone',
+		node = biome.node_stone or 'default:stone',
 		location = table.copy(pos),
 		size = table.copy(size),
 	})
@@ -356,17 +341,6 @@ function Mapgen:bubble_cave()
 						end
 						p2data[ivm] = 0
 					end
-				elseif n_stalac and #n_stalac > 0 and y > center.y
-				and diff == 19 + ground and data[ivm] == n_air
-				and pr:next(1, stalactite_chance) == 1 then
-					data[ivm] = n_stalac[pr:next(1, #n_stalac)]
-					p2data[ivm] = stalac_p2
-				elseif n_stalag and #n_stalag > 0 and y < center.y
-				and diff == 19 + ground and data[ivm] == n_air
-				and y > center.y - cave_level
-				and pr:next(1, stalagmite_chance) == 1 then
-					data[ivm] = n_stalag[pr:next(1, #n_stalag)]
-					p2data[ivm] = stalag_p2
 				elseif diff < cave_level + ground and data[ivm] == n_air then
 					if n_fluid and y <= center.y - cave_level then
 						data[ivm] = n_fluid
@@ -1768,11 +1742,16 @@ function Mapgen:find_break(y_s, x, z, dir, typ)
 	local data, area = self.data, self.area
 	local ystride = self.area.ystride
 	local heightmap = self.heightmap
+	local gas = n_air
+
+	if typ == 'aquatic' then
+		gas = n_water
+	end
 
 	if dir == 'up' then
 		local ivm = area:index(x, minp.y, z)
 		for y = minp.y, maxp.y - 1 do
-			if data[ivm] == n_air and data[ivm + ystride] ~= n_air then
+			if data[ivm] == gas and data[ivm + ystride] ~= gas then
 				table.insert(y_s, y - minp.y + 1)
 			end
 			ivm = ivm + ystride
@@ -1782,11 +1761,11 @@ function Mapgen:find_break(y_s, x, z, dir, typ)
 		local ivm = area:index(x, maxp.y, z)
 		for y = maxp.y, minp.y + 1, -1 do
 			if (
-				data[ivm] == n_air and typ == 'liquid'
+				data[ivm] == gas and typ == 'liquid'
 				and liquids[data[ivm - ystride]]
 			) or (
-				data[ivm] == n_air and typ ~= 'liquid'
-				and data[ivm - ystride] ~= n_air
+				data[ivm] == gas and typ ~= 'liquid'
+				and data[ivm - ystride] ~= gas
 				and not liquids[data[ivm - ystride]]
 			) then
 				table.insert(y_s, y - minp.y - 1)
@@ -1856,13 +1835,21 @@ function Mapgen:place_deco(ps, deco)
                 local y, up
 				local y_s = {}
 
+				-- Don't put it on the same spot, ceiling and floor.
+				if deco.all_ceilings and deco.all_floors then
+					if ps:next(1, 2) == 1 then
+						up = true
+					end
+				elseif deco.all_ceilings then
+					up = true
+				end
+
                 if deco.liquid_surface then
 					self:find_break(y_s, x, z, 'down', 'liquid')
-                elseif deco.all_ceilings then
-					self:find_break(y_s, x, z, 'up')
-					up = true
+                elseif up then
+					self:find_break(y_s, x, z, 'up', (deco.aquatic and 'aquatic' or nil))
                 elseif deco.all_floors then
-					self:find_break(y_s, x, z, 'down')
+					self:find_break(y_s, x, z, 'down', (deco.aquatic and 'aquatic' or nil))
                 elseif heightmap and heightmap[mapindex] then
                     y = heightmap[mapindex]
 					if y >= 0 and y < 80 then
@@ -1907,12 +1894,13 @@ function Mapgen:place_deco(ps, deco)
 
 								if (deco.aquatic or data[ivm] == n_air) and not too_close then
 									local rot = self.gpr:next(0, 3)
-									y = y + (deco.place_offset_y or 0)
 									local sch = deco.schematic_array or deco.schematic
-									self:place_schematic(sch, VN(x, y + minp.y, z), deco.flags, rot)
 									if up then
-										local my = y + (deco.place_offset_y or 0) - sch.size.y + 1
-										self:place_schematic(sch, VN(x, my, z), deco.flags, rot, 2)
+										y = y - (deco.place_offset_y or 0) - sch.size.y + 1
+										self:place_schematic(sch, VN(x, y + minp.y, z), deco.flags, rot, 2)
+									else
+										y = y + (deco.place_offset_y or 0)
+										self:place_schematic(sch, VN(x, y + minp.y, z), deco.flags, rot)
 									end
 									schem[#schem+1] = VN(x, y + minp.y, z)
 								end
@@ -1924,7 +1912,11 @@ function Mapgen:place_deco(ps, deco)
 									inc = -1
 								end
 								if deco.place_offset_y then
-									ivm = ivm + deco.place_offset_y * ystride
+									if up then
+										ivm = ivm - deco.place_offset_y * ystride
+									else
+										ivm = ivm + deco.place_offset_y * ystride
+									end
 								end
 								for y2 = y, y + ht - inc, inc do
 									local d = deco.decoration
@@ -1943,7 +1935,7 @@ function Mapgen:place_deco(ps, deco)
 
 									ivm = ivm + ystride * inc
 									if not (deco.aquatic or data[ivm] == n_air) then
-										break
+										--break
 									end
 								end
 							end
