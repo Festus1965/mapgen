@@ -8,6 +8,8 @@
 -- remove unused variables
 ------------------------------------
 
+-- Sometimes the oceans have air in them, causing odd decoration.
+
 
 local DEBUG
 local mod = mapgen
@@ -233,19 +235,11 @@ function Mapgen:bubble_cave()
 	local n_b_stone = node[biome.node_stone] or n_stone
 	local n_ceiling = node[biome.ceiling_node]
 	local n_lining = node[biome.node_lining]
+	local surface_depth = biome.surface_depth or 1
 	local n_floor = node[biome.floor_node]
 	local n_fluid = node[biome.node_cave_liquid]
 	local n_gas = node[biome.node_gas] or n_air
-	local n_stalac, n_stalag, stalac_p2, stalag_p2
-	local schematics = biome.schematics or {}
-	local stalactite_chance, stalagmite_chance
 	local surface_depth = biome.surface_depth or 1
-	local c_deco = biome.deco
-	local c_deco_chance = biome.deco_chance or 100
-
-	if c_deco then
-		c_deco = node[c_deco]
-	end
 
 	if biome.underwater and pr:next(1, 4) == 1 then
 		n_gas = n_water
@@ -298,8 +292,8 @@ function Mapgen:bubble_cave()
 	geo:add({
 		action = 'sphere',
 		node = 'air',
-		location = vector.add(pos, 2),
-		size = vector.add(size, -4),
+		location = vector.add(pos, surface_depth + 1),
+		size = vector.add(size, -(2 * (surface_depth + 1))),
 	})
 	geo:write_to_map(self)
 
@@ -327,18 +321,10 @@ function Mapgen:bubble_cave()
 				and diff < cave_level + ground + surface_depth
 				and data[ivm] == n_air then
 					if y < center.y then
-						if c_deco and pr:next(1, c_deco_chance) == 1 then
-							data[ivm] = c_deco
-						else
-							data[ivm] = n_lining or n_floor or n_b_stone
-						end
+						data[ivm] = n_lining or n_floor or n_b_stone
 						p2data[ivm] = 0
 					else
-						if c_deco and pr:next(1, c_deco_chance) == 1 then
-							data[ivm] = c_deco
-						else
-							data[ivm] = n_lining or n_ceiling or n_b_stone
-						end
+						data[ivm] = n_lining or n_ceiling or n_b_stone
 						p2data[ivm] = 0
 					end
 				elseif diff < cave_level + ground and data[ivm] == n_air then
@@ -426,7 +412,8 @@ function Mapgen:generate(timed)
 	self.sup_chunk = sup_chunk
 
 	local decorate = true
-	local base_heat = math_abs(90 - ((((minp.z + chunk_offset + 1000) / 6000) * 180) % 180))
+	--local base_heat = math_abs(90 - ((((minp.z + chunk_offset + 1000) / 6000) * 180) % 180))
+	local base_heat = 20 + math_abs(70 - ((((minp.z + chunk_offset + 1000) / 6000) * 140) % 140))
 	mod.base_heat = base_heat
 
 	if sup_chunk.y >= 4 or (sup_chunk.x == 0 and sup_chunk.z == 0) then
@@ -1130,9 +1117,9 @@ function Mapgen:simple_cave()
 			geo:add({
 				action = 'sphere',
 				node = biome.node_lining,
-				location = vector.add(pos, -1),
+				location = vector.add(pos, -(biome.surface_depth or 1)),
 				underground = cave_underground,
-				size = vector.add(size, 2),
+				size = vector.add(size, (2 * (biome.surface_depth or 1))),
 			})
 		end
 
@@ -1847,9 +1834,9 @@ function Mapgen:place_deco(ps, deco)
                 if deco.liquid_surface then
 					self:find_break(y_s, x, z, 'down', 'liquid')
                 elseif up then
-					self:find_break(y_s, x, z, 'up', (deco.aquatic and 'aquatic' or nil))
+					self:find_break(y_s, x, z, 'up', (deco.aquatic and 'aquatic'))
                 elseif deco.all_floors then
-					self:find_break(y_s, x, z, 'down', (deco.aquatic and 'aquatic' or nil))
+					self:find_break(y_s, x, z, 'down', (deco.aquatic and 'aquatic'))
                 elseif heightmap and heightmap[mapindex] then
                     y = heightmap[mapindex]
 					if y >= 0 and y < 80 then
