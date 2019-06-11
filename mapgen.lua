@@ -115,6 +115,8 @@ local geo_replace = {
 
 
 local ores = {
+	'default:dirt',
+	'default:sand',
 	'default:stone_with_coal',
 	'default:stone_with_iron',
 	'default:stone_with_copper',
@@ -233,10 +235,10 @@ function Mapgen:bubble_cave()
 	self.biome = biome
 
 	local n_b_stone = node[biome.node_stone] or n_stone
-	local n_ceiling = node[biome.ceiling_node]
+	local n_ceiling = node[biome.node_ceiling]
 	local n_lining = node[biome.node_lining]
 	local surface_depth = biome.surface_depth or 1
-	local n_floor = node[biome.floor_node]
+	local n_floor = node[biome.node_floor]
 	local n_fluid = node[biome.node_cave_liquid]
 	local n_gas = node[biome.node_gas] or n_air
 	local surface_depth = biome.surface_depth or 1
@@ -1424,14 +1426,14 @@ function Mapgen:spirals()
 		action = 'cylinder',
 		axis = 'y',
 		node = mod_name..':cloud_hard',
-		location = VN(12, 20, 12),
+		location = VN(12, base_level, 12),
 		size = VN(56, 1, 56),
 	})
 	geo:add({
 		action = 'cylinder',
 		axis = 'y',
 		node = mod_name..':cloud_hard',
-		location = VN(12, 50, 12),
+		location = VN(12, 75, 12),
 		size = VN(56, 1, 56),
 	})
 	geo:write_to_map(self)
