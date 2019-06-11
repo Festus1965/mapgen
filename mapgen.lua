@@ -34,6 +34,7 @@ local VN = vector.new
 local water_diff = 8
 local altitude_cutoff_high = 30
 local altitude_cutoff_low = -10
+local altitude_cutoff_low_2 = 63
 local base_level = mod.chunk_offset + water_diff
 local cave_level = 20
 local chunk_offset = mod.chunk_offset
@@ -119,6 +120,7 @@ local ores = {
 	'default:sand',
 	'default:stone_with_coal',
 	'default:stone_with_iron',
+	'default:gravel',
 	'default:stone_with_copper',
 	'default:stone_with_tin',
 	'default:stone_with_gold',
@@ -288,6 +290,7 @@ function Mapgen:bubble_cave()
 			action = 'sphere',
 			node = biome.node_lining,
 			location = vector.add(pos, 1),
+			intersect = { biome.node_stone or 'default:stone' },
 			size = vector.add(size, -2),
 		})
 	end
@@ -1120,6 +1123,7 @@ function Mapgen:simple_cave()
 				action = 'sphere',
 				node = biome.node_lining,
 				location = vector.add(pos, -(biome.surface_depth or 1)),
+				intersect = { biome.node_stone or 'default:stone' },
 				underground = cave_underground,
 				size = vector.add(size, (2 * (biome.surface_depth or 1))),
 			})
@@ -1171,9 +1175,9 @@ function Mapgen:simple_ore()
 	local minp = self.minp
 	local pr = self.gpr
 	local size = VN(
-		pr:next(1, 6) + pr:next(1, 6),
-		pr:next(1, 6) + pr:next(1, 6),
-		pr:next(1, 6) + pr:next(1, 6)
+		pr:next(1, 5) + pr:next(1, 5),
+		pr:next(1, 5) + pr:next(1, 5),
+		pr:next(1, 5) + pr:next(1, 5)
 	)
 	if self.placed_lava then
 		size = vector.add(size, 2)
@@ -1511,9 +1515,9 @@ function Mapgen:terrain()
 	f_alt = f_alt or 0
 	base_heat = base_heat or 65
 
-	local biome
+	local biome = {}
+	self.biome = nil
 	local local_water_level = base_level - f_alt - water_diff
-	self.biome = biome
 
 	local height_min = mod.max_height
 	local height_max = -mod.max_height
@@ -1549,7 +1553,11 @@ function Mapgen:terrain()
 				height = height + ground_1 - altitude_cutoff_high
 			elseif ground_1 < altitude_cutoff_low then
 				local g = altitude_cutoff_low - ground_1
-				g = g * g * 0.01
+				if g < altitude_cutoff_low_2 then
+					g = g * g * 0.01
+				else
+					g = (g - altitude_cutoff_low_2) * 0.5 + 40
+				end
 				height = math_floor(height - g + 0.5)
 			end
 
@@ -1562,13 +1570,15 @@ function Mapgen:terrain()
 			end
 
 			local biome_diff
+			-- Converting to actual height (relative to the layer).
+			local biome_height = height - chunk_offset + 1
 			for _, b in pairs(biomes) do
 				if b then
 					local diff_he = b.heat_point - heat
 					local diff_hu = b.humidity_point - humidity
 					local diff = diff_he * diff_he + diff_hu * diff_hu
-					if (not b.y_max or b.y_max >= height)
-					and (not b.y_min or b.y_min <= height)
+					if (not b.y_max or b.y_max >= biome_height)
+					and (not b.y_min or b.y_min <= biome_height)
 					and ((not biome_diff) or diff < biome_diff) then
 						biome_diff = diff
 						biome = b
@@ -1579,6 +1589,9 @@ function Mapgen:terrain()
 
 			biome_diff = nil
 			local biome_cave = biome
+			-- This time just look at the middle of the chunk,
+			--  since decorations could go all through it.
+			biome_height = biome_height - height + 40
 			for _, b in pairs(cave_biomes) do
 				if b then
 					local diff_he = b.heat_point - heat
@@ -1653,7 +1666,7 @@ function Mapgen:terrain()
 						data[ivm] = ww
 					end
 					p2data[ivm] = 0
-				elseif dy <= height and dy > fill_1 and dy >= local_water_level then
+				elseif dy <= height and dy > fill_1 then
 					--print('fill_1 '..dump(fill_1))
 					data[ivm] = top
 					p2data[ivm] = 0
@@ -1857,9 +1870,11 @@ function Mapgen:place_deco(ps, deco)
 
 					if not deco.biomes_i or (biome and deco.biomes_i[biome.name]) then
 						local ivm = vm_area:index(x, y + minp.y, z)
+						-- Converting to actual height (relative to the layer).
+						local deco_height = y + f_alt - chunk_offset
 						if ((not deco.place_on_i) or deco.place_on_i[data[ivm]])
-						and (not deco.y_max or deco.y_max >= y + f_alt)
-						and (not deco.y_min or deco.y_min <= y + f_alt) then
+						and (not deco.y_max or deco.y_max >= deco_height)
+						and (not deco.y_min or deco.y_min <= deco_height) then
 							if up then
 								ivm = ivm - ystride
 							else
@@ -2224,7 +2239,7 @@ function mod.spawnplayer(player)
 		0,
 		math_random(range) + math_random(range) - range
 	)
-	--pos = vector.new(0,0,1)
+	--pos = vector.new(0,0,0)
 	pos = vector.multiply(pos, 800)
 	pos = vector.subtract(vector.add(pos, vector.divide(csize, 2)), chunk_offset)
 	pos.y = pos.y + base_level - csize.y / 2 + 2

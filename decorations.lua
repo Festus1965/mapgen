@@ -13,6 +13,10 @@ mod.biomes = {}
 mod.cave_biomes = {}
 
 
+--------------------------------------------
+-- This is a terrible way to differentiate.
+-- Cave biomes need to be separate.
+--------------------------------------------
 local function register_biome(def)
 	if not def.name then
 		print('No name biome', dump(def))
@@ -20,10 +24,11 @@ local function register_biome(def)
 	end
 
 	local w = table.copy(def)
-	mod.biomes[w.name] = w
 	if (w.y_max and w.y_max < -19)
 	and (w.y_min and w.y_min == -31000) then
 		mod.cave_biomes[w.name] = w
+	else
+		mod.biomes[w.name] = w
 	end
 end
 
