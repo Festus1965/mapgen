@@ -32,6 +32,7 @@ mod.noise['humidity_1'] = { def = {offset = 50, scale = 50, seed = 842, spread =
 mod.noise['humidity_2'] = { def = {offset = 0, scale = 1.5, seed = 90003, spread = {x = 8, y = 8, z = 8}, octaves = 2, persist = 1.0, lacunarity = 2} }
 mod.noise['erosion'] = { def = {offset = 0, scale = 1.5, seed = -47383, spread = {x = 8, y = 8, z = 8}, octaves = 2, persist = 1.0, lacunarity = 2} }
 mod.noise['flat_cave_1'] = { def = {offset = 0, scale = 10, seed = 6386, spread = {x = 23, y = 23, z = 23}, octaves = 3, persist = 0.7, lacunarity = 1.8} }
+mod.noise['cave_heat'] = { def = {offset = 50, scale = 50, seed = 1578, spread = {x = 200, y = 200, z = 200}, octaves = 3, persist = 0.5, lacunarity = 2} }
 
 
 mod.time_all = 0

@@ -421,7 +421,7 @@ function Mapgen:generate(timed)
 	local base_heat = 20 + math_abs(70 - ((((minp.z + chunk_offset + 1000) / 6000) * 140) % 140))
 	mod.base_heat = base_heat
 
-	if sup_chunk.y >= 4 or (sup_chunk.x == 0 and sup_chunk.z == 0) then
+	if sup_chunk.y >= 1 or (sup_chunk.x == 0 and sup_chunk.z == 0) then
 		local ground = (sup_chunk.y == 5)
 		if ground then
 			self:map_roads()
@@ -452,19 +452,19 @@ function Mapgen:generate(timed)
 			end
 		end
 
-		if do_ore then
-			local t_ore = os_clock()
-			self:simple_ore()
-			mod.time_ore = mod.time_ore + os_clock() - t_ore
-		end
-
 		if sup_chunk.y <= 6
 		and not (sup_chunk.x == 0 and sup_chunk.z == 0) and self.height_min > f_alt + cave_underground then
 			local t_cave = os_clock()
 			self:simple_cave()
 			mod.time_caves = mod.time_caves + os_clock() - t_cave
 		end
-	elseif sup_chunk.y < 4 then
+
+		if do_ore then
+			local t_ore = os_clock()
+			self:simple_ore()
+			mod.time_ore = mod.time_ore + os_clock() - t_ore
+		end
+	elseif sup_chunk.y == 0 then
 		local t_cave = os_clock()
 		self:bubble_cave()
 		mod.time_caves = mod.time_caves + os_clock() - t_cave
@@ -1091,7 +1091,7 @@ function Mapgen:simple_cave()
 	local ivm = self.area:indexp(center)
 	local curr_stone = minetest.get_name_from_content_id(self.data[ivm])
 
-	local biome = self.biomemap[math_floor(csize.z / 2 * csize.x + csize.x / 2)]
+	local biome = self.biomemap_cave[math_floor(csize.z / 2 * csize.x + csize.x / 2)]
 	local liquid = biome.node_cave_liquid
 
 	for i = 1, 40 do
@@ -1153,7 +1153,7 @@ function Mapgen:simple_cave()
 			location = VN(1, 1, 1),
 			underground = cave_underground,
 			intersect = 'air',
-			size = VN(78, pr:next(10, 80), 78),
+			size = VN(78, pr:next(10, 40), 78),
 		})
 	end
 
@@ -1506,6 +1506,8 @@ function Mapgen:terrain()
 	local humidity_1_map = self.noise['humidity_1'].map
 	local humidity_2_map = self.noise['humidity_2'].map
 	local heat_2_map = self.noise['heat_2'].map
+	local cave_heat_map = self.noise['cave_heat'].map
+	local sup_chunk = self.sup_chunk
 
 	local n_cobble = node['default:cobble']
 	local n_mossy = node['default:mossycobble']
@@ -1539,6 +1541,7 @@ function Mapgen:terrain()
 	end
 
 	local humidity, hu2 = 50, 0
+	local cave_depth_mod = 60 - sup_chunk.y * 20
 
 	index = 1
 	for z = minp.z, maxp.z do
@@ -1587,6 +1590,7 @@ function Mapgen:terrain()
 				end
 			end
 
+			local cave_heat = cave_heat_map[index] + cave_depth_mod
 			biome_diff = nil
 			local biome_cave = biome
 			-- This time just look at the middle of the chunk,
@@ -1594,7 +1598,7 @@ function Mapgen:terrain()
 			biome_height = biome_height - height + 40
 			for _, b in pairs(cave_biomes) do
 				if b then
-					local diff_he = b.heat_point - heat
+					local diff_he = b.heat_point - cave_heat
 					local diff_hu = b.humidity_point - humidity
 					local diff = diff_he * diff_he + diff_hu * diff_hu
 					if (not b.y_max or b.y_max >= minp.y)
