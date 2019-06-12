@@ -1091,7 +1091,7 @@ function Mapgen:simple_cave()
 	local ivm = self.area:indexp(center)
 	local curr_stone = minetest.get_name_from_content_id(self.data[ivm])
 
-	local biome = self.biomemap_cave[math_floor(csize.z / 2 * csize.x + csize.x / 2)]
+	local biome = self.biomemap_cave[math_floor(csize.z / 2 * csize.x + csize.x / 2)] or {}
 	local liquid = biome.node_cave_liquid
 
 	for i = 1, 40 do
@@ -1118,7 +1118,47 @@ function Mapgen:simple_cave()
 		local index = pos.z * csize.x + pos.x + 1
 		biome = self.biomemap_cave[index] or {}
 
-		if biome.node_lining then
+		if biome.node_floor or biome.node_ceiling then
+			local hpos = vector.add(pos, -(biome.surface_depth or 1))
+			local hsize = vector.add(size, (2 * (biome.surface_depth or 1)))
+			local hy = math_floor(hsize.y / 2)
+			if biome.node_floor then
+				geo:add({
+					action = 'sphere',
+					node = biome.node_floor,
+					location = hpos,
+					intersect = { biome.node_stone or 'default:stone' },
+					underground = cave_underground,
+					size = hsize,
+				})
+				geo:add({
+					action = 'cube',
+					node = biome.node_stone or 'default:stone',
+					location = VN(hpos.x, hpos.y + hy, hpos.z),
+					intersect = { biome.node_floor },
+					underground = cave_underground,
+					size = VN(hsize.x, hy, hsize.z)
+				})
+			end
+			if biome.node_ceiling then
+				geo:add({
+					action = 'sphere',
+					node = biome.node_ceiling,
+					location = hpos,
+					intersect = { biome.node_stone or 'default:stone' },
+					underground = cave_underground,
+					size = hsize,
+				})
+				geo:add({
+					action = 'cube',
+					node = biome.node_stone or 'default:stone',
+					location = VN(hpos.x, hpos.y, hpos.z),
+					intersect = { biome.node_ceiling },
+					underground = cave_underground,
+					size = VN(hsize.x, hy, hsize.z)
+				})
+			end
+		elseif biome.node_lining then
 			geo:add({
 				action = 'sphere',
 				node = biome.node_lining,
