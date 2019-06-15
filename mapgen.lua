@@ -2004,6 +2004,7 @@ end
 function Mapgen:place_schematic(schem, pos, flags, rot, rot_z)
 	local area = self.area
 	local data, p2data = self.data, self.p2data
+	local color = self.gpr:next(1, 8)
 
 	if not rot_z then
 		rot_z = 0
@@ -2176,7 +2177,7 @@ function Mapgen:place_schematic(schem, pos, flags, rot, rot_z)
 						data[ivm] = node[rotated_schem_2.data[isch].name]
 
 						local param2 = rotated_schem_2.data[isch].param2
-						local fdir = (param2 or 0) % 24
+						local fdir = (param2 or 0) % 32
 						local extra = (param2 or 0) - fdir
 						for _ = 1, rot do
 							fdir = drotn[fdir]
@@ -2192,6 +2193,9 @@ function Mapgen:place_schematic(schem, pos, flags, rot, rot_z)
 								{[0] = 16, [7] = 4, [9] = 8, [12] = 0, [18] = 20 },
 							}
 							fdir = za[rot_z][fdir] or za[rot_z][0]
+						end
+						if mod.eight_random_colors[data[ivm]] then
+							extra = color * 32
 						end
 						param2 = fdir + extra
 						p2data[ivm] = param2
@@ -2283,7 +2287,7 @@ function mod.spawnplayer(player)
 		0,
 		math_random(range) + math_random(range) - range
 	)
-	--pos = vector.new(-1,0,0)
+	pos = vector.new(-1,0,0)
 	pos = vector.multiply(pos, 800)
 	pos = vector.subtract(vector.add(pos, vector.divide(csize, 2)), chunk_offset)
 	pos.y = pos.y + base_level - csize.y / 2 + 2
