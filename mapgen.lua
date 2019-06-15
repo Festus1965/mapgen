@@ -2287,7 +2287,7 @@ function mod.spawnplayer(player)
 		0,
 		math_random(range) + math_random(range) - range
 	)
-	pos = vector.new(-1,0,0)
+	--pos = vector.new(-1,0,0)
 	pos = vector.multiply(pos, 800)
 	pos = vector.subtract(vector.add(pos, vector.divide(csize, 2)), chunk_offset)
 	pos.y = pos.y + base_level - csize.y / 2 + 2

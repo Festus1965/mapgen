@@ -484,6 +484,9 @@ do
 		if v and name:find(':papyrus') then
 			v.flags = (v.flags or '') .. ', aquatic'
 		end
+		if v and name:find(':waterlily') then
+			v.flags = (v.flags or '') .. ', aquatic'
+		end
 	end
 
 	-- This is the only way to change existing decorations.
