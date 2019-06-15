@@ -13,23 +13,14 @@ mod.biomes = {}
 mod.cave_biomes = {}
 
 
---------------------------------------------
--- This is a terrible way to differentiate.
--- Cave biomes need to be separate.
---------------------------------------------
 local function register_biome(def)
 	if not def.name then
-		print('No name biome', dump(def))
+		print('No-name biome', dump(def))
 		return
 	end
 
 	local w = table.copy(def)
-	if (w.y_max and w.y_max < -19)
-	and (w.y_min and w.y_min == -31000) then
-		mod.cave_biomes[w.name] = w
-	else
-		mod.biomes[w.name] = w
-	end
+	mod.biomes[w.name] = w
 end
 
 
@@ -121,12 +112,12 @@ local function register_decoration(def)
 				sch = sch.schematic
 				deco.schematic_array = sch
 			else
-				print(mod_name .. ': ** Error opening: '..mts)
+				print(mod_name .. ': ** Error opening: '..deco.schematic)
 			end
 
 			--print(dump(deco.schematic_array))
 			if not deco.schematic_array then
-				print(mod_name .. ': ** Error opening: '..mts)
+				print(mod_name .. ': ** Error opening: '..deco.name)
 			end
 		end
 
@@ -197,3 +188,6 @@ do
 		old_clear_registered_biomes()
 	end
 end
+
+
+dofile(mod.path..'/environ.lua')

@@ -1972,7 +1972,7 @@ function Mapgen:place_deco(ps, deco)
 										d = deco.decoration[math_random(#d)]
 									end
 
-									if type(d) == 'string' then
+									if type(d) == 'string' and (deco.aquatic or data[ivm] == n_air) then
 										data[ivm] = node[d]
 										if deco.param2_max then
 											p2data[ivm] = self.gpr:next(deco.param2, deco.param2_max)
