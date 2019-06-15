@@ -1559,7 +1559,7 @@ function Mapgen:terrain()
 
 	local biome = {}
 	self.biome = nil
-	local local_water_level = base_level - f_alt - water_diff
+	local local_water_level = base_level - f_alt - water_diff + 1
 
 	local height_min = mod.max_height
 	local height_max = -mod.max_height
@@ -1614,7 +1614,7 @@ function Mapgen:terrain()
 
 			local biome_diff
 			-- Converting to actual height (relative to the layer).
-			local biome_height = height - chunk_offset + 1
+			local biome_height = height - chunk_offset
 			for _, b in pairs(biomes) do
 				if b then
 					local diff_he = b.heat_point - heat
@@ -2283,7 +2283,7 @@ function mod.spawnplayer(player)
 		0,
 		math_random(range) + math_random(range) - range
 	)
-	--pos = vector.new(0,0,0)
+	--pos = vector.new(-1,0,0)
 	pos = vector.multiply(pos, 800)
 	pos = vector.subtract(vector.add(pos, vector.divide(csize, 2)), chunk_offset)
 	pos.y = pos.y + base_level - csize.y / 2 + 2
