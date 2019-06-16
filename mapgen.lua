@@ -757,6 +757,16 @@ function Mapgen:make_noise()
 			self.noise[n].map = mod.noise[n].noise:get2dMap_flat({x=self.minp.x, y=self.minp.z}, self.noise[n].map)
 		end
 	end
+
+	local stone_layers = {}
+	do
+		local noise = PerlinNoise({ offset = 0, scale = 1, seed = 4587, spread = {x = 5, y = 10, z = 5}, octaves = 2, persist = 0.5, lacunarity = 2.0})
+		local x, z = math.floor(minp.x / csize.x), math.floor(minp.z / csize.z)
+		for y = 0, csize.y - 1 do
+			stone_layers[y] = math_floor(math_abs(noise:get_3d({x=x, y=minp.y+y, z=z})) * 7) * 32
+		end
+	end
+	self.stone_layers = stone_layers
 end
 
 
@@ -1252,6 +1262,26 @@ function Mapgen:simple_ore()
 		})
 	end
 	geo:write_to_map(self)
+
+	local area = self.area
+	local maxp = self.maxp
+	local data, p2data = self.data, self.p2data
+	local stone_layers = self.stone_layers
+	local ystride = area.ystride
+	for z = minp.z, maxp.z do
+		for x = minp.x, maxp.x do
+			local ivm = area:index(x, minp.y, z)
+			for y = minp.y, maxp.y do
+				local dy = y - minp.y
+
+				if data[ivm] == n_stone then
+					p2data[ivm] = stone_layers[dy]
+				end
+
+				ivm = ivm + ystride
+			end
+		end
+	end
 end
 
 
@@ -1549,6 +1579,8 @@ function Mapgen:terrain()
 	local cave_heat_map = self.noise['cave_heat'].map
 	local sup_chunk = self.sup_chunk
 
+	local stone_layers = self.stone_layers
+
 	local n_cobble = node['default:cobble']
 	local n_mossy = node['default:mossycobble']
 
@@ -1730,7 +1762,11 @@ function Mapgen:terrain()
 				elseif dy < height then
 					--print('stone '..dump(stone))
 					data[ivm] = stone
-					p2data[ivm] = 0
+					if stone == n_stone then
+						p2data[ivm] = stone_layers[dy]
+					else
+						p2data[ivm] = 0
+					end
 				end
 
 				ivm = ivm + ystride

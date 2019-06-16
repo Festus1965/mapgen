@@ -94,6 +94,12 @@ do
 		})
 		mod.eight_random_colors[mod.node[i]] = true
 	end
+	minetest.override_item('default:stone', {
+		paramtype2 = 'colorfacedir',
+		palette = 'mapgen_palette_stone_1.png',
+		--tiles = { 'mapgen_gray_grass.png' }
+	})
+
 	minetest.override_item('default:dirt_with_grass', {
 		paramtype2 = 'colorfacedir',
 		palette = 'mapgen_palette_grass_2.png',
