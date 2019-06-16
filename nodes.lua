@@ -89,12 +89,33 @@ mod.eight_random_colors = {}
 do
 	for _, i in pairs({'default:leaves', 'default:aspen_leaves', 'default:pine_needles', 'default:jungleleaves'}) do
 		minetest.override_item(i, {
-			-- Lighten them a bit before tinting.
-			--tiles = {"default_leaves.png^[colorize:#FFFFFF:15"},
 			paramtype2 = 'colorfacedir',
-			palette = 'mapgen_palette_leaves_2.png',
+			palette = 'mapgen_palette_leaves_3.png',
 		})
 		mod.eight_random_colors[mod.node[i]] = true
+	end
+	minetest.override_item('default:dirt_with_grass', {
+		paramtype2 = 'colorfacedir',
+		palette = 'mapgen_palette_grass_2.png',
+		tiles = { 'mapgen_gray_grass.png' }
+	})
+	minetest.override_item('default:dirt_with_dry_grass', {
+		paramtype2 = 'colorfacedir',
+		palette = 'mapgen_palette_grass_2.png',
+		tiles = { 'mapgen_gray_grass.png' }
+	})
+
+	for i = 1, 5 do
+		minetest.override_item('default:grass_'..i, {
+			paramtype2 = 'colorfacedir',
+			palette = 'mapgen_palette_grass_2.png',
+			tiles = { 'mapgen_gray_grass_'..i..'.png' }
+		})
+		minetest.override_item('default:dry_grass_'..i, {
+			paramtype2 = 'colorfacedir',
+			palette = 'mapgen_palette_grass_2.png',
+			tiles = { 'mapgen_gray_dry_grass_'..i..'.png' }
+		})
 	end
 end
 

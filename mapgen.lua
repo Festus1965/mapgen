@@ -1675,6 +1675,12 @@ function Mapgen:terrain()
 			filler = node[filler]
 			local top = biome.node_top or 'air'
 			top = node[top]
+			local grass_p2 = 0
+			if biome.node_top == 'default:dirt_with_dry_grass'
+			or biome.node_top == 'default:dirt_with_grass' then
+				grass_p2 = (7 - math_min(7, math_max(0, math_floor((humidity - 30) / 2)))) * 32
+				--print(humidity)
+			end
 
 			local ww = node[biome.water or 'default:water_source']
 			local wt = biome.node_water_top
@@ -1713,7 +1719,7 @@ function Mapgen:terrain()
 				elseif dy <= height and dy > fill_1 then
 					--print('fill_1 '..dump(fill_1))
 					data[ivm] = top
-					p2data[ivm] = 0
+					p2data[ivm] = 0 + grass_p2
 				elseif filler and dy <= height and dy > fill_2 then
 					--print('fill_2 '..dump(fill_2))
 					data[ivm] = filler
@@ -1973,11 +1979,15 @@ function Mapgen:place_deco(ps, deco)
 									end
 
 									if type(d) == 'string' and (deco.aquatic or data[ivm] == n_air) then
+										local grass_p2 = 0
+										if d:find('grass_') then
+											grass_p2 = p2data[ivm - ystride]
+										end
 										data[ivm] = node[d]
 										if deco.param2_max then
 											p2data[ivm] = self.gpr:next(deco.param2, deco.param2_max)
 										else
-											p2data[ivm] = deco.param2 or 0
+											p2data[ivm] = deco.param2 or grass_p2 or 0
 										end
 									end
 
