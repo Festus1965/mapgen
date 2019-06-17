@@ -453,9 +453,7 @@ do
 	--minetest.register_node(mod_name..':coconut', newnode)
 	--]]
 
-	dofile(mod.path..'/leaf_decay.lua')
-
-	mod.register_leafdecay({
+	default.register_leafdecay({
 		trunks = {'default:tree'},
 		leaves = {
 			'default:apple',
@@ -467,7 +465,7 @@ do
 		radius = 3,
 	})
 
-	mod.register_leafdecay({
+	default.register_leafdecay({
 		trunks = {'default:pine_tree'},
 		leaves = {
 			'default:pine_needles',
@@ -475,7 +473,7 @@ do
 		radius = 3,
 	})
 
-	mod.register_leafdecay({
+	default.register_leafdecay({
 		trunks = {'default:jungletree'},
 		leaves = {
 			'default:jungleleaves',

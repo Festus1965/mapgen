@@ -1,0 +1,29 @@
+diff --git a/mods/default/functions.lua b/mods/default/functions.lua
+index 1165c89..ac1183f 100644
+--- a/mods/default/functions.lua
++++ b/mods/default/functions.lua
+@@ -412,7 +412,7 @@ local function leafdecay_after_destruct(pos, oldnode, def)
+ 			vector.add(pos, def.radius), def.leaves)) do
+ 		local node = minetest.get_node(v)
+ 		local timer = minetest.get_node_timer(v)
+-		if node.param2 == 0 and not timer:is_started() then
++		if (node.param2 % 32) < 4 and not timer:is_started() then
+ 			timer:start(math.random(20, 120) / 10)
+ 		end
+ 	end
+diff --git a/mods/dungeon_loot/mapgen.lua b/mods/dungeon_loot/mapgen.lua
+index 366d4ce..5d787f7 100644
+--- a/mods/dungeon_loot/mapgen.lua
++++ b/mods/dungeon_loot/mapgen.lua
+@@ -121,6 +121,11 @@ local function populate_chest(pos, rand, dungeontype)
+ end
+ 
+ 
++function dungeon_loot.populate_chest(pos, rand, dungeontype)
++	populate_chest(pos, rand, dungeontype)
++end
++
++
+ minetest.register_on_generated(function(minp, maxp, blockseed)
+ 	local gennotify = minetest.get_mapgen_object("gennotify")
+ 	local poslist = gennotify["dungeon"] or {}
