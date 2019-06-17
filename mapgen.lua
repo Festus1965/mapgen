@@ -94,6 +94,28 @@ for _, n in pairs({'match_three:top', 'default:chest'}) do
 end
 
 
+local buildable_to = {}
+for n, v in pairs(minetest.registered_nodes) do
+	if v.buildable_to then
+		buildable_to[node[n]] = true
+	end
+end
+
+local grass_nodes = {}
+for n, v in pairs(minetest.registered_nodes) do
+	if n:find('grass_') then
+		grass_nodes[n] = true
+	end
+end
+
+local liquids = {}
+for _, d in pairs(minetest.registered_nodes) do
+	if d.groups and d.drawtype == 'liquid' then
+		liquids[node[d.name] ] = true
+	end
+end
+
+
 -- tables of rotation values for rotating schematics
 local drotn = {[0]=3, 0, 1, 2, 19, 16, 17, 18, 15, 12, 13, 14, 7, 4, 5, 6, 11, 8, 9, 10, 21, 22, 23, 20}
 
@@ -1520,14 +1542,14 @@ function Mapgen:spirals()
 			local mx = math_floor(minp.x + 40 + r1 * math_cos(t))
 			local mz = math_floor(minp.z + 40 + r1 * math_sin(t))
 			local ivm = area:index(mx, my, mz)
-			if data[ivm] == n_air or data[ivm] == n_ignore or data[ivm] == n_cloud_hard or data[ivm] == n_leaves then
+			if buildable_to[data[ivm]] then
 				data[ivm] = node['default:tree']
 			end
 			for oz = -2, 2 do
 				for oy = -2, 2 do
 					ivm = area:index(mx - 2, my + oy, mz + oz)
 					for ox = -2, 2 do
-						if data[ivm] == n_air or data[ivm] == n_ignore or data[ivm] == n_cloud_hard then
+						if buildable_to[data[ivm]] then
 							data[ivm] = n_leaves
 						end
 						ivm = ivm + 1
@@ -1543,7 +1565,7 @@ function Mapgen:spirals()
 				local ivm = area:index(minp.x + 40 - r2, my, minp.z + 40 + oz)
 				for ox = -r2, r2 do
 					local r = ox * ox + oz * oz
-					if (data[ivm] == n_air or data[ivm] == n_ignore)
+					if (buildable_to[data[ivm]])
 					and r < r22 and r > r32 then
 						data[ivm] = n_bark
 					end
@@ -1818,48 +1840,56 @@ function Mapgen:place_all_decorations()
 end
 
 
-local liquids = {}
-for _, d in pairs(minetest.registered_nodes) do
-	if d.groups and d.drawtype == 'liquid' then
-		liquids[node[d.name]] = true
-	end
-end
-function Mapgen:find_break(y_s, x, z, dir, typ)
+local y_s = {}
+function Mapgen:find_break(x, z, flags)
 	local minp, maxp = self.minp, self.maxp
-	local csize = self.csize
 	local data, area = self.data, self.area
 	local ystride = self.area.ystride
-	local heightmap = self.heightmap
-	local gas = n_air
 
-	if typ == 'aquatic' then
-		gas = n_water
+	for k, v in pairs(y_s) do
+		y_s[k] = nil
 	end
 
-	if dir == 'up' then
-		local ivm = area:index(x, minp.y, z)
-		for y = minp.y, maxp.y - 1 do
-			if data[ivm] == gas and data[ivm + ystride] ~= gas then
-				table.insert(y_s, y - minp.y + 1)
-			end
-			ivm = ivm + ystride
-		end
-	else
-		-- Don't check heightmap. It doesn't work in bubble caves.
+	if flags.liquid_surface then
 		local ivm = area:index(x, maxp.y, z)
 		for y = maxp.y, minp.y + 1, -1 do
-			if (
-				data[ivm] == gas and typ == 'liquid'
-				and liquids[data[ivm - ystride]]
-			) or (
-				data[ivm] == gas and typ ~= 'liquid'
-				and data[ivm - ystride] ~= gas
-				and not liquids[data[ivm - ystride]]
-			) then
-				table.insert(y_s, y - minp.y - 1)
+			if data[ivm] ~= n_air then
+				return
+			end
+			if liquids[data[ivm - ystride]] then
+				return (y - minp.y - 1)
 			end
 			ivm = ivm - ystride
 		end
+	end
+
+	if flags.all_ceilings then
+		local ivm = area:index(x, minp.y, z)
+		for y = minp.y, maxp.y - 1 do
+			if buildable_to[data[ivm]] and not buildable_to[data[ivm + ystride]] then
+				if data[ivm] == n_air or flags.force_placement then
+					table.insert(y_s, -(y - minp.y + 1))
+				end
+			end
+			ivm = ivm + ystride
+		end
+	end
+
+	if flags.all_floors then
+		-- Don't check heightmap. It doesn't work in bubble caves.
+		local ivm = area:index(x, maxp.y, z)
+		for y = maxp.y, minp.y + 1, -1 do
+			if buildable_to[data[ivm]] and not buildable_to[data[ivm - ystride]] then
+				if data[ivm] == n_air or flags.force_placement then
+					table.insert(y_s, y - minp.y - 1)
+				end
+			end
+			ivm = ivm - ystride
+		end
+	end
+
+	if #y_s > 0 then
+		return y_s[self.gpr:next(1, #y_s)]
 	end
 end
 
@@ -1918,34 +1948,26 @@ function Mapgen:place_deco(ps, deco)
 
             for _ = 1, deco_count do
                 local x = ps:next(min.x, max.x)
+				local y
                 local z = ps:next(min.z, max.z)
                 local mapindex = csize.x * (z - minp.z) + (x - minp.x) + 1
-                local y, up
-				local y_s = {}
 
-				-- Don't put it on the same spot, ceiling and floor.
-				if deco.all_ceilings and deco.all_floors then
-					if ps:next(1, 2) == 1 then
-						up = true
-					end
-				elseif deco.all_ceilings then
-					up = true
-				end
-
-                if deco.liquid_surface then
-					self:find_break(y_s, x, z, 'down', 'liquid')
-                elseif up then
-					self:find_break(y_s, x, z, 'up', (deco.aquatic and 'aquatic'))
-                elseif deco.all_floors then
-					self:find_break(y_s, x, z, 'down', (deco.aquatic and 'aquatic'))
+                if deco.liquid_surface or deco.all_floors or deco.all_ceilings then
+					y = self:find_break(x, z, deco)
                 elseif heightmap and heightmap[mapindex] then
-                    y = heightmap[mapindex]
-					if y >= 0 and y < 80 then
-						table.insert(y_s, y)
+                    local fy = heightmap[mapindex]
+					if fy >= 0 and fy < 80 then
+						y = fy
 					end
                 end
 
-				for _, y in pairs(y_s) do
+				if y then
+					local upside_down
+					if y < 0 then
+						y = math_abs(y)
+						upside_down = true
+					end
+
 					if not self.biome then
 						if y < heightmap[mapindex] - cave_level then
 							biome = biomemap_cave[mapindex]
@@ -1961,11 +1983,12 @@ function Mapgen:place_deco(ps, deco)
 						if ((not deco.place_on_i) or deco.place_on_i[data[ivm]])
 						and (not deco.y_max or deco.y_max >= deco_height)
 						and (not deco.y_min or deco.y_min <= deco_height) then
-							if up then
+							if upside_down then
 								ivm = ivm - ystride
 							else
 								ivm = ivm + ystride
 							end
+
 							if deco.deco_type == 'schematic' then
 								local too_close
 								local size_s = deco.size_offset and ((deco.size_offset.x + 1) * (deco.size_offset.z + 1)) or 9
@@ -1982,10 +2005,10 @@ function Mapgen:place_deco(ps, deco)
 								-- Check for spawnby nodes.
 								------------------------------
 
-								if (deco.aquatic or data[ivm] == n_air) and not too_close then
+								if (deco.force_placement or buildable_to[data[ivm]]) and not too_close then
 									local rot = self.gpr:next(0, 3)
 									local sch = deco.schematic_array or deco.schematic
-									if up then
+									if upside_down then
 										y = y - (deco.place_offset_y or 0) - sch.size.y + 1
 										self:place_schematic(sch, VN(x, y + minp.y, z), deco.flags, rot, 2)
 									else
@@ -1994,29 +2017,30 @@ function Mapgen:place_deco(ps, deco)
 									end
 									schem[#schem+1] = VN(x, y + minp.y, z)
 								end
-							elseif deco.aquatic or data[ivm] == n_air then
+							elseif deco.force_placement or buildable_to[data[ivm]] then
 								local ht = self.gpr:next(1, (deco.height_max or 1))
 								local inc = 1
-								if up then
+								if upside_down then
 									ht = -ht
 									inc = -1
 								end
 								if deco.place_offset_y then
-									if up then
+									if upside_down then
 										ivm = ivm - deco.place_offset_y * ystride
 									else
 										ivm = ivm + deco.place_offset_y * ystride
 									end
 								end
+								local first_node = data[ivm]
 								for y2 = y, y + ht - inc, inc do
 									local d = deco.decoration
 									if type(d) == 'table' then
 										d = deco.decoration[math_random(#d)]
 									end
 
-									if type(d) == 'string' and (deco.aquatic or data[ivm] == n_air) then
+									if type(d) == 'string' and (deco.force_placement or buildable_to[data[ivm]]) then
 										local grass_p2 = 0
-										if d:find('grass_') then
+										if grass_nodes[d] then
 											grass_p2 = p2data[ivm - ystride]
 										end
 										data[ivm] = node[d]
@@ -2028,8 +2052,8 @@ function Mapgen:place_deco(ps, deco)
 									end
 
 									ivm = ivm + ystride * inc
-									if not (deco.aquatic or data[ivm] == n_air) then
-										--break
+									if not (deco.force_placement or data[ivm] == first_node) then
+										break
 									end
 								end
 							end
@@ -2214,11 +2238,7 @@ function Mapgen:place_schematic(schem, pos, flags, rot, rot_z)
 
 					if prob >= self.gpr:next(1, 126)
 					and (
-						force or (
-							data[ivm] == n_air
-							or data[ivm] == n_water
-							or data[ivm] == n_ignore
-						)
+						force or buildable_to[data[ivm]]
 					) then
 						data[ivm] = node[rotated_schem_2.data[isch].name]
 
@@ -2279,10 +2299,10 @@ function Mapgen:dust()
 				node_dust = biome.node_dust
 			end
 
-			if node_dust and (data[ivm] == n_air or data[ivm] == n_ignore) then
+			if node_dust and buildable_to[data[ivm]] then
 				local yc
 				for y = maxp.y - 1, minp.y + 1, -1 do
-					if y - minp.y + f_alt >= heightmap[index] and data[ivm] and data[ivm] ~= n_air and data[ivm] ~= n_ignore and data[ivm] ~= n_cloud then
+					if y - minp.y + f_alt >= heightmap[index] and not buildable_to[data[ivm]] then
 						yc = y
 						break
 					end

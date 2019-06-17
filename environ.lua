@@ -80,6 +80,7 @@ do
 
     mod.register_cave_biome({
         name = 'lichen',
+        node_cave_liquid = 'default:water_source',
         node_lining = mod_name..':stone_with_lichen',
 		y_max = -20,
 		y_min = -31000,
@@ -328,7 +329,7 @@ do
 		decoration = mod_name..':glowing_fungal_stone',
 		place_offset_y = -1,
 		name = 'glowing_fungal_stone_wet',
-		flags = 'all_ceilings, all_floors, aquatic',
+		flags = 'all_ceilings, all_floors, force_placement',
 	})
 
 	minetest.register_decoration({
@@ -484,31 +485,6 @@ end
 
 
 do
-	local decos = { }
-	for k, v in pairs(minetest.registered_decorations) do
-		local name = v.name or v.decoration
-		decos[#decos+1] = v
-
-		if v and name:find(':corals') then
-			v.flags = (v.flags or '') .. ', aquatic'
-		end
-		if v and name:find(':kelp') then
-			v.flags = (v.flags or '') .. ', aquatic'
-		end
-		if v and name:find(':papyrus') then
-			v.flags = (v.flags or '') .. ', aquatic'
-		end
-		if v and name:find(':waterlily') then
-			v.flags = (v.flags or '') .. ', aquatic'
-		end
-	end
-
-	-- This is the only way to change existing decorations.
-	minetest.clear_registered_decorations()
-	for k, v in pairs(decos) do
-		minetest.register_decoration(v)
-	end
-
 	do
 		local apple_deco
 		for _, v in pairs(mod.decorations) do
@@ -516,19 +492,22 @@ do
 				apple_deco = v
 			end
 		end
-		local def = table.copy(apple_deco)
 
-		def.noise_params.seed = 385
-		def.noise_params.offset = def.noise_params.offset - 0.03
-		def.schematic = nil
-		def.name = mod_name..':cherry_tree_'
-		def.schematic_array = table.copy(apple_deco.schematic_array)
-		for k, v in pairs(def.schematic_array.data) do
-			if v.name == 'default:leaves' or v.name == 'default:apple' then
-				v.name = mod_name..':leaves_cherry'
+		if apple_deco and apple_deco.schematic_array and apple_deco.schematic_array.data then
+			local def = table.copy(apple_deco)
+
+			def.noise_params.seed = 385
+			def.noise_params.offset = def.noise_params.offset - 0.03
+			def.schematic = nil
+			def.name = mod_name..':cherry_tree_'
+			def.schematic_array = table.copy(apple_deco.schematic_array)
+			for k, v in pairs(def.schematic_array.data) do
+				if v.name == 'default:leaves' or v.name == 'default:apple' then
+					v.name = mod_name..':leaves_cherry'
+				end
 			end
+			minetest.register_decoration(def)
 		end
-		minetest.register_decoration(def)
 	end
 
 	--[[
