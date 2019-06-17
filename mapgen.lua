@@ -1684,8 +1684,8 @@ function Mapgen:terrain()
 			local grass_p2 = 0
 			if biome.node_top == 'default:dirt_with_dry_grass'
 			or biome.node_top == 'default:dirt_with_grass' then
-				grass_p2 = (7 - math_min(7, math_max(0, math_floor((humidity - 30) / 2)))) * 32
-				--print(humidity)
+				grass_p2 = math_floor((humidity - (heat / 2) + 9) / 3)
+				grass_p2 = (7 - math_min(7, math_max(0, grass_p2))) * 32
 			end
 
 			local ww = node[biome.water or 'default:water_source']
@@ -2302,7 +2302,7 @@ function mod.spawnplayer(player)
 		0,
 		math_random(range) + math_random(range) - range
 	)
-	--pos = vector.new(-1,0,0)
+	--pos = vector.new(1,0,5)
 	pos = vector.multiply(pos, 800)
 	pos = vector.subtract(vector.add(pos, vector.divide(csize, 2)), chunk_offset)
 	pos.y = pos.y + base_level - csize.y / 2 + 2
