@@ -34,6 +34,16 @@ mod.noise['erosion'] = { def = {offset = 0, scale = 1.5, seed = -47383, spread =
 mod.noise['flat_cave_1'] = { def = {offset = 0, scale = 10, seed = 6386, spread = {x = 23, y = 23, z = 23}, octaves = 3, persist = 0.7, lacunarity = 1.8} }
 mod.noise['cave_heat'] = { def = {offset = 50, scale = 50, seed = 1578, spread = {x = 200, y = 200, z = 200}, octaves = 3, persist = 0.5, lacunarity = 2} }
 
+mod.stone_layer_noise = PerlinNoise({
+	offset = 0,
+	scale = 1,
+	seed = 4587,
+	spread = {x = 5, y = 10, z = 5},
+	octaves = 2,
+	persist = 0.5,
+	lacunarity = 2.0
+})
+
 
 mod.time_all = 0
 mod.time_caves = 0

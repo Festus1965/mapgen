@@ -40,6 +40,7 @@ local cave_level = 20
 local chunk_offset = mod.chunk_offset
 local road_w = 3
 local cave_underground = 5
+local stone_layer_noise = mod.stone_layer_noise
 local use_pcall
 
 local Geomorph = geomorph.Geomorph
@@ -49,10 +50,8 @@ local m_p2data = {}
 
 
 local n_air = node['air']
-local n_ice = node['default:ice']
 local n_ignore = node['ignore']
 local n_stone = node['default:stone']
-local n_water = node['default:water_source']
 
 
 -- If on my system, it's ok to crash.
@@ -102,7 +101,7 @@ for n, v in pairs(minetest.registered_nodes) do
 end
 
 local grass_nodes = {}
-for n, v in pairs(minetest.registered_nodes) do
+for n in pairs(minetest.registered_nodes) do
 	if n:find('grass_') then
 		grass_nodes[n] = true
 	end
@@ -202,14 +201,11 @@ function Mapgen.new(minp, maxp, seed)
 		biomemap = {}, -- use global?
 		biomemap_cave = {},
 		data = m_data,
-		--heatmap = {},
 		heightmap = {}, -- use global?
-		--humiditymap = {},
 		meta_data = {},
 		minp = minp,
 		maxp = maxp,
 		node = mod.node,
-		--occupied = nil,
 		p2data = m_p2data,
 		placed_lava = nil,
 		plots = {},
@@ -242,16 +238,13 @@ local cave_biome_names = {}
 function Mapgen:bubble_cave()
 	local data, p2data = self.data, self.p2data
 	local minp, maxp, area = self.minp, self.maxp, self.area
-	local heightmap = self.heightmap
-	local f_alt = self.f_alt
 	local center = vector.round(vector.divide(vector.add(minp, maxp), 2))
-	local pr = self.gpr
 	local ystride = area.ystride
 	local cave_biomes = mod.cave_biomes or {}
 
-	if #cave_biomes < 1 then
-		for n, v in pairs(cave_biomes) do
-			cave_biome_names[#cave_biome_names+1] = n
+	if #cave_biome_names < 1 then
+		for n in pairs(cave_biomes) do
+			table.insert(cave_biome_names, n)
 		end
 	end
 
@@ -261,37 +254,10 @@ function Mapgen:bubble_cave()
 	local n_b_stone = node[biome.node_stone] or n_stone
 	local n_ceiling = node[biome.node_ceiling]
 	local n_lining = node[biome.node_lining]
-	local surface_depth = biome.surface_depth or 1
 	local n_floor = node[biome.node_floor]
 	local n_fluid = node[biome.node_cave_liquid]
 	local n_gas = node[biome.node_gas] or n_air
 	local surface_depth = biome.surface_depth or 1
-
-	if biome.underwater and pr:next(1, 4) == 1 then
-		n_gas = n_water
-		n_stalac = {node[mod_name..':wet_fungus']}
-		stalactite_chance = 50
-		stalac_p2 = 0
-		n_stalag = {node[mod_name..':wet_fungus']}
-		stalagmite_chance = 50
-		stalag_p2 = 0
-	else
-		if biome.stalactite
-		and type(biome.stalactite) == 'table'
-		and biome.stalactite.node then
-			n_stalac = mod.node_string_or_table(biome.stalactite.node)
-			stalactite_chance = biome.stalactite.chance or 100
-			stalac_p2 = biome.stalactite.param2 or 0
-		end
-
-		if biome.stalagmite
-		and type(biome.stalagmite) == 'table'
-		and biome.stalagmite.node then
-			n_stalag = mod.node_string_or_table(biome.stalagmite.node)
-			stalagmite_chance = biome.stalagmite.chance or 100
-			stalag_p2 = biome.stalagmite.param2 or 0
-		end
-	end
 
 	if biome.node_cave_liquid == 'default:lava_source'
 	or biome.gas == 'default:lava_source' then
@@ -389,7 +355,7 @@ function Mapgen:dungeon(box_type)
 
 		local geo = Geomorph.new()
 		local box = geomorphs[box_type] or {}
-		for n, v in pairs(box.shapes or {}) do
+		for _, v in pairs(box.shapes or {}) do
 			geo:add(v)
 		end
 		geo:write_to_map(self, nil, geo_replace[box_type])
@@ -410,13 +376,11 @@ function Mapgen:erosion(height, index, depth, factor)
 end
 
 
-local first_biome_check = true
 function Mapgen:generate(timed)
 	local minp = self.minp
 	local biomes = mod.biomes
 
 	self.gpr = PcgRandom(self.seed + 5107)
-	local contents = self.gpr:next(1, 6)
 
 	if not biomes then
 		biomes = {}
@@ -545,11 +509,11 @@ end
 -- check
 local house_materials = {'sandstonebrick', 'desert_stonebrick', 'stonebrick', 'brick', 'wood', 'junglewood'}
 function Mapgen:houses()
-	local csize, area = self.csize, self.area
+	local csize = self.csize
 	local plots = self.plots
 	local pr = self.gpr
 	local heightmap = self.heightmap
-	local stone = 'default:sandstone'
+
 	for _, box in pairs(plots) do
 		local pos = vector.add(box.pos, -2)
 		local size = vector.add(box.size, 4)
@@ -652,8 +616,6 @@ function Mapgen:houses()
 					})
 				end
 
-				pos = table.copy(box.pos)
-				size = table.copy(box.size)
 				for y = 0, lev - 1 do
 					for z = box.pos.z + 2, box.pos.z + box.size.z, 4 do
 						geo:add({
@@ -687,7 +649,7 @@ function Mapgen:houses()
 						size = VN(l - 2 * f, 20, l - 2 * f),
 					})
 
-					for i = 1, 3 do
+					for _ = 1, 3 do
 						local pos2 = table.copy(pos)
 						pos2.x = pos2.x + pr:next(0, box.size.x) - math_floor(box.size.x / 2)
 						pos2.z = pos2.z + pr:next(0, box.size.z) - math_floor(box.size.z / 2)
@@ -706,7 +668,7 @@ function Mapgen:houses()
 			do
 				local ore
 				pos = table.copy(box.pos)
-				local size = table.copy(box.size)
+				size = table.copy(box.size)
 				if ore_odds then
 					local orn = pr:next(1, total_ore_odds)
 					local i = 0
@@ -782,10 +744,9 @@ function Mapgen:make_noise()
 
 	local stone_layers = {}
 	do
-		local noise = PerlinNoise({ offset = 0, scale = 1, seed = 4587, spread = {x = 5, y = 10, z = 5}, octaves = 2, persist = 0.5, lacunarity = 2.0})
 		local x, z = math.floor(minp.x / csize.x), math.floor(minp.z / csize.z)
 		for y = 0, csize.y - 1 do
-			stone_layers[y] = math_floor(math_abs(noise:get_3d({x=x, y=minp.y+y, z=z})) * 7) * 32
+			stone_layers[y] = math_floor(math_abs(stone_layer_noise:get_3d({x=x, y=minp.y+y, z=z})) * 7) * 32
 		end
 	end
 	self.stone_layers = stone_layers
@@ -794,11 +755,11 @@ end
 
 -- check
 function Mapgen:map_roads()
-	local csize, area = self.csize, self.area
+	local csize = self.csize
 	local roads = {}
 	local has_roads = false
 
-	local index = 1
+	local index
 	local road_ws = road_w * road_w
 	for x = -road_w, csize.x + road_w - 1 do
 		index = x + road_w + 1
@@ -853,14 +814,14 @@ function Mapgen:map_roads()
 	local plots = {}
 
 	-- Generate plots for constructions.
-	for ct = 1, 15 do
+	for _ = 1, 15 do
 		local scale = self.gpr:next(1, 2) * 4
 		local size = VN(self.gpr:next(1, 2), 1, self.gpr:next(1, 2))
 		size.x = size.x * scale + 9
 		size.y = size.y * 8
 		size.z = size.z * scale + 9
 
-		for ct2 = 1, 10 do
+		for _ = 1, 10 do
 			local pos = VN(self.gpr:next(2, csize.x - size.x - 3), base_level, self.gpr:next(2, csize.z - size.z - 3))
 			local good = true
 			for _, box in pairs(plots) do
@@ -876,7 +837,7 @@ function Mapgen:map_roads()
 			end
 			for z = pos.z, pos.z + size.z do
 				for x = pos.x, pos.x + size.x do
-					local index = z * csize.x + x + 1
+					index = z * csize.x + x + 1
 					if roads[index] then
 						good = false
 						break
@@ -1119,14 +1080,11 @@ function Mapgen:simple_cave()
 	local csize = self.csize
 
 	local geo = Geomorph.new()
-	local center = vector.add(VN(40, 0, 40), self.minp)
-	local ivm = self.area:indexp(center)
-	local curr_stone = minetest.get_name_from_content_id(self.data[ivm])
 
 	local biome = self.biomemap_cave[math_floor(csize.z / 2 * csize.x + csize.x / 2)] or {}
 	local liquid = biome.node_cave_liquid
 
-	for i = 1, 40 do
+	for _ = 1, 40 do
 		local size = VN(
 			pr:next(9, 25),
 			pr:next(9, 25),
@@ -1257,7 +1215,7 @@ function Mapgen:simple_ore()
 	size = vector.multiply(size, 2)
 
 	local geo = Geomorph.new()
-	for ct = 1, 25 do
+	for _ = 1, 25 do
 		local orn = pr:next(1, total_ore_odds)
 		local i = 0
 		for _, od in pairs(ore_odds) do
@@ -1317,14 +1275,14 @@ function Mapgen:simple_ruin()
 	local heightmap = self.heightmap
 	local boxes = {}
 
-	for ct = 1, 15 do
+	for _ = 1, 15 do
 		local scale = self.gpr:next(2, 3) * 4
 		local size = VN(self.gpr:next(1, 3), 1, self.gpr:next(1, 3))
 		size.x = size.x * scale + 5
 		size.y = size.y * 8
 		size.z = size.z * scale + 5
 
-		for ct2 = 1, 10 do
+		for _ = 1, 10 do
 			local pos = VN(self.gpr:next(1, csize.x - size.x - 2), base_level, self.gpr:next(1, csize.z - size.z - 2))
 			local good = true
 			for _, box in pairs(boxes) do
@@ -1350,7 +1308,7 @@ function Mapgen:simple_ruin()
 
 		for z = pos.z, pos.z + size.z do
 			local index = z * csize.x + pos.x + 1
-			for x = pos.x, pos.x + size.x do
+			for _ = pos.x, pos.x + size.x do
 				heightmap[index] = base_level
 				index = index + 1
 			end
@@ -1461,7 +1419,6 @@ function Mapgen:spirals()
 	local maxp = self.maxp
 	local minp = self.minp
 	local flets = false
-	local n_cloud_hard = node[mod_name..':cloud_hard']
 	local n_leaves = node['default:leaves']
 	local n_bark = node[mod_name .. ':bark']
 	local sup_chunk = self.sup_chunk
@@ -1548,7 +1505,7 @@ function Mapgen:spirals()
 			for oz = -2, 2 do
 				for oy = -2, 2 do
 					ivm = area:index(mx - 2, my + oy, mz + oz)
-					for ox = -2, 2 do
+					for _ = -2, 2 do
 						if buildable_to[data[ivm]] then
 							data[ivm] = n_leaves
 						end
@@ -1593,7 +1550,6 @@ function Mapgen:terrain()
 	local minp = self.minp
 	local ystride = area.ystride
 	local p2data = self.p2data
-	local hx, hz = csize.x / 2, csize.z / 2
 	local ground_noise_map = self.noise['ground_2'].map
 	local humidity_1_map = self.noise['humidity_1'].map
 	local humidity_2_map = self.noise['humidity_2'].map
@@ -1619,8 +1575,8 @@ function Mapgen:terrain()
 	local height_max = -mod.max_height
 
 	local index = 1
-	for z = minp.z, maxp.z do
-		for x = minp.x, maxp.x do
+	for _ = minp.z, maxp.z do
+		for _ = minp.x, maxp.x do
 			local ground_1 = ground_noise_map[index]
 			height_max = math_max(ground_1, height_max)
 			height_min = math_min(ground_1, height_min)
@@ -1630,19 +1586,17 @@ function Mapgen:terrain()
 	self.height_min = height_min
 	self.height_max = height_max
 
-	if (math_max(altitude_cutoff_high, height_max) - altitude_cutoff_high) - (math_min(altitude_cutoff_low, height_min) - altitude_cutoff_low) < 3 then
+	if (math_max(altitude_cutoff_high, height_max) - altitude_cutoff_high)
+	- (math_min(altitude_cutoff_low, height_min) - altitude_cutoff_low) < 3 then
 		self.flattened = true
 	end
 
-	local humidity, hu2 = 50, 0
+	local humidity, hu2
 	local cave_depth_mod = 60 - sup_chunk.y * 20
 
 	index = 1
 	for z = minp.z, maxp.z do
-		local dz = z - minp.z
 		for x = minp.x, maxp.x do
-			local dx = x - minp.x
-
 			-- terrain height calculations
 			local ground_1 = ground_noise_map[index]
 			local height = base_level
@@ -1689,7 +1643,6 @@ function Mapgen:terrain()
 			local biome_cave = biome
 			-- This time just look at the middle of the chunk,
 			--  since decorations could go all through it.
-			biome_height = biome_height - height + 40
 			for _, b in pairs(cave_biomes) do
 				if b then
 					local diff_he = b.heat_point - cave_heat
@@ -1714,7 +1667,6 @@ function Mapgen:terrain()
 			height = math_floor(height - f_alt + 0.5)
 			--print('rel height ' .. height .. ',' .. f_alt)
 			heightmap[index] = height
-			local m_height = csize_y - height - 1
 
 			local stone = node['default:stone']
 			if biome.node_stone then
@@ -1748,8 +1700,6 @@ function Mapgen:terrain()
 
 			local fill_1 = height - depth_top
 			local fill_2 = fill_1 - math_max(0, depth_filler)
-			local m_fill_1 = csize_y - fill_1 - 1
-			local m_fill_2 = csize_y - fill_2 - 1
 
 			local t_y_loop = os_clock()
 			local hu2_check = (humidity > 70 and (hu2 > 1 or math_floor(hu2 * 1000) % 2 == 0))
@@ -1846,7 +1796,7 @@ function Mapgen:find_break(x, z, flags)
 	local data, area = self.data, self.area
 	local ystride = self.area.ystride
 
-	for k, v in pairs(y_s) do
+	for k in pairs(y_s) do
 		y_s[k] = nil
 	end
 
@@ -1897,7 +1847,7 @@ end
 -- check
 function Mapgen:place_deco(ps, deco)
     local data, p2data, vm_area = self.data, self.p2data, self.area
-    local minp, maxp = self.minp, self.maxp
+    local minp = self.minp
     local heightmap, schem = self.heightmap, self.schem
 	local biomemap = self.biomemap
 	local biomemap_cave = self.biomemap_cave
@@ -2032,7 +1982,7 @@ function Mapgen:place_deco(ps, deco)
 									end
 								end
 								local first_node = data[ivm]
-								for y2 = y, y + ht - inc, inc do
+								for _ = y, y + ht - inc, inc do
 									local d = deco.decoration
 									if type(d) == 'table' then
 										d = deco.decoration[math_random(#d)]
@@ -2068,7 +2018,7 @@ end
 
 -- check
 local rotated_schematics = {}
-for i = 1, 21 do
+for _ = 1, 21 do
 	table.insert(rotated_schematics, {})
 end
 function Mapgen:place_schematic(schem, pos, flags, rot, rot_z)
@@ -2284,7 +2234,6 @@ function Mapgen:dust()
 	--local treetop
 
 	local biome = self.biome
-	local n_cloud = node[mod_name..':cloud_hard']
 
 	local index = 1
 	for z = minp.z, maxp.z do

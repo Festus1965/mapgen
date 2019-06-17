@@ -127,24 +127,27 @@ end
 
 
 do
-	for k, v in pairs(minetest.registered_nodes) do
+	for _, v in pairs(minetest.registered_nodes) do
 		local g = v.groups
+
 		if v.name:find('default:stone_with') then
 			g.ore = 1
 			minetest.override_item(v.name, { groups = g })
 		end
-		if (g.stone or v.name:find('default:.*sandstone') or g.ore) and not (v.name:find('brick') or v.name:find('block') or v.name:find('stair') or v.name:find('slab') or v.name:find('default:.*cobble') or v.name:find('walls:.*cobble')) then
+
+		if (g.stone or v.name:find('default:.*sandstone') or g.ore)
+		and not (
+			v.name:find('brick')
+			or v.name:find('block')
+			or v.name:find('stair')
+			or v.name:find('slab')
+			or v.name:find('default:.*cobble')
+			or v.name:find('walls:.*cobble')
+		) then
 			g.natural_stone = 1
 			minetest.override_item(v.name, { groups = g })
 		end
 	end
-end
-
-
--- check
-local function register_node_and_alias(n, t)
-	minetest.register_node(mod_name..':'..n, t)
-	--minetest.register_alias('default:'..n, mod_name..':'..n)
 end
 
 
@@ -276,7 +279,7 @@ do
 	})
 
 	local giant_mushroom_cap_node_box = {
-		type = 'fixed', 
+		type = 'fixed',
 		fixed = {
 			{ -0.3, -0.25, -0.3, 0.3, 0.5, 0.3 },
 			{ -0.3, -0.25, -0.4, 0.3, 0.4, -0.3 },
@@ -292,12 +295,12 @@ do
 	}
 
 	local huge_mushroom_cap_node_box = {
-		type = 'fixed', 
+		type = 'fixed',
 		fixed = {
-			{ -0.5, -0.5, -0.33, 0.5, -0.33, 0.33 }, 
-			{ -0.33, -0.5, 0.33, 0.33, -0.33, 0.5 }, 
-			{ -0.33, -0.5, -0.33, 0.33, -0.33, -0.5 }, 
-			{ -0.33, -0.33, -0.33, 0.33, -0.17, 0.33 }, 
+			{ -0.5, -0.5, -0.33, 0.5, -0.33, 0.33 },
+			{ -0.33, -0.5, 0.33, 0.33, -0.33, 0.5 },
+			{ -0.33, -0.5, -0.33, 0.33, -0.33, -0.5 },
+			{ -0.33, -0.33, -0.33, 0.33, -0.17, 0.33 },
 		}
 	}
 
@@ -337,7 +340,7 @@ do
 		description = 'Giant Mushroom Stem',
 		tiles = { 'mapgen_mushroom_giant_stem.png', 'mapgen_mushroom_giant_stem.png', 'mapgen_mushroom_giant_stem.png' },
 		is_ground_content = false,
-		groups = { choppy=2, flammable=2,  plant=1 }, 
+		groups = { choppy=2, flammable=2,  plant=1 },
 		sounds = default.node_sound_wood_defaults(),
 		sunlight_propagates = true,
 		paramtype = 'light',
@@ -348,6 +351,7 @@ do
 
 	-- spikes, hot -- silicon-based life
 	local spike_size = { 1.0, 1.2, 1.4, 1.6, 1.7 }
+	local nodename
 	mod.hot_spikes = { }
 
 	for i in ipairs(spike_size) do
@@ -359,7 +363,7 @@ do
 
 		table.insert(mod.hot_spikes, nodename)
 
-		vs = spike_size[i]
+		local vs = spike_size[i]
 
 		minetest.register_node(nodename, {
 			description = 'Stone Spike',

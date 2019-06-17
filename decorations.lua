@@ -5,7 +5,6 @@
 
 local mod = mapgen
 local mod_name = 'mapgen'
-local clone_node = mod.clone_node
 local node = mod.node
 
 
@@ -25,7 +24,7 @@ end
 
 
 do
-	for k, v in pairs(minetest.registered_biomes) do
+	for _, v in pairs(minetest.registered_biomes) do
 		register_biome(v)
 	end
 end
@@ -152,7 +151,7 @@ end
 
 do
 	mod.decorations = {}
-	for n, v in pairs(minetest.registered_decorations) do
+	for _, v in pairs(minetest.registered_decorations) do
 		register_decoration(v)
 	end
 end
@@ -162,7 +161,7 @@ end
 do
 	local old_register_decoration = minetest.register_decoration
 	minetest.register_decoration = function (def)
-		local d = register_decoration(def)
+		register_decoration(def)
 		old_register_decoration(def)
 	end
 
@@ -176,7 +175,7 @@ do
 
 	local old_register_biome = minetest.register_biome
 	minetest.register_biome = function (def)
-		local d = register_biome(def)
+		register_biome(def)
 		old_register_biome(def)
 	end
 

@@ -6,7 +6,6 @@
 local mod = mapgen
 local mod_name = 'mapgen'
 local clone_node = mod.clone_node
-local node = mod.node
 
 
 do
@@ -401,6 +400,8 @@ end
 
 
 do
+	local newnode
+
 	--[[
 	newnode = clone_node('default:apple')
 	newnode.tiles = { 'mapgen_orange.png' }
@@ -501,7 +502,7 @@ do
 			def.schematic = nil
 			def.name = mod_name..':cherry_tree_'
 			def.schematic_array = table.copy(apple_deco.schematic_array)
-			for k, v in pairs(def.schematic_array.data) do
+			for _, v in pairs(def.schematic_array.data) do
 				if v.name == 'default:leaves' or v.name == 'default:apple' then
 					v.name = mod_name..':leaves_cherry'
 				end
