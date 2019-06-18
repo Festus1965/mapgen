@@ -142,8 +142,8 @@ local ores = {
 	'default:stone_with_coal',
 	'default:stone_with_iron',
 	'default:gravel',
-	'default:stone_with_copper',
-	'default:stone_with_tin',
+	--'default:stone_with_copper',
+	--'default:stone_with_tin',
 	'default:stone_with_gold',
 	'default:stone_with_diamond',
 	'default:stone_with_mese',
@@ -694,6 +694,30 @@ function Mapgen:houses()
 				})
 			end
 
+			do
+				local index = pos.z * csize.x + pos.x
+				local height = self.heightmap[index]
+				local biome = self.biomemap[index]
+				local dirt = biome and biome.node_top or 'default:dirt'
+
+				pos = table.copy(box.pos)
+				pos.y = height
+				local ivm = self.area:indexp(vector.add(self.minp, pos))
+				local p2 = self.p2data[ivm]
+
+				pos = table.copy(box.pos)
+				size = table.copy(box.size)
+				size.y = 1
+				geo:add({
+					action = 'cube',
+					node = dirt,
+					location = pos,
+					intersect = 'air',
+					param2 = p2,
+					size = size,
+				})
+			end
+
 			geo:write_to_map(self, 0)
 		end
 	end
@@ -1205,14 +1229,13 @@ function Mapgen:simple_ore()
 	local minp = self.minp
 	local pr = self.gpr
 	local size = VN(
-		pr:next(1, 5) + pr:next(1, 5),
-		pr:next(1, 5) + pr:next(1, 5),
-		pr:next(1, 5) + pr:next(1, 5)
+		pr:next(1, 10) + pr:next(1, 10),
+		pr:next(1, 10) + pr:next(1, 10),
+		pr:next(1, 10) + pr:next(1, 10)
 	)
 	if self.placed_lava then
 		size = vector.add(size, 2)
 	end
-	size = vector.multiply(size, 2)
 
 	local geo = Geomorph.new()
 	for _ = 1, 25 do
@@ -2283,9 +2306,10 @@ end
 function mod.spawnplayer(player)
 	local csize = mod.csize
 	local range = 6
+	local beds_here = (minetest.get_modpath('beds') and beds and beds.spawn)
 
 	local name = player:get_player_name()
-	if minetest.get_modpath('beds') and beds and beds.spawn then
+	if beds_here then
 		if beds.spawn[name] then
 			return
 		end
@@ -2311,6 +2335,13 @@ function mod.spawnplayer(player)
 	--pos = vector.new(1760, 3200, 1090)
 
 	player:setpos(pos)
+
+	if beds_here then
+		-- This doesn't work...
+		--beds.set_spawns()
+		beds.spawn[name] = pos
+	end
+
 	return true
 end
 
