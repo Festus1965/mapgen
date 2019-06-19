@@ -426,8 +426,8 @@ function Mapgen:generate(timed)
 				self:dungeon('pyramid')
 			else
 				self:simple_ruin()
-				do_ore = false
 			end
+			do_ore = false
 		else
 			if math_max(self.height_max, 10) < f_alt then
 				self:planets()

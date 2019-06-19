@@ -96,7 +96,7 @@ do
 		drop = {
 			max_items = 1,
 			items = {
-				{items = {mod_name..':pine_nuts'}, rarity = 10},
+				{items = {mod_name..':pine_nuts'}, rarity = 15},
 				{items = {'default:pine_bush_sapling'}, rarity = 5},
 				{items = {'default:pine_bush_needles'}}
 			}
@@ -107,17 +107,24 @@ end
 
 mod.eight_random_colors = {}
 do
-	for _, i in pairs({'default:leaves', 'default:aspen_leaves', 'default:pine_needles', 'default:jungleleaves'}) do
+	for _, par in pairs({
+		{'default:leaves', 0},
+		{'default:aspen_leaves', 0},
+		{'default:pine_needles', 8},
+		{'default:jungleleaves', 8},
+	}) do
+		local i, j = par[1], par[2]
 		minetest.override_item(i, {
 			paramtype2 = 'colorfacedir',
 			palette = 'mapgen_palette_leaves_3.png',
+			-- This may wash out the textures too much...
+			tiles = {i:gsub(':', '_')..".png^[colorize:#FFFFFF:"..j},
 		})
 		mod.eight_random_colors[mod.node[i]] = true
 	end
 	minetest.override_item('default:stone', {
 		paramtype2 = 'colorfacedir',
 		palette = 'mapgen_palette_stone_1.png',
-		--tiles = { 'mapgen_gray_grass.png' }
 	})
 
 	minetest.override_item('default:dirt_with_grass', {
