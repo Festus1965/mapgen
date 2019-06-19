@@ -403,7 +403,6 @@ function Mapgen:generate(timed)
 	self.sup_chunk = sup_chunk
 
 	local decorate = true
-	--local base_heat = math_abs(90 - ((((minp.z + chunk_offset + 1000) / 6000) * 180) % 180))
 	local base_heat = 20 + math_abs(70 - ((((minp.z + chunk_offset + 1000) / 6000) * 140) % 140))
 	mod.base_heat = base_heat
 

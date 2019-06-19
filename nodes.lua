@@ -85,6 +85,26 @@ do
 end
 
 
+do
+	minetest.register_craftitem(mod_name..':pine_nuts', {
+		description = 'Pine Nuts',
+		inventory_image = 'mapgen_pine_nuts.png',
+		on_use = minetest.item_eat(1),
+	})
+
+	minetest.override_item('default:pine_needles', {
+		drop = {
+			max_items = 1,
+			items = {
+				{items = {mod_name..':pine_nuts'}, rarity = 10},
+				{items = {'default:pine_bush_sapling'}, rarity = 5},
+				{items = {'default:pine_bush_needles'}}
+			}
+		},
+	})
+end
+
+
 mod.eight_random_colors = {}
 do
 	for _, i in pairs({'default:leaves', 'default:aspen_leaves', 'default:pine_needles', 'default:jungleleaves'}) do
