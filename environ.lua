@@ -410,7 +410,7 @@ do
 			persist = 0.6
 		},
 		--biomes = { 'sea_cave', 'wet_stone', 'moss', },
-		decoration = mod_name..':crystal',
+		decoration = mod_name..':pretty_crystal',
 		name = 'Pretty Crystal',
 		flags = 'all_ceilings, all_floors, random_color_floor_ceiling',
 	})

@@ -195,7 +195,10 @@ do
 		inventory_image = 'mapgen_pretty_crystal_inventory.png',
 		drawtype = 'nodebox',
 		node_box = def,
+		-- Using an 8-pixel palette seems to force the game to use
+		--  the highest three bits, rather than five.
 		paramtype2 = 'colorwallmounted',
+		--paramtype2 = 'colorfacedir',
 		palette = 'mapgen_palette_crystals_2.png',
 		is_ground_content = true,
 		groups = { cracky = 3, natural_stone = 1 },
