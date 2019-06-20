@@ -10,6 +10,11 @@ local newnode
 local light_max = 10
 
 
+local math_random = math.random
+local math_abs = math.abs
+local math_max = math.max
+
+
 -- check
 local function register_node_and_alias(n, t)
 	minetest.register_node(mod_name..':'..n, t)
@@ -150,6 +155,54 @@ do
 			tiles = { 'mapgen_gray_dry_grass_'..i..'.png' }
 		})
 	end
+end
+
+
+do
+	local def = {
+        type = "fixed",
+        fixed = {},
+	}
+
+	local div = 9
+	local hdiv = 5
+
+	for z = 1, div do
+		local dz = 1 - math_abs(z - hdiv) / hdiv
+		for x = 1, div do
+			local dx = 1 - math_abs(x - hdiv) / hdiv
+			local c = math_abs(dx * dx + dz * dz)
+
+			--if math_random(1, 3) ~= 1 then
+			if c > 0.25 then
+				table.insert(def.fixed, {
+					(x - 1) / div - 0.5,
+					-0.5,
+					(z - 1) / div - 0.5,
+					x / div - 0.5,
+					math_max(dz, dx) * (math_random(1, 10) / 10) - 0.5,
+					z / div - 0.5,
+				})
+			end
+		end
+	end
+
+	minetest.register_node(mod_name..':pretty_crystal', {
+		description = 'Pretty Crystal',
+		tiles = { 'mapgen_70_white.png' },
+		use_texture_alpha = true,
+		--light_source = 8,
+		inventory_image = 'mapgen_pretty_crystal_inventory.png',
+		drawtype = 'nodebox',
+		node_box = def,
+		paramtype2 = 'colorwallmounted',
+		palette = 'mapgen_palette_crystals_2.png',
+		is_ground_content = true,
+		groups = { cracky = 3, natural_stone = 1 },
+		sounds = default.node_sound_stone_defaults({
+			footstep = { name = 'default_stone_footstep', gain = 0.25 },
+		}),
+	})
 end
 
 

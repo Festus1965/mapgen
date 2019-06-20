@@ -396,6 +396,24 @@ do
 		name = 'Hot Spike',
 		flags = 'all_floors',
 	})
+
+	minetest.register_decoration({
+		deco_type = 'simple',
+		place_on = { 'group:natural_stone', },
+		sidelen = 16,
+		noise_params = {
+			offset = 0.025,
+			scale = 0.025,
+			spread = { x = 200, y = 200, z = 200 },
+			seed = -31,
+			octaves = 3,
+			persist = 0.6
+		},
+		--biomes = { 'sea_cave', 'wet_stone', 'moss', },
+		decoration = mod_name..':crystal',
+		name = 'Pretty Crystal',
+		flags = 'all_ceilings, all_floors, random_color_floor_ceiling',
+	})
 end
 
 

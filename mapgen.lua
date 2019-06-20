@@ -140,10 +140,8 @@ local ores = {
 	'default:dirt',
 	'default:sand',
 	'default:stone_with_coal',
-	'default:stone_with_iron',
 	'default:gravel',
-	--'default:stone_with_copper',
-	--'default:stone_with_tin',
+	'default:stone_with_iron',
 	'default:stone_with_gold',
 	'default:stone_with_diamond',
 	'default:stone_with_mese',
@@ -418,7 +416,7 @@ function Mapgen:generate(timed)
 		if sup_chunk.x == 0 and sup_chunk.z == 0 then
 			self:spirals()
 			decorate = false
-		elseif ground and self.flattened and self.gpr:next(1, 1) == 1 then
+		elseif ground and self.flattened and self.gpr:next(1, 5) == 1 then
 			local sr = self.gpr:next(1, 3)
 			if sr == 1 then
 				self:dungeon('pyramid_temple')
@@ -689,7 +687,7 @@ function Mapgen:houses()
 					intersect = {walls1, roof1},
 					location = pos,
 					size = size,
-					random = 50,
+					random = 100,
 				})
 			end
 
@@ -2020,6 +2018,13 @@ function Mapgen:place_deco(ps, deco)
 											p2data[ivm] = self.gpr:next(deco.param2, deco.param2_max)
 										else
 											p2data[ivm] = deco.param2 or grass_p2 or 0
+										end
+										if deco.random_color_floor_ceiling then
+											if upside_down then
+												p2data[ivm] = 0 + self.gpr:next(0, 7) * 32
+											else
+												p2data[ivm] = 1 + self.gpr:next(0, 7) * 32
+											end
 										end
 									end
 
