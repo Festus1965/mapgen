@@ -346,8 +346,6 @@ end
 
 
 function Mapgen:dungeon(box_type)
-		local t_moria = os_clock()
-
 		if not box_type then
 			return
 		end
@@ -358,9 +356,6 @@ function Mapgen:dungeon(box_type)
 			geo:add(v)
 		end
 		geo:write_to_map(self, nil, geo_replace[box_type])
-
-		mod.moria_chunks = mod.moria_chunks + 1
-		mod.time_moria = mod.time_moria + os_clock() - t_moria
 end
 
 
@@ -405,7 +400,11 @@ function Mapgen:generate(timed)
 	local base_heat = 20 + math_abs(70 - ((((minp.z + chunk_offset + 1000) / 6000) * 140) % 140))
 	mod.base_heat = base_heat
 
-	if sup_chunk.y >= 1 or (sup_chunk.x == 0 and sup_chunk.z == 0) then
+	if minp.y < -28000 then
+		self.ether = true
+		self:terrain()
+		decorate = false
+	elseif sup_chunk.y >= 1 or (sup_chunk.x == 0 and sup_chunk.z == 0) then
 		local ground = (sup_chunk.y == 5)
 		if ground then
 			self:map_roads()
@@ -1601,12 +1600,16 @@ function Mapgen:terrain()
 	local minp = self.minp
 	local ystride = area.ystride
 	local p2data = self.p2data
-	local ground_noise_map = self.noise['ground_2'].map
+	local ground_noise_map = self.noise['ground'].map
 	local humidity_1_map = self.noise['humidity_1'].map
 	local humidity_2_map = self.noise['humidity_2'].map
 	local heat_2_map = self.noise['heat_2'].map
 	local cave_heat_map = self.noise['cave_heat'].map
 	local sup_chunk = self.sup_chunk
+
+	if self.ether then
+		ground_noise_map = self.noise['ground_ether'].map
+	end
 
 	local stone_layers = self.stone_layers
 
@@ -1615,8 +1618,8 @@ function Mapgen:terrain()
 	local n_rail_power = node['carts:powerrail']
 	local n_rail = node['carts:rail']
 
-	local roads = self.roads
-	local tracks = self.tracks
+	local roads = self.roads or {}
+	local tracks = self.tracks or {}
 
 	-- Biome selection is expensive. This helps a bit.
 
@@ -1634,8 +1637,16 @@ function Mapgen:terrain()
 	f_alt = f_alt or 0
 	base_heat = base_heat or 65
 
-	self.biome = nil
+	if self.ether then
+		self.biome = biomes['ether']
+	else
+		self.biome = nil
+	end
+
 	local local_water_level = base_level - f_alt - water_diff + 1
+	if self.ether then
+		local_water_level = local_water_level + water_diff - 1
+	end
 
 	local height_min = mod.max_height
 	local height_max = -mod.max_height
@@ -1667,7 +1678,11 @@ function Mapgen:terrain()
 			local ground_1 = ground_noise_map[index]
 			local height = base_level
 			if ground_1 > altitude_cutoff_high then
-				height = height + ground_1 - altitude_cutoff_high
+				if self.ether then
+					height = height + math_floor((ground_1 - altitude_cutoff_high) / 8 + 0.5)
+				else
+					height = height + ground_1 - altitude_cutoff_high
+				end
 			elseif ground_1 < altitude_cutoff_low then
 				local g = altitude_cutoff_low - ground_1
 				if g < altitude_cutoff_low_2 then
@@ -1675,60 +1690,75 @@ function Mapgen:terrain()
 				else
 					g = (g - altitude_cutoff_low_2) * 0.5 + 40
 				end
-				height = math_floor(height - g + 0.5)
-			end
-
-			hu2 = humidity_2_map[index]
-			humidity = humidity_1_map[index] + hu2
-			local heat = base_heat + heat_2_map[index]
-			if height > base_level + 20 then
-				local h2 = height - base_level - 20
-				heat = heat - h2 * h2 * 0.005
-			end
-
-			local biome, biome_diff
-			-- Converting to actual height (relative to the layer).
-			local biome_height = height - chunk_offset
-			for _, b in ipairs(biomes_i) do
-				if b and (not b.y_max or b.y_max >= biome_height)
-				and (not b.y_min or b.y_min <= biome_height) then
-					local diff_he = b.heat_point - heat
-					local diff_hu = b.humidity_point - humidity
-					local diff = diff_he * diff_he + diff_hu * diff_hu
-					if ((not biome_diff) or diff < biome_diff) then
-						biome_diff = diff
-						biome = b
-					end
+				if self.ether then
+					height = math_floor(height - math_floor(g / 8 + 0.5) + 0.5)
+				else
+					height = math_floor(height - g + 0.5)
 				end
 			end
-			biomemap[index] = biome
-			self.biomes_here[biome.name] = true
 
-			biome_diff = nil
-			local cave_heat = cave_heat_map[index] + cave_depth_mod
-			-- Why is this necessary?
-			local biome_cave = cave_biomes['stone']
-			-- This time just look at the middle of the chunk,
-			--  since decorations could go all through it.
-			for _, b in ipairs(cave_biomes_i) do
-				if b and (not b.y_max or b.y_max >= minp.y)
-				and (not b.y_min or b.y_min <= maxp.y) then
-					local diff_he = b.heat_point - cave_heat
-					local diff_hu = b.humidity_point - humidity
-					local diff = diff_he * diff_he + diff_hu * diff_hu
-					if ((not biome_diff) or diff < biome_diff) then
-						biome_diff = diff
-						biome_cave = b
+			local biome, biome_cave, heat
+			if self.biome then
+				biome = self.biome
+				biome_cave = cave_biomes['stone']
+			else
+				hu2 = humidity_2_map[index]
+				humidity = humidity_1_map[index] + hu2
+				heat = base_heat + heat_2_map[index]
+				if height > base_level + 20 then
+					local h2 = height - base_level - 20
+					heat = heat - h2 * h2 * 0.005
+				end
+
+				biome = cave_biomes['stone']
+				local biome_diff
+				-- Converting to actual height (relative to the layer).
+				local biome_height = height - chunk_offset
+				for _, b in ipairs(biomes_i) do
+					if b and (not b.y_max or b.y_max >= biome_height)
+					and (not b.y_min or b.y_min <= biome_height) then
+						local diff_he = b.heat_point - heat
+						local diff_hu = b.humidity_point - humidity
+						local diff = diff_he * diff_he + diff_hu * diff_hu
+						if ((not biome_diff) or diff < biome_diff) then
+							biome_diff = diff
+							biome = b
+						end
 					end
 				end
+				biomemap[index] = biome
+				self.biomes_here[biome.name] = true
+
+				biome_diff = nil
+				local cave_heat = cave_heat_map[index] + cave_depth_mod
+				-- Why is this necessary?
+				biome_cave = cave_biomes['stone']
+				-- This time just look at the middle of the chunk,
+				--  since decorations could go all through it.
+				for _, b in ipairs(cave_biomes_i) do
+					if b and (not b.y_max or b.y_max >= minp.y)
+					and (not b.y_min or b.y_min <= maxp.y) then
+						local diff_he = b.heat_point - cave_heat
+						local diff_hu = b.humidity_point - humidity
+						local diff = diff_he * diff_he + diff_hu * diff_hu
+						if ((not biome_diff) or diff < biome_diff) then
+							biome_diff = diff
+							biome_cave = b
+						end
+					end
+				end
+				biomemap_cave[index] = biome_cave
+				self.biomes_here[biome_cave.name] = true
 			end
-			biomemap_cave[index] = biome_cave
-			self.biomes_here[biome_cave.name] = true
 
 			local depth_filler = biome.depth_filler or 0
 			local depth_top = biome.depth_top or 0
-			depth_top = self:erosion(height, index, depth_top, 100)
-			depth_filler = self:erosion(height, index, depth_filler, 20)
+			if depth_top > 0 then
+				depth_top = self:erosion(height, index, depth_top, 100)
+			end
+			if depth_filler > 0 then
+				depth_filler = self:erosion(height, index, depth_filler, 20)
+			end
 
 			-- From here on, height is relative to the chunk.
 			height = math_floor(height - f_alt + 0.5)
@@ -1757,10 +1787,10 @@ function Mapgen:terrain()
 			local ww = node[biome.water or 'default:water_source']
 			local wt = biome.node_water_top
 			local wtd = biome.node_water_top_depth or 0
-			if not wt or wt:find('ice') then
+			if wt and wt:find('ice') then
 				wt = node['default:ice']
 				wtd = math_ceil(math_max(0, (30 - heat) / 3))
-			else
+			elseif wt then
 				wt = node[wt]
 			end
 
@@ -1768,7 +1798,10 @@ function Mapgen:terrain()
 			local fill_2 = fill_1 - math_max(0, depth_filler)
 
 			local t_y_loop = os_clock()
-			local hu2_check = (humidity > 70 and (hu2 > 1 or math_floor(hu2 * 1000) % 2 == 0))
+			local hu2_check
+			if humidity and hu2 then
+				hu2_check = (humidity > 70 and (hu2 > 1 or math_floor(hu2 * 1000) % 2 == 0))
+			end
 			local ivm = area:index(x, minp.y, z)
 			for dy = 0, csize_y - 1 do
 				if f_alt == 0 and dy == base_level + 1 and tracks[index] then
@@ -1803,7 +1836,7 @@ function Mapgen:terrain()
 				elseif dy < height - 20 then
 					data[ivm] = stone_cave
 					p2data[ivm] = 0
-				elseif dy < height then
+				elseif dy <= height then
 					--print('stone '..dump(stone))
 					data[ivm] = stone
 					if stone == n_stone then

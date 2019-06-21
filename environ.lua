@@ -43,6 +43,13 @@ do
 			minetest.register_biome(v)
 		end
 	end
+
+	minetest.register_biome({
+		name = 'ether',
+		heat_point = -99,
+		humidity_point = -99,
+		node_stone = mod_name..':etherstone',
+	})
 end
 
 
@@ -150,7 +157,7 @@ do
     mod.register_cave_biome({
         name = 'coal',
         node_lining = mod_name..':black_sand',
-		stone_type = mod_name..':basalt',
+		node_stone = mod_name..':basalt',
 		surface_depth = 2,
 		y_max = -20,
 		y_min = -31000,
@@ -161,7 +168,7 @@ do
     mod.register_cave_biome({
         name = 'hot',
         node_floor = mod_name..':hot_rock',
-		stone_type = mod_name..':granite',
+		node_stone = mod_name..':granite',
         node_cave_liquid = 'default:lava_source',
 		y_max = -20,
 		y_min = -31000,

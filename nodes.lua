@@ -256,6 +256,14 @@ do
 	})
 
 
+	newnode = clone_node('default:stone')
+	newnode.description = 'Etherstone'
+	newnode.tiles = { 'mapgen_black_sand.png' }
+	newnode.groups = { cracky = 3 }
+	newnode.drop = nil
+	minetest.register_node(mod_name..':etherstone', newnode)
+
+
 	-- stone with lichen
 	newnode = clone_node('default:stone')
 	newnode.description = 'Cave Stone With Lichen'

@@ -140,3 +140,38 @@ minetest.register_on_shutdown(function()
   print('Total Time: '..math.floor(1000 * mod.time_all / mod.chunks))
   print('chunks: '..mod.chunks)
 end)
+
+
+local math_floor = math.floor
+minetest.register_chatcommand('ether', {
+	params = '',
+	description = 'Teleport to ether',
+	privs = {},
+	func = function(player_name, param)
+		if type(player_name) ~= 'string' or player_name == '' then
+			return
+		end
+
+		local player = minetest.get_player_by_name(player_name)
+		if not player then
+			return
+		end
+
+		local pos = player:get_pos()
+		local npos = table.copy(pos)
+
+		if pos.y < -27000 then
+			npos.x = math_floor(npos.x * 8 + 0.5)
+			--npos.y = npos.y + 28800
+			npos.y = math_floor((npos.y + 28800 - 8) * 8 + 0.5) + 8
+			npos.z = math_floor(npos.z * 8 + 0.5)
+			player:set_pos(npos)
+		else
+			npos.x = math_floor(npos.x / 8 + 0.5)
+			--npos.y = npos.y - 28800
+			npos.y = math_floor((npos.y - 8) / 8 + 0.5) - 28800 + 8 + 2
+			npos.z = math_floor(npos.z / 8 + 0.5)
+			player:set_pos(npos)
+		end
+	end,
+})

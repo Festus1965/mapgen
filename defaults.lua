@@ -18,14 +18,14 @@ mod.csize = {x=mod.chunksize * 16, y=mod.chunksize * 16, z=mod.chunksize * 16}
 mod.schematics = {}
 mod.spawn = {}
 mod.terrain_scale = 100
-mod.ground_offset = 1
+mod.ground_offset = 0
 
 
 mod.noise = {}
 
-mod.noise['ground_1'] = { def = {offset = 20, scale = 10, seed = 4382, spread = {x = 23, y = 23, z = 23}, octaves = 2, persist = 0.5, lacunarity = 2.0} }
-mod.noise['ground_2'] = { def = {offset = mod.ground_offset, scale = mod.terrain_scale, seed = 4382, spread = {x = 301, y = 301, z = 301}, octaves = 6, persist = 0.5, lacunarity = 2.0} }
-mod.noise['road_1'] = { def = {offset = mod.ground_offset, scale = mod.terrain_scale, seed = 4382, spread = {x = 301, y = 301, z = 301}, octaves = 3, persist = 0.5, lacunarity = 2.0} }
+mod.noise['ground'] = { def = {offset = 0, scale = mod.terrain_scale, seed = 4382, spread = {x = 320, y = 320, z = 320}, octaves = 6, persist = 0.5, lacunarity = 2.0} }
+mod.noise['ground_ether'] = { def = {offset = 0, scale = mod.terrain_scale, seed = 4382, spread = {x = 40, y = 40, z = 40}, octaves = 6, persist = 0.5, lacunarity = 2.0} }
+mod.noise['road_1'] = { def = {offset = mod.ground_offset, scale = mod.terrain_scale, seed = 4382, spread = {x = 320, y = 320, z = 320}, octaves = 3, persist = 0.5, lacunarity = 2.0} }
 --mod.noise['heat_2'] = { def = {offset = 0, scale = 4, seed = 13, spread = {x = 8, y = 8, z = 8}, octaves = 2, persist = 1.0, lacunarity = 2} }
 mod.noise['heat_2'] = { def = {offset = 0, scale = 4, seed = 5349, spread = {x = 10, y = 10, z = 10}, octaves = 3, persist = 0.5, lacunarity = 2} }
 mod.noise['humidity_1'] = { def = {offset = 50, scale = 50, seed = 842, spread = {x = 1000, y = 1000, z = 1000}, octaves = 3, persist = 0.5, lacunarity = 2} }
