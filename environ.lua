@@ -287,7 +287,7 @@ do
 			octaves = 3,
 			persist = 0.6
 		},
-		biomes = { 'sea_cave', 'wet_stone', 'moss', },
+		biomes = { 'sea_cave', 'wet_stone', 'mossy', },
 		decoration = mod_name..':glowing_fungal_stone',
 		place_offset_y = -1,
 		name = 'glowing_fungal_stone',
@@ -380,6 +380,7 @@ do
 		flags = 'all_floors, all_ceilings',
 	})
 
+	-- Make these grow, eventually.
 	minetest.register_decoration({
 		deco_type = 'simple',
 		place_on = { mod_name..':hot_rock', },
@@ -409,7 +410,19 @@ do
 			octaves = 3,
 			persist = 0.6
 		},
-		--biomes = { 'sea_cave', 'wet_stone', 'moss', },
+		biomes = { 'stone', 'wet_stone', 'lichen', 'sea_cave',
+			'mossy', 'algae', 'salt', 'basalt', 'sand', 'coal' },
+		decoration = mod_name..':pretty_crystal',
+		name = 'Pretty Crystal',
+		flags = 'all_ceilings, all_floors, random_color_floor_ceiling',
+	})
+
+	minetest.register_decoration({
+		deco_type = 'simple',
+		place_on = { 'group:natural_stone', mod_name..':granite', mod_name..':hot_rock', },
+		sidelen = 16,
+		fill_ratio = 0.16,
+		biomes = { 'granite_lava', 'hot' },
 		decoration = mod_name..':pretty_crystal',
 		name = 'Pretty Crystal',
 		flags = 'all_ceilings, all_floors, random_color_floor_ceiling',
