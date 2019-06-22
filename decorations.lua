@@ -183,7 +183,7 @@ do
 	local old_clear_registered_biomes = minetest.clear_registered_biomes
 	minetest.clear_registered_biomes = function ()
 		mod.biomes = {}
-		mod.cave_biomes = {}
+		--mod.cave_biomes = {}
 		old_clear_registered_biomes()
 	end
 end

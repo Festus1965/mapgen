@@ -6,6 +6,8 @@
 local mod = mapgen
 local mod_name = 'mapgen'
 
+local math_floor = math.floor
+
 
 -- This tables looks up nodes that aren't already stored.
 mod.node = setmetatable({}, {
@@ -29,6 +31,18 @@ function vector.mod(v, m)
 		end
 	end
 	return w
+end
+
+
+local axes = { 'x', 'y', 'z' }
+function vector.contains(minp, maxp, q)
+	for _, a in pairs(axes) do
+		if minp[a] > q[a] or maxp[a] < q[a] then
+			return
+		end
+	end
+
+	return true
 end
 
 
@@ -125,6 +139,16 @@ function mod.schematic_array(width, height, depth)
 	s.yslice_prob = {}
 
 	return s
+end
+
+
+mod.max_chunks = 387
+mod.world_map = {}
+function mod.register_map(def)
+	-------------------------------------------
+	-- Check parameters.
+	-------------------------------------------
+	table.insert(mod.world_map, def)
 end
 
 
