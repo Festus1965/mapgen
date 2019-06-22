@@ -344,57 +344,6 @@ end
 
 
 
---[[
----------------
--- Mapgen class
----------------
-local Mapgen = {}
-Mapgen.__index = Mapgen
-
-function Mapgen.new(minp, maxp, seed)
-	local self = setmetatable({
-		area = nil,
-		csize = nil,
-		biomemap = {}, -- use global?
-		biomes_here = {},
-		biomemap_cave = {},
-		data = m_data,
-		grassmap = {},
-		heatmap = {},
-		heightmap = {}, -- use global?
-		humiditymap = {},
-		meta_data = {},
-		minp = minp,
-		maxp = maxp,
-		node = mod.node,
-		p2data = m_p2data,
-		placed_lava = nil,
-		plots = {},
-		puzzle_boxes = {},
-		noise = {},
-		schem = {},
-		seed = seed,
-		shadow = {},
-		vm = nil,
-	}, Mapgen)
-
-	self.csize = mod.csize
-
-	local vm, emin, emax = minetest.get_mapgen_object("voxelmanip")
-	if not (vm and emin and emax) then
-		return
-	end
-	self.vm = vm
-
-	self.data = vm:get_data(self.data)
-	self.p2data = vm:get_param2_data(self.p2data)
-	self.area = VoxelArea:new({MinEdge = emin, MaxEdge = emax})
-
-	return self
-end
---]]
-
-
 local cave_biome_names = {}
 -- check
 function Mapgen:bubble_cave()
@@ -508,7 +457,7 @@ function Mapgen:bubble_cave()
 end
 
 
-function Mapgen:dungeon(box_type)
+function Mapgen:geomorph(box_type)
 		if not box_type then
 			return
 		end
@@ -533,6 +482,7 @@ function Mapgen:erosion(height, index, depth, factor)
 end
 
 
+--[[
 function Mapgen:_generate(timed)
 	local minp = self.minp
 	local biomes = mod.biomes
@@ -576,9 +526,9 @@ function Mapgen:_generate(timed)
 		elseif ground and self.flattened and self.gpr:next(1, 5) == 1 then
 			local sr = self.gpr:next(1, 3)
 			if sr == 1 then
-				self:dungeon('pyramid_temple')
+				self:geomorph('pyramid_temple')
 			elseif sr == 2 then
-				self:dungeon('pyramid')
+				self:geomorph('pyramid')
 			else
 				self:simple_ruin()
 			end
@@ -632,6 +582,7 @@ function Mapgen:_generate(timed)
 
 	mod.chunks = mod.chunks + 1
 end
+--]]
 
 
 -- The houses function takes very little cpu time.
@@ -1270,7 +1221,7 @@ end
 
 
 -- check
-function Mapgen:simple_cave()
+function Mapgen:simple_caves()
 	local minp, maxp = self.minp, self.maxp
 	local pr = self.gpr
 	local sup_chunk = self.sup_chunk
@@ -1747,7 +1698,7 @@ function Mapgen:map_biomes()
 	local cave_biomes = mod.cave_biomes
 	local minp, maxp = self.minp, self.maxp
 
-	local cave_depth_mod = 60 - math_floor((minp.y + self.chunk_offset) / 80) * 20
+	local cave_depth_mod = -40 - math_floor((minp.y + self.chunk_offset) / 80) * 20
 
 	-- Biome selection is expensive. This helps a bit.
 	if not biomes_i then

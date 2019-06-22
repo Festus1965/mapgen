@@ -98,15 +98,15 @@ function DFlat_Mapgen:generate()
 	if ground and self.flattened and self.gpr:next(1, 5) == 1 then
 		local sr = self.gpr:next(1, 3)
 		if sr == 1 then
-			self:dungeon('pyramid_temple')
+			self:geomorph('pyramid_temple')
 		elseif sr == 2 then
-			self:dungeon('pyramid')
+			self:geomorph('pyramid')
 		else
 			self:simple_ruin()
 		end
 		do_ore = false
 	else
-		if math_max(water_level, self.height_max) - chunk_offset <= minp.y then
+		if math_max(water_level, self.height_max) - chunk_offset + 10 <= minp.y then
 			self:planets()
 		end
 		if ground then
@@ -117,7 +117,7 @@ function DFlat_Mapgen:generate()
 	if self.height_max >= minp.y
 	and self.height_min > minp.y + cave_underground then
 		local t_cave = os_clock()
-		self:simple_cave()
+		self:simple_caves()
 		mod.time_caves = mod.time_caves + os_clock() - t_cave
 	end
 
@@ -287,18 +287,19 @@ function DFlat_Mapgen:terrain()
 				grass_p2 = grassmap[index] or 0
 			end
 
-			local ww = node[biome.water or 'default:water_source']
+			local ww = biome.water or 'default:water_source'
 			local wt = biome.node_water_top
 			local wtd = biome.node_water_top_depth or 0
 			do
 				local heat = self.heatmap[index]
-				if wt and wt:find('ice') then
+				if heat < 28 and ((not wt and ww:find('water')) or wt:find('ice')) then
 					wt = node['default:ice']
 					wtd = math_ceil(math_max(0, (30 - heat) / 3))
 				elseif wt then
 					wt = node[wt]
 				end
 			end
+			ww = node[ww]
 
 			local fill_1 = height - depth_top
 			local fill_2 = fill_1 - math_max(0, depth_filler)
