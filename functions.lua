@@ -187,13 +187,13 @@ minetest.register_chatcommand('ether', {
 		if pos.y < -27000 then
 			npos.x = math_floor(npos.x * 8 + 0.5)
 			--npos.y = npos.y + 28800
-			npos.y = math_floor((npos.y + 28800 - 8) * 8 + 0.5) + 8
+			npos.y = math_floor((npos.y + 28400) * 8 + 0.5)
 			npos.z = math_floor(npos.z * 8 + 0.5)
 			player:set_pos(npos)
 		else
 			npos.x = math_floor(npos.x / 8 + 0.5)
 			--npos.y = npos.y - 28800
-			npos.y = math_floor((npos.y - 8) / 8 + 0.5) - 28800 + 8 + 2
+			npos.y = math_floor((npos.y) / 8 + 0.5) - 28400 + 2
 			npos.z = math_floor(npos.z / 8 + 0.5)
 			player:set_pos(npos)
 		end

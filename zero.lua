@@ -27,6 +27,8 @@ local altitude_cutoff_high = 30
 local altitude_cutoff_low = -10
 local altitude_cutoff_low_2 = 63
 local cave_underground = 5
+local make_roads = true
+local make_tracks = false
 
 local n_air = node['air']
 local n_ignore = node['ignore']
@@ -104,7 +106,7 @@ function DFlat_Mapgen:generate()
 		end
 		do_ore = false
 	else
-		if self.height_max + 10 < minp.y then
+		if math_max(water_level, self.height_max) - chunk_offset <= minp.y then
 			self:planets()
 		end
 		if ground then
@@ -148,6 +150,7 @@ function DFlat_Mapgen:map_height()
 	local ground_noise_map = self.noise['ground'].map
 	local heightmap = self.heightmap
 	local base_level = self.base_level
+	local div = self.div
 
 	local height_min = mod.max_height
 	local height_max = -mod.max_height
@@ -155,7 +158,7 @@ function DFlat_Mapgen:map_height()
 	-----------------------------------------
 	-- Fix this.
 	-----------------------------------------
-	if self.ether then
+	if div then
 		ground_noise_map = self.noise['ground_ether'].map
 	end
 	-----------------------------------------
@@ -167,11 +170,7 @@ function DFlat_Mapgen:map_height()
 			local ground_1 = ground_noise_map[index]
 			local height = base_level
 			if ground_1 > altitude_cutoff_high then
-				if self.ether then
-					height = height + math_floor((ground_1 - altitude_cutoff_high) / 8 + 0.5)
-				else
-					height = height + ground_1 - altitude_cutoff_high
-				end
+				height = height + (ground_1 - altitude_cutoff_high) / (div or 1)
 			elseif ground_1 < altitude_cutoff_low then
 				local g = altitude_cutoff_low - ground_1
 				if g < altitude_cutoff_low_2 then
@@ -179,13 +178,10 @@ function DFlat_Mapgen:map_height()
 				else
 					g = (g - altitude_cutoff_low_2) * 0.5 + 40
 				end
-				if self.ether then
-					height = math_floor(height - math_floor(g / 8 + 0.5) + 0.5)
-				else
-					height = math_floor(height - g + 0.5)
-				end
+				height = height - g / (div or 1)
 			end
 
+			height = math_floor(height + 0.5)
 			heightmap[index] = height
 			height_max = math_max(ground_1, height_max)
 			height_min = math_min(ground_1, height_min)
@@ -219,10 +215,11 @@ function DFlat_Mapgen:terrain()
 	local minp = self.minp
 	local ystride = area.ystride
 	local p2data = self.p2data
+	local div = self.div
 
 	local water_level = self.water_level
 	local base_level = self.water_level + water_diff
-	if self.ether then
+	if div then
 		base_level = self.water_level + 1
 	end
 	self.base_level = base_level
@@ -238,7 +235,7 @@ function DFlat_Mapgen:terrain()
 	local roads = self.roads or {}
 	local tracks = self.tracks or {}
 
-	if self.ether then
+	if div then
 		self.biome = biomes['ether']
 	else
 		self.biome = nil
@@ -323,20 +320,22 @@ function DFlat_Mapgen:terrain()
 			-----------------------------------------
 			local ivm = area:index(x, minp.y, z)
 			for y = minp.y, maxp.y do
-				if ground and y == base_level + 1 and tracks[index] then
+				if make_tracks and ground and (not div)
+				and y == base_level + 1 and tracks[index] then
 					if x % 5 == 0 or z % 5 == 0 then
 						data[ivm] = n_rail_power
 					else
 						data[ivm] = n_rail
 					end
-				elseif ground and y >= base_level - 1 and y <= base_level and roads[index] then
+				elseif make_roads and ground and (not div)
+				and y >= base_level - 1 and y <= base_level
+				and roads[index] then
 					if hu2_check then
 						data[ivm] = n_mossy
 					else
 						data[ivm] = n_cobble
 					end
 				elseif y > height and y <= water_level then
-					--print('water '..dump(water_level))
 					if y > water_level - wtd then
 						data[ivm] = wt
 					else
@@ -344,18 +343,15 @@ function DFlat_Mapgen:terrain()
 					end
 					p2data[ivm] = 0
 				elseif y <= height and y > fill_1 then
-					--print('fill_1 '..dump(fill_1))
 					data[ivm] = top
 					p2data[ivm] = 0 + grass_p2
 				elseif filler and y <= height and y > fill_2 then
-					--print('fill_2 '..dump(fill_2))
 					data[ivm] = filler
 					p2data[ivm] = 0
 				elseif y < height - 20 then
 					data[ivm] = stone_cave
 					p2data[ivm] = 0
 				elseif y <= height then
-					--print('stone '..dump(stone))
 					data[ivm] = stone
 					if stone == n_stone then
 						p2data[ivm] = stone_layers[y - minp.y]
@@ -388,7 +384,7 @@ end
 
 
 function zero_mapgen_mini(mg, map)
-	zero_mapgen(mg, 8)
+	zero_mapgen(mg, map, 8)
 end
 
 
@@ -409,7 +405,7 @@ layer_mod.register_map({
 	biomes = 'ether',
 	mapgen = zero_mapgen_mini,
 	mapgen_name = 'dflat',
-	minp = VN(-max_chunks_8, -363, -max_chunks_8),
+	minp = VN(-max_chunks_8, -360, -max_chunks_8),
 	maxp = VN(max_chunks_8, -350, max_chunks_8),
-	water_level = 29521,
+	water_level = -28400,
 })
