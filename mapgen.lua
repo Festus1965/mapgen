@@ -200,7 +200,10 @@ function Mapgen.new(minp, maxp, seed)
 		biomes_here = {},
 		biomemap_cave = {},
 		data = m_data,
+		grassmap = {},
+		heatmap = {},
 		heightmap = {}, -- use global?
+		humiditymap = {},
 		meta_data = {},
 		minp = minp,
 		maxp = maxp,
@@ -398,7 +401,7 @@ function Mapgen:generate(timed)
 
 	local decorate = true
 	local base_heat = 20 + math_abs(70 - ((((minp.z + chunk_offset + 1000) / 6000) * 140) % 140))
-	mod.base_heat = base_heat
+	self.base_heat = base_heat
 
 	if minp.y < -28000 then
 		self.ether = true
@@ -832,7 +835,7 @@ function Mapgen:map_roads()
 	if make_tracks then
 		for z = -1, csize.z + 1 do
 			for x = -1, csize.x + 1 do
-				local index = z * csize.x + x + 1
+				index = z * csize.x + x + 1
 				if tracks[index] then
 					for zo = -1, 1 do
 						for xo = -1, 1 do
@@ -1582,47 +1585,27 @@ function Mapgen:spirals()
 end
 
 
--- check
 -- Since these are tables of references, memory shouldn't be an issue.
 local biomes_i, cave_biomes_i
-function Mapgen:terrain()
-	local csize, area = self.csize, self.area
-	local csize_y = csize.y
-	local base_heat = mod.base_heat
-	local biomes = mod.biomes
-	local cave_biomes = mod.cave_biomes
-	local data = self.data
-	local f_alt = self.f_alt
+function Mapgen:map_biomes()
+	local sup_chunk = self.sup_chunk
 	local heightmap = self.heightmap
+	local heatmap = self.heatmap
+	local humiditymap = self.humiditymap
 	local biomemap = self.biomemap
 	local biomemap_cave = self.biomemap_cave
-	local maxp = self.maxp
-	local minp = self.minp
-	local ystride = area.ystride
-	local p2data = self.p2data
-	local ground_noise_map = self.noise['ground'].map
-	local humidity_1_map = self.noise['humidity_1'].map
-	local humidity_2_map = self.noise['humidity_2'].map
-	local heat_2_map = self.noise['heat_2'].map
+	local biomes = mod.biomes
+	-----------------------------------------
+	-- Move this.
+	-----------------------------------------
 	local cave_heat_map = self.noise['cave_heat'].map
-	local sup_chunk = self.sup_chunk
+	-----------------------------------------
+	local cave_biomes = mod.cave_biomes
+	local minp, maxp = self.minp, self.maxp
 
-	if self.ether then
-		ground_noise_map = self.noise['ground_ether'].map
-	end
-
-	local stone_layers = self.stone_layers
-
-	local n_cobble = node['default:cobble']
-	local n_mossy = node['default:mossycobble']
-	local n_rail_power = node['carts:powerrail']
-	local n_rail = node['carts:rail']
-
-	local roads = self.roads or {}
-	local tracks = self.tracks or {}
+	local cave_depth_mod = 60 - sup_chunk.y * 20
 
 	-- Biome selection is expensive. This helps a bit.
-
 	if not biomes_i then
 		biomes_i = {}
 		for _, b in pairs(biomes) do
@@ -1634,44 +1617,77 @@ function Mapgen:terrain()
 		end
 	end
 
-	f_alt = f_alt or 0
-	base_heat = base_heat or 65
+	local index = 1
+	for _ = minp.z, maxp.z do
+		for _ = minp.x, maxp.x do
+			local height = heightmap[index]
+			local heat = heatmap[index]
+			local humidity = humiditymap[index]
 
-	if self.ether then
-		self.biome = biomes['ether']
-	else
-		self.biome = nil
-	end
+			local biome = cave_biomes['stone']
+			local biome_diff
+			-- Converting to actual height (relative to the layer).
+			local biome_height = height - chunk_offset
+			for _, b in ipairs(biomes_i) do
+				if b and (not b.y_max or b.y_max >= biome_height)
+					and (not b.y_min or b.y_min <= biome_height) then
+					local diff_he = b.heat_point - heat
+					local diff_hu = b.humidity_point - humidity
+					local diff = diff_he * diff_he + diff_hu * diff_hu
+					if ((not biome_diff) or diff < biome_diff) then
+						biome_diff = diff
+						biome = b
+					end
+				end
+			end
+			biomemap[index] = biome
+			self.biomes_here[biome.name] = true
 
-	local local_water_level = base_level - f_alt - water_diff + 1
-	if self.ether then
-		local_water_level = local_water_level + water_diff - 1
+			biome_diff = nil
+			local cave_heat = cave_heat_map[index] + cave_depth_mod
+			-- Why is this necessary?
+			local biome_cave = cave_biomes['stone']
+			-- This time just look at the middle of the chunk,
+			--  since decorations could go all through it.
+			for _, b in ipairs(cave_biomes_i) do
+				if b and (not b.y_max or b.y_max >= minp.y)
+					and (not b.y_min or b.y_min <= maxp.y) then
+					local diff_he = b.heat_point - cave_heat
+					local diff_hu = b.humidity_point - humidity
+					local diff = diff_he * diff_he + diff_hu * diff_hu
+					if ((not biome_diff) or diff < biome_diff) then
+						biome_diff = diff
+						biome_cave = b
+					end
+				end
+			end
+			biomemap_cave[index] = biome_cave
+			self.biomes_here[biome_cave.name] = true
+
+			index = index + 1
+		end
 	end
+end
+
+
+function Mapgen:map_height()
+	local minp, maxp = self.minp, self.maxp
+	local ground_noise_map = self.noise['ground'].map
+	local heightmap = self.heightmap
+	local f_alt = self.f_alt
 
 	local height_min = mod.max_height
 	local height_max = -mod.max_height
 
+	-----------------------------------------
+	-- Fix this.
+	-----------------------------------------
+	if self.ether then
+		ground_noise_map = self.noise['ground_ether'].map
+	end
+	-----------------------------------------
+
 	local index = 1
-	for _ = minp.z, maxp.z do
-		for _ = minp.x, maxp.x do
-			local ground_1 = ground_noise_map[index]
-			height_max = math_max(ground_1, height_max)
-			height_min = math_min(ground_1, height_min)
-			index = index + 1
-		end
-	end
-	self.height_min = height_min
-	self.height_max = height_max
-
-	if (math_max(altitude_cutoff_high, height_max) - altitude_cutoff_high)
-	- (math_min(altitude_cutoff_low, height_min) - altitude_cutoff_low) < 3 then
-		self.flattened = true
-	end
-
-	local humidity, hu2
-	local cave_depth_mod = 60 - sup_chunk.y * 20
-
-	index = 1
 	for z = minp.z, maxp.z do
 		for x = minp.x, maxp.x do
 			-- terrain height calculations
@@ -1697,58 +1713,121 @@ function Mapgen:terrain()
 				end
 			end
 
-			local biome, biome_cave, heat
+			-- From here on, height is relative to the chunk.
+			height = math_floor(height - f_alt + 0.5)
+			heightmap[index] = height
+
+			height_max = math_max(ground_1, height_max)
+			height_min = math_min(ground_1, height_min)
+
+			index = index + 1
+		end
+	end
+
+	self.height_min = height_min
+	self.height_max = height_max
+
+	if (math_max(altitude_cutoff_high, height_max) - altitude_cutoff_high)
+	- (math_min(altitude_cutoff_low, height_min) - altitude_cutoff_low) < 3 then
+		self.flattened = true
+	end
+end
+
+
+function Mapgen:map_heat_humidity()
+	local minp, maxp = self.minp, self.maxp
+	local base_heat = self.base_heat or 65
+	local heightmap = self.heightmap
+	local heatmap = self.heatmap
+	local humiditymap = self.humiditymap
+	local grassmap = self.grassmap
+	local humidity_1_map = self.noise['humidity_1'].map
+	local humidity_2_map = self.noise['humidity_2'].map
+	local heat_2_map = self.noise['heat_2'].map
+	local humidity, hu2
+
+	local index = 1
+	for z = minp.z, maxp.z do
+		for x = minp.x, maxp.x do
+			local height = heightmap[index]
+
+			hu2 = humidity_2_map[index]
+			humidity = humidity_1_map[index] + hu2
+			local heat = base_heat + heat_2_map[index]
+			if height > base_level + 20 then
+				local h2 = height - base_level - 20
+				heat = heat - h2 * h2 * 0.005
+			end
+
+			heatmap[index] = heat
+			humiditymap[index] = humidity
+
+			local grass_p2 = math_floor((humidity - (heat / 2) + 9) / 3)
+			grass_p2 = (7 - math_min(7, math_max(0, grass_p2))) * 32
+			grassmap[index] = grass_p2
+
+			index = index + 1
+		end
+	end
+end
+
+
+-- check
+function Mapgen:terrain()
+	local csize, area = self.csize, self.area
+	local csize_y = csize.y
+	local biomes = mod.biomes
+	local cave_biomes = mod.cave_biomes
+	local data = self.data
+	local f_alt = self.f_alt
+	local heightmap = self.heightmap
+	local grassmap = self.grassmap
+	local biomemap = self.biomemap
+	local biomemap_cave = self.biomemap_cave
+	local maxp = self.maxp
+	local minp = self.minp
+	local ystride = area.ystride
+	local p2data = self.p2data
+
+	local stone_layers = self.stone_layers
+
+	local n_cobble = node['default:cobble']
+	local n_mossy = node['default:mossycobble']
+	local n_rail_power = node['carts:powerrail']
+	local n_rail = node['carts:rail']
+
+	local roads = self.roads or {}
+	local tracks = self.tracks or {}
+
+	f_alt = f_alt or 0
+
+	if self.ether then
+		self.biome = biomes['ether']
+	else
+		self.biome = nil
+	end
+
+	local local_water_level = base_level - f_alt - water_diff + 1
+	if self.ether then
+		local_water_level = local_water_level + water_diff - 1
+	end
+
+	self:map_height()
+	self:map_heat_humidity()
+	self:map_biomes()
+
+	local index = 1
+	for z = minp.z, maxp.z do
+		for x = minp.x, maxp.x do
+			local height = heightmap[index]
+			local biome, biome_cave
+
 			if self.biome then
 				biome = self.biome
 				biome_cave = cave_biomes['stone']
 			else
-				hu2 = humidity_2_map[index]
-				humidity = humidity_1_map[index] + hu2
-				heat = base_heat + heat_2_map[index]
-				if height > base_level + 20 then
-					local h2 = height - base_level - 20
-					heat = heat - h2 * h2 * 0.005
-				end
-
-				biome = cave_biomes['stone']
-				local biome_diff
-				-- Converting to actual height (relative to the layer).
-				local biome_height = height - chunk_offset
-				for _, b in ipairs(biomes_i) do
-					if b and (not b.y_max or b.y_max >= biome_height)
-					and (not b.y_min or b.y_min <= biome_height) then
-						local diff_he = b.heat_point - heat
-						local diff_hu = b.humidity_point - humidity
-						local diff = diff_he * diff_he + diff_hu * diff_hu
-						if ((not biome_diff) or diff < biome_diff) then
-							biome_diff = diff
-							biome = b
-						end
-					end
-				end
-				biomemap[index] = biome
-				self.biomes_here[biome.name] = true
-
-				biome_diff = nil
-				local cave_heat = cave_heat_map[index] + cave_depth_mod
-				-- Why is this necessary?
-				biome_cave = cave_biomes['stone']
-				-- This time just look at the middle of the chunk,
-				--  since decorations could go all through it.
-				for _, b in ipairs(cave_biomes_i) do
-					if b and (not b.y_max or b.y_max >= minp.y)
-					and (not b.y_min or b.y_min <= maxp.y) then
-						local diff_he = b.heat_point - cave_heat
-						local diff_hu = b.humidity_point - humidity
-						local diff = diff_he * diff_he + diff_hu * diff_hu
-						if ((not biome_diff) or diff < biome_diff) then
-							biome_diff = diff
-							biome_cave = b
-						end
-					end
-				end
-				biomemap_cave[index] = biome_cave
-				self.biomes_here[biome_cave.name] = true
+				biome = biomemap[index]
+				biome_cave = biomemap_cave[index]
 			end
 
 			local depth_filler = biome.depth_filler or 0
@@ -1759,10 +1838,6 @@ function Mapgen:terrain()
 			if depth_filler > 0 then
 				depth_filler = self:erosion(height, index, depth_filler, 20)
 			end
-
-			-- From here on, height is relative to the chunk.
-			height = math_floor(height - f_alt + 0.5)
-			heightmap[index] = height
 
 			local stone = node['default:stone']
 			if biome.node_stone then
@@ -1780,18 +1855,20 @@ function Mapgen:terrain()
 			local grass_p2 = 0
 			if biome.node_top == 'default:dirt_with_dry_grass'
 			or biome.node_top == 'default:dirt_with_grass' then
-				grass_p2 = math_floor((humidity - (heat / 2) + 9) / 3)
-				grass_p2 = (7 - math_min(7, math_max(0, grass_p2))) * 32
+				grass_p2 = grassmap[index] or 0
 			end
 
 			local ww = node[biome.water or 'default:water_source']
 			local wt = biome.node_water_top
 			local wtd = biome.node_water_top_depth or 0
-			if wt and wt:find('ice') then
-				wt = node['default:ice']
-				wtd = math_ceil(math_max(0, (30 - heat) / 3))
-			elseif wt then
-				wt = node[wt]
+			do
+				local heat = self.heatmap[index]
+				if wt and wt:find('ice') then
+					wt = node['default:ice']
+					wtd = math_ceil(math_max(0, (30 - heat) / 3))
+				elseif wt then
+					wt = node[wt]
+				end
 			end
 
 			local fill_1 = height - depth_top
@@ -1799,9 +1876,19 @@ function Mapgen:terrain()
 
 			local t_y_loop = os_clock()
 			local hu2_check
-			if humidity and hu2 then
-				hu2_check = (humidity > 70 and (hu2 > 1 or math_floor(hu2 * 1000) % 2 == 0))
+			-----------------------------------------
+			-- Fix this.
+			-----------------------------------------
+			do
+				local humiditymap = self.humiditymap
+				local humidity_2_map = self.noise['humidity_2'].map
+				local hu2 = humidity_2_map[index]
+				local humidity = humiditymap[index]
+				if humidity and hu2 then
+					hu2_check = (humidity > 70 and (hu2 > 1 or math_floor(hu2 * 1000) % 2 == 0))
+				end
 			end
+			-----------------------------------------
 			local ivm = area:index(x, minp.y, z)
 			for dy = 0, csize_y - 1 do
 				if f_alt == 0 and dy == base_level + 1 and tracks[index] then
