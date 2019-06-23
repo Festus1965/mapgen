@@ -14,8 +14,38 @@ mod.world = minetest.get_worldpath()
 minetest.set_mapgen_setting('mg_name', 'singlenode', true)
 minetest.set_mapgen_setting('water_level', -31000, true)
 
+
+mod.chunks = 0
+mod.moria_chunks = 0
+mod.chunksize = tonumber(minetest.settings:get("chunksize") or 5)
+mod.max_height = 31000  -- maximum extent of the world
+mod.multicolor = false
+
+mod.schematics = {}
+
+
+mod.stone_layer_noise = PerlinNoise({
+	offset = 0,
+	scale = 1,
+	seed = 4587,
+	spread = {x = 5, y = 10, z = 5},
+	octaves = 2,
+	persist = 0.5,
+	lacunarity = 2.0
+})
+
+
+mod.time_all = 0
+mod.time_caves = 0
+mod.time_deco = 0
+mod.time_ore = 0
+mod.time_overhead = 0
+mod.time_terrain = 0
+mod.time_terrain_f = 0
+mod.time_y_loop = 0
+
+
 dofile(mod.path .. '/functions.lua')
-dofile(mod.path .. '/defaults.lua')
 dofile(mod.path .. '/nodes.lua')
 dofile(mod.path .. '/decorations.lua')
 dofile(mod.path .. '/plans.lua')
