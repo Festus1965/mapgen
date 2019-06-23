@@ -20,7 +20,7 @@ local VN = vector.new
 
 
 do
-	local newnode = mod.clone_node('default:tree')
+	local newnode = layer_mod.clone_node('default:tree')
 	newnode.description = 'Bark'
 	newnode.tiles = {'default_tree.png'}
 	newnode.is_ground_content = false
@@ -30,7 +30,7 @@ do
 	newnode.sunlight_propagates = true
 	minetest.register_node(mod_name..':bark', newnode)
 
-	newnode = mod.clone_node('default:leaves')
+	newnode = layer_mod.clone_node('default:leaves')
 	newnode.description = 'Leaves'
 	newnode.groups = nil
 	newnode.sunlight_propagates = true
@@ -103,11 +103,12 @@ function Spirals_Mapgen:after_terrain()
 
 	local geo = Geomorph.new()
 	geo:add({
-		action = 'cube',
+		action = 'cylinder',
+		axis = 'y',
 		intersect = {'default:lava_source'},
 		node = 'default:stone',
-		location = VN(0, 0, 0),
-		size = VN(80, 1, 80),
+		location = VN(5, 0, 5),
+		size = VN(70, 80, 70),
 	})
 	geo:add({
 		action = 'cylinder',

@@ -87,13 +87,13 @@ function DFlat_Mapgen:after_terrain()
 	and self.height_min > minp.y + cave_underground then
 		local t_cave = os_clock()
 		self:simple_caves()
-		mod.time_caves = mod.time_caves + os_clock() - t_cave
+		layer_mod.time_caves = layer_mod.time_caves + os_clock() - t_cave
 	end
 
 	if do_ore then
 		local t_ore = os_clock()
 		self:simple_ore()
-		mod.time_ore = mod.time_ore + os_clock() - t_ore
+		layer_mod.time_ore = layer_mod.time_ore + os_clock() - t_ore
 	end
 end
 
@@ -105,8 +105,8 @@ function DFlat_Mapgen:map_height()
 	local base_level = self.base_level
 	local div = self.div
 
-	local height_min = mod.max_height
-	local height_max = -mod.max_height
+	local height_min = layer_mod.max_height
+	local height_max = -layer_mod.max_height
 
 	-----------------------------------------
 	-- Fix this.
@@ -161,7 +161,7 @@ function DFlat_Mapgen:prepare()
 	self.gpr = PcgRandom(self.seed + 5107)
 
 	if self.div then
-		self.biome = mod.biomes['ether']
+		self.biome = layer_mod.biomes['ether']
 	else
 		self.biome = nil
 	end

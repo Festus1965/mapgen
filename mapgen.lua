@@ -223,12 +223,14 @@ function Mapgen:dust()
 	local heightmap = self.heightmap
 
 	local n_ignore = node['ignore']
+	local n_air = node['air']
 
 	local biome = self.biome
 
 	local index = 1
 	for z = minp.z, maxp.z do
 		for x = minp.x, maxp.x do
+			local height = heightmap[index]
 			local ivm = area:index(x, maxp.y - 1, z)
 			if biomemap and biomemap[index] then
 				biome = biomemap[index]
@@ -239,10 +241,10 @@ function Mapgen:dust()
 				node_dust = biome.node_dust
 			end
 
-			if node_dust and buildable_to[data[ivm]] then
+			if node_dust and data[ivm] == n_air then
 				local yc
 				for y = maxp.y - 1, minp.y + 1, -1 do
-					if y >= heightmap[index] and not buildable_to[data[ivm]] then
+					if y >= height and data[ivm] ~= n_air then
 						yc = y
 						break
 					end
@@ -522,7 +524,7 @@ function Mapgen:map_biomes()
 	local cave_biomes = mod.cave_biomes
 	local minp, maxp = self.minp, self.maxp
 
-	local cave_depth_mod = -40 - math_floor((minp.y + self.chunk_offset) / 80) * 20
+	local cave_depth_mod = -10 - math_floor((minp.y + self.chunk_offset) / 80) * 5
 
 	-- Biome selection is expensive. This helps a bit.
 	if not biomes_i then

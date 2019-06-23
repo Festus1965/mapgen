@@ -43,7 +43,7 @@ local stone_types = {
 
 
 do
-	local newnode = mod.clone_node('default:water_source')
+	local newnode = layer_mod.clone_node('default:water_source')
 	newnode.description = 'Water'
 	newnode.drop = 'default:water_source'
 	newnode.liquid_range = 0
@@ -61,7 +61,7 @@ do
 		}
 	end
 
-	newnode = mod.clone_node('default:lava_source')
+	newnode = layer_mod.clone_node('default:lava_source')
 	newnode.description = 'Lava'
 	newnode.drop = 'default:lava_source'
 	newnode.sunlight_propagates = true
@@ -135,7 +135,7 @@ function Planets_Mapgen:after_terrain()
 	local heightmap = self.heightmap
 	local biomemap = self.biomemap
 	local ystride = area.ystride
-	local biomes = mod.biomes
+	local biomes = layer_mod.biomes
 	local pr = self.gpr
 	local sphere_count = pr:next(0, 1) + pr:next(0, 1)
 	if sphere_count < 1 then
@@ -267,8 +267,6 @@ end
 function Planets_Mapgen:prepare()
 	-- Geomorph requires this.
 	self.gpr = PcgRandom(self.seed + 4563)
-
-	self.no_dust = true
 end
 
 
