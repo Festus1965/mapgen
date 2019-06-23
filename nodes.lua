@@ -38,16 +38,6 @@ do
 		post_effect_color = {a = 50, r = 255, g = 255, b = 255},
 	})
 
-	newnode = clone_node('default:tree')
-	newnode.description = 'Bark'
-	newnode.tiles = {'default_tree.png'}
-	newnode.is_ground_content = false
-	newnode.groups.tree = 0
-	newnode.groups.flammable = 0
-	newnode.groups.puts_out_fire = 1
-	newnode.sunlight_propagates = true
-	minetest.register_node(mod_name..':bark', newnode)
-
 
 	-- Used in planets.
 	newnode = mod.clone_node('default:water_source')

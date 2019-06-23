@@ -467,6 +467,12 @@ function Roads_Mapgen:place_puzzles()
 end
 
 
+-- This mapgen only adds to already placed terrain.
+function Roads_Mapgen:place_terrain()
+	-- nop
+end
+
+
 function Roads_Mapgen:prepare()
 	self.gpr = PcgRandom(self.seed + 5245)
 
@@ -494,9 +500,8 @@ do
 
 	layer_mod.register_map({
 		name = 'roads',
-		biomes = 'default',
 		mapgen = Roads_Mapgen,
-		mapgen_name = 'dflat',
+		mapgen_name = 'roads',
 		minp = VN(-max_chunks, 0, -max_chunks),
 		maxp = VN(max_chunks, 0, max_chunks),
 		noises = noises,

@@ -9,14 +9,11 @@ local mod_name = 'mapgen'
 
 
 local math_abs = math.abs
-local math_cos = math.cos
 local math_ceil = math.ceil
 local math_floor = math.floor
 local math_max = math.max
 local math_min = math.min
-local math_pi = math.pi
 local math_random = math.random
-local math_sin = math.sin
 local node = mod.node
 local os_clock = os.clock
 local VN = vector.new
@@ -164,6 +161,7 @@ function Mapgen:new(minp, maxp, seed)
 	inst.biomemap = {} -- use global?
 	inst.biomes_here = {}
 	inst.biomemap_cave = {}
+	inst.buildable_to = buildable_to
 	inst.data = vm:get_data(m_data)
 	inst.grassmap = {}
 	inst.heatmap = {}
@@ -382,7 +380,9 @@ function Mapgen:generate(timed)
 	if map then
 		local t_deco = os_clock()
 		mapgen:place_all_decorations()
-		mapgen:dust()
+		if not mapgen.no_dust then
+			mapgen:dust()
+		end
 		mod.time_deco = mod.time_deco + os_clock() - t_deco
 	else
 		self:bedrock()
@@ -480,6 +480,28 @@ function Mapgen:get_ore(f_alt)
 	end
 
 	return ores[self.gpr:next(1, oren)][1]
+end
+
+
+function Mapgen:make_noises(noises)
+	for n, v in pairs(noises or {}) do
+		self:get_noise(n, v)
+	end
+end
+
+
+local stone_layer_noise = mod.stone_layer_noise
+function Mapgen:make_stone_layer_noise()
+	local minp, csize = self.minp, self.csize
+
+	local stone_layers = {}
+	do
+		local x, z = math.floor(minp.x / csize.x), math.floor(minp.z / csize.z)
+		for y = 0, csize.y - 1 do
+			stone_layers[y] = math_floor(math_abs(stone_layer_noise:get_3d({x=x, y=minp.y+y, z=z})) * 7) * 32
+		end
+	end
+	self.stone_layers = stone_layers
 end
 
 
@@ -1542,176 +1564,3 @@ end
 
 minetest.register_on_newplayer(mod.spawnplayer)
 minetest.register_on_respawnplayer(mod.spawnplayer)
-
-
-
-
-
-
-
-
-
-
-
-
-function Mapgen:make_noises(noises)
-	for n, v in pairs(noises or {}) do
-		self:get_noise(n, v)
-	end
-end
-
-
-local stone_layer_noise = mod.stone_layer_noise
-function Mapgen:make_stone_layer_noise()
-	local minp, csize = self.minp, self.csize
-
-	local stone_layers = {}
-	do
-		local x, z = math.floor(minp.x / csize.x), math.floor(minp.z / csize.z)
-		for y = 0, csize.y - 1 do
-			stone_layers[y] = math_floor(math_abs(stone_layer_noise:get_3d({x=x, y=minp.y+y, z=z})) * 7) * 32
-		end
-	end
-	self.stone_layers = stone_layers
-end
-
-
-function Mapgen:_make_all_noises()
-	local minp, csize = self.minp, self.csize
-
-	-- Generate all noises.
-	for n, v in pairs(mod.noise) do
-		self:get_noise(n, v)
-	end
-
-	local stone_layers = {}
-	do
-		local x, z = math.floor(minp.x / csize.x), math.floor(minp.z / csize.z)
-		for y = 0, csize.y - 1 do
-			stone_layers[y] = math_floor(math_abs(stone_layer_noise:get_3d({x=x, y=minp.y+y, z=z})) * 7) * 32
-		end
-	end
-	self.stone_layers = stone_layers
-end
-
-
--- check
-function Mapgen:spirals()
-	local area = self.area
-	local data = self.data
-	local maxp = self.maxp
-	local minp = self.minp
-	local flets = false
-	local n_leaves = node['default:leaves']
-	local n_bark = node[mod_name .. ':bark']
-	local sup_chunk = self.sup_chunk
-
-	local geo = Geomorph.new()
-	if sup_chunk.y < 4 then
-		geo:add({
-			action = 'cube',
-			intersect = 'air',
-			node = mod_name..':cloud_hard',
-			location = VN(0, 25, 0),
-			size = VN(80, 1, 80),
-		})
-		geo:add({
-			action = 'cube',
-			intersect = 'air',
-			node = mod_name..':cloud_hard',
-			location = VN(0, 50, 0),
-			size = VN(80, 1, 80),
-		})
-	end
-	if sup_chunk.y <= 4 then
-		geo:add({
-			action = 'cube',
-			intersect = {'default:water_source', 'default:lava_source'},
-			node = 'default:stone',
-			location = VN(0, 0, 0),
-			size = VN(80, 1, 80),
-		})
-	end
-	if sup_chunk.y >= 4 and sup_chunk.y < 6 then
-		geo:add({
-			action = 'cylinder',
-			axis = 'y',
-			intersect = {'default:water_source'},
-			node = mod_name..':bark',
-			location = VN(5, 0, 5),
-			size = VN(70, 80, 70),
-		})
-	else
-		geo:add({
-			action = 'cylinder',
-			axis = 'y',
-			intersect = {'default:water_source', 'default:lava_source'},
-			node = 'default:stone',
-			location = VN(5, 0, 5),
-			size = VN(70, 80, 70),
-		})
-	end
-	geo:add({
-		action = 'cylinder',
-		axis = 'y',
-		node = 'air',
-		location = VN(7, 0, 7),
-		size = VN(66, 80, 66),
-	})
-	geo:add({
-		action = 'cylinder',
-		axis = 'y',
-		node = mod_name..':cloud_hard',
-		location = VN(12, 25, 12),
-		size = VN(56, 1, 56),
-	})
-	geo:add({
-		action = 'cylinder',
-		axis = 'y',
-		node = mod_name..':cloud_hard',
-		location = VN(12, 50, 12),
-		size = VN(56, 1, 56),
-	})
-	geo:write_to_map(self)
-
-	local r1, n1, s1, l1 = 30, 3, 20, 20
-
-	for my = minp.y - 2, maxp.y + 2 do
-		for ot = 1, n1 * 2 do
-			local t = my / s1 + math_pi * (ot / n1)
-			local mx = math_floor(minp.x + 40 + r1 * math_cos(t))
-			local mz = math_floor(minp.z + 40 + r1 * math_sin(t))
-			local ivm = area:index(mx, my, mz)
-			if buildable_to[data[ivm]] then
-				data[ivm] = node['default:tree']
-			end
-			for oz = -2, 2 do
-				for oy = -2, 2 do
-					ivm = area:index(mx - 2, my + oy, mz + oz)
-					for _ = -2, 2 do
-						if buildable_to[data[ivm]] then
-							data[ivm] = n_leaves
-						end
-						ivm = ivm + 1
-					end
-				end
-			end
-		end
-		local r2 = r1 - 3
-		local r22 = r2 * r2
-		local r32 = 5 * 5
-		if flets and my % l1 == 0 then
-			for oz = -r2, r2 do
-				local ivm = area:index(minp.x + 40 - r2, my, minp.z + 40 + oz)
-				for ox = -r2, r2 do
-					local r = ox * ox + oz * oz
-					if (buildable_to[data[ivm]])
-					and r < r22 and r > r32 then
-						data[ivm] = n_bark
-					end
-					ivm = ivm + 1
-				end
-			end
-		end
-	end
-end
