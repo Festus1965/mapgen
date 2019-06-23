@@ -35,6 +35,19 @@ do
 	newnode.groups = nil
 	newnode.sunlight_propagates = true
 	minetest.register_node(mod_name..':spiral_leaves', newnode)
+
+	minetest.register_node(mod_name..':cloud_hard', {
+		description = 'Cloud',
+		drawtype = 'glasslike',
+		paramtype = 'light',
+		tiles = {'mapgen_white_t.png'},
+		floodable = false,
+		diggable = false,
+		buildable_to = false,
+		use_texture_alpha = true,
+		sunlight_propagates = true,
+		post_effect_color = {a = 50, r = 255, g = 255, b = 255},
+	})
 end
 
 
@@ -182,8 +195,11 @@ end
 
 
 function Spirals_Mapgen:prepare()
-	self.gpr = PcgRandom(self.seed + 5245)
+	-- Geomorph requires this.
+	self.gpr = PcgRandom(self.seed + 7201)
+
 	self.no_dust = true
+	self.disruptive = true
 end
 
 
