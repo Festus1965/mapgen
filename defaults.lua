@@ -13,14 +13,13 @@ mod.chunksize = tonumber(minetest.settings:get("chunksize") or 5)
 mod.max_height = 31000  -- maximum extent of the world
 mod.multicolor = false
 
-mod.chunk_offset = math.floor(mod.chunksize / 2) * 16;
-mod.csize = {x=mod.chunksize * 16, y=mod.chunksize * 16, z=mod.chunksize * 16}
+--mod.chunk_offset = math.floor(mod.chunksize / 2) * 16;
+--mod.csize = {x=mod.chunksize * 16, y=mod.chunksize * 16, z=mod.chunksize * 16}
 mod.schematics = {}
-mod.spawn = {}
-mod.terrain_scale = 100
-mod.ground_offset = 0
+--mod.spawn = {}
 
 
+--[[
 mod.noise = {}
 
 mod.noise['ground'] = { def = {offset = 0, scale = mod.terrain_scale, seed = 4382, spread = {x = 320, y = 320, z = 320}, octaves = 6, persist = 0.5, lacunarity = 2.0} }
@@ -33,6 +32,7 @@ mod.noise['humidity_2'] = { def = {offset = 0, scale = 1.5, seed = 90003, spread
 mod.noise['erosion'] = { def = {offset = 0, scale = 1.5, seed = -47383, spread = {x = 8, y = 8, z = 8}, octaves = 2, persist = 1.0, lacunarity = 2} }
 mod.noise['flat_cave_1'] = { def = {offset = 0, scale = 10, seed = 6386, spread = {x = 23, y = 23, z = 23}, octaves = 3, persist = 0.7, lacunarity = 1.8} }
 mod.noise['cave_heat'] = { def = {offset = 50, scale = 50, seed = 1578, spread = {x = 200, y = 200, z = 200}, octaves = 3, persist = 0.5, lacunarity = 2} }
+--]]
 
 mod.stone_layer_noise = PerlinNoise({
 	offset = 0,

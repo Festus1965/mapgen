@@ -3,14 +3,6 @@
 -- Distributed under the LGPLv2.1 (https://www.gnu.org/licenses/old-licenses/lgpl-2.1.en.html)
 
 
-------------------------------------
--- store inverted schematics
--- remove unused variables
-------------------------------------
-
--- Sometimes the oceans have air in them, causing odd decoration.
-
-
 local DEBUG
 local mod = mapgen
 local mod_name = 'mapgen'
@@ -25,18 +17,13 @@ local math_min = math.min
 local math_pi = math.pi
 local math_random = math.random
 local math_sin = math.sin
-local math_sqrt = math.sqrt
 local node = mod.node
 local os_clock = os.clock
 local VN = vector.new
 
 
-local water_diff = 8
-local cave_level = 20
-local chunk_offset = mod.chunk_offset
-local cave_underground = 5
-local stone_layer_noise = mod.stone_layer_noise
-local use_pcall
+local chunksize = tonumber(minetest.settings:get("chunksize") or 5)
+local chunk_offset = math.floor(chunksize / 2) * 16;
 
 local Geomorph = geomorph.Geomorph
 local geomorphs = {}
@@ -44,12 +31,11 @@ local m_data = {}
 local m_p2data = {}
 
 
-local n_air = node['air']
-local n_ignore = node['ignore']
 local n_stone = node['default:stone']
 
 
 -- If on my system, it's ok to crash.
+local use_pcall
 do
 	local f = io.open(mod.path..'/duane', 'r')
 
@@ -141,18 +127,19 @@ local ores = {
 	{ 'default:stone_with_diamond', 2, },
 	{ 'default:stone_with_mese', 2, },
 }
+
 local ore_intersect = {
 	'default:stone',
 	'default:sandstone',
 	'default:desert_stone',
-	'environ:basalt',
-	'environ:granite',
-	'environ:stone_with_lichen',
-	'environ:stone_with_algae',
-	'environ:stone_with_moss',
-	'environ:stone_with_salt',
-	'environ:hot_rock',
-	'environ:sunny_stone',
+	mod_name..':basalt',
+	mod_name..':granite',
+	mod_name..':stone_with_lichen',
+	mod_name..':stone_with_algae',
+	mod_name..':stone_with_moss',
+	mod_name..':stone_with_salt',
+	mod_name..':hot_rock',
+	mod_name..':sunny_stone',
 }
 
 
@@ -173,7 +160,7 @@ function Mapgen:new(minp, maxp, seed)
 	setmetatable(inst, Mapgen_mt)
 
 	inst.area = VoxelArea:new({MinEdge = emin, MaxEdge = emax})
-	inst.csize = mod.csize
+	inst.csize = { x=chunksize * 16, y=chunksize * 16, z=chunksize * 16 }
 	inst.biomemap = {} -- use global?
 	inst.biomes_here = {}
 	inst.biomemap_cave = {}
@@ -199,6 +186,11 @@ function Mapgen:new(minp, maxp, seed)
 end
 
 
+function Mapgen:after_terrain()
+	-- Override this.
+end
+
+
 function Mapgen:bedrock()
 	local minp, maxp = self.minp, self.maxp
 	local data, p2data = self.data, self.p2data
@@ -221,166 +213,54 @@ function Mapgen:bedrock()
 end
 
 
--- check
-function Mapgen:place_terrain()
-	local csize, area = self.csize, self.area
-	local csize_y = csize.y
-	local biomes = mod.biomes
-	local cave_biomes = mod.cave_biomes
-	local data = self.data
-	local heightmap = self.heightmap
-	local grassmap = self.grassmap
+function Mapgen:dust()
+	local area, data, p2data = self.area, self.data, self.p2data
+	local minp, maxp = self.minp, self.maxp
 	local biomemap = self.biomemap
-	local biomemap_cave = self.biomemap_cave
-	local maxp = self.maxp
-	local minp = self.minp
-	local ystride = area.ystride
-	local p2data = self.p2data
-	local div = self.div
+	local heightmap = self.heightmap
 
-	local water_level = self.water_level
-	local base_level = self.base_level
-	local ground = (maxp.y >= water_level and minp.y <= water_level)
+	local n_ignore = node['ignore']
 
-	local stone_layers = self.stone_layers
-
-	local n_cobble = node['default:cobble']
-	local n_mossy = node['default:mossycobble']
-
-	local make_roads = true
-	local make_tracks = false
-	local n_rail_power = node['carts:powerrail']
-	local n_rail = node['carts:rail']
-
-	local roads = self.roads or {}
-	local tracks = self.tracks or {}
-
-	self:map_heat_humidity()
-	self:map_biomes()
+	local biome = self.biome
 
 	local index = 1
 	for z = minp.z, maxp.z do
 		for x = minp.x, maxp.x do
-			local height = heightmap[index]
-			local biome, biome_cave
-
-			if self.biome then
-				biome = self.biome
-				biome_cave = cave_biomes['stone']
-			else
-				biome = biomemap[index] or {}
-				biome_cave = biomemap_cave[index] or {}
+			local ivm = area:index(x, maxp.y - 1, z)
+			if biomemap and biomemap[index] then
+				biome = biomemap[index]
 			end
 
-			local depth_filler = biome.depth_filler or 0
-			local depth_top = biome.depth_top or 0
-			if depth_top > 0 then
-				depth_top = self:erosion(height, index, depth_top, 100)
-			end
-			if depth_filler > 0 then
-				depth_filler = self:erosion(height, index, depth_filler, 20)
+			local node_dust
+			if biome then
+				node_dust = biome.node_dust
 			end
 
-			local stone = node['default:stone']
-			if biome.node_stone then
-				stone = node[biome.node_stone] or stone
-			end
-			local stone_cave = node['default:stone']
-			if biome_cave.node_stone then
-				stone_cave = node[biome_cave.node_stone] or stone
-			end
+			if node_dust and buildable_to[data[ivm]] then
+				local yc
+				for y = maxp.y - 1, minp.y + 1, -1 do
+					if y >= heightmap[index] and not buildable_to[data[ivm]] then
+						yc = y
+						break
+					end
 
-			local filler = biome.node_filler or 'air'
-			filler = node[filler]
-			local top = biome.node_top or 'air'
-			top = node[top]
-			local grass_p2 = 0
-			if biome.node_top == 'default:dirt_with_dry_grass'
-			or biome.node_top == 'default:dirt_with_grass' then
-				grass_p2 = grassmap[index] or 0
-			end
-
-			local ww = biome.water or 'default:water_source'
-			local wt = biome.node_water_top
-			local wtd = biome.node_water_top_depth or 0
-			do
-				local heat = self.heatmap[index]
-				if heat < 28 and ((not wt and ww:find('water')) or wt:find('ice')) then
-					wt = node['default:ice']
-					wtd = math_ceil(math_max(0, (30 - heat) / 3))
-				elseif wt then
-					wt = node[wt]
+					ivm = ivm - area.ystride
 				end
-			end
-			ww = node[ww]
 
-			local fill_1 = height - depth_top
-			local fill_2 = fill_1 - math_max(0, depth_filler)
-
-			local t_y_loop = os_clock()
-			local hu2_check
-			-----------------------------------------
-			-- Fix this.
-			-----------------------------------------
-			do
-				local humiditymap = self.humiditymap
-				local humidity_2_map = self.noise['humidity_2'].map
-				local hu2 = humidity_2_map[index]
-				local humidity = humiditymap[index]
-				if humidity and hu2 then
-					hu2_check = (humidity > 70 and (hu2 > 1 or math_floor(hu2 * 1000) % 2 == 0))
-				end
-			end
-			-----------------------------------------
-			local ivm = area:index(x, minp.y, z)
-			for y = minp.y, maxp.y do
-				-----------------------------------------
-				-- Move roads and tracks
-				-----------------------------------------
-				if make_tracks and ground and (not div)
-				and y == base_level + 1 and tracks[index] then
-					if x % 5 == 0 or z % 5 == 0 then
-						data[ivm] = n_rail_power
-					else
-						data[ivm] = n_rail
-					end
-				elseif make_roads and ground and (not div)
-				and y >= base_level - 1 and y <= base_level
-				and roads[index] then
-					if hu2_check then
-						data[ivm] = n_mossy
-					else
-						data[ivm] = n_cobble
-					end
-				-----------------------------------------
-				elseif y > height and y <= water_level then
-					if y > water_level - wtd then
-						data[ivm] = wt
-					else
-						data[ivm] = ww
-					end
-					p2data[ivm] = 0
-				elseif y <= height and y > fill_1 then
-					data[ivm] = top
-					p2data[ivm] = 0 + grass_p2
-				elseif filler and y <= height and y > fill_2 then
-					data[ivm] = filler
-					p2data[ivm] = 0
-				elseif y < height - 20 then
-					data[ivm] = stone_cave
-					p2data[ivm] = 0
-				elseif y <= height then
-					data[ivm] = stone
-					if stone == n_stone then
-						p2data[ivm] = stone_layers[y - minp.y]
-					else
+				if yc then
+					local name = minetest.get_name_from_content_id(data[ivm])
+					local n = minetest.registered_nodes[name]
+					if data[ivm] == n_ignore
+					or (
+						n and (not n.drawtype or dusty_types[n.drawtype])
+						and n.walkable ~= false
+					) then
+						ivm = ivm + area.ystride
+						data[ivm] = node[node_dust]
 						p2data[ivm] = 0
 					end
 				end
-
-				ivm = ivm + ystride
 			end
-			mod.time_y_loop = mod.time_y_loop + os_clock() - t_y_loop
 
 			index = index + 1
 		end
@@ -388,16 +268,81 @@ function Mapgen:place_terrain()
 end
 
 
+-- check
+function Mapgen:erosion(height, index, depth, factor)
+	local e = self.noise['erosion'].map[index]
+	if e <= 0 then
+		return depth
+	end
+	e = depth - math_floor(height * height / factor / factor * (e + 1))
+	return e
+end
+
+
+-------------------------------------------------
+-- Find a place to put decorations with the all_floors,
+--  all_ceilings, or liquid_surface flags.
+-------------------------------------------------
+
+local y_s = {}
+function Mapgen:find_break(x, z, flags, gpr)
+	local minp, maxp = self.minp, self.maxp
+	local data, area = self.data, self.area
+	local ystride = self.area.ystride
+
+	local n_air = node['air']
+
+	for k in pairs(y_s) do
+		y_s[k] = nil
+	end
+
+	if flags.liquid_surface then
+		local ivm = area:index(x, maxp.y, z)
+		for y = maxp.y, minp.y + 1, -1 do
+			if data[ivm] ~= n_air then
+				return
+			end
+			if liquids[data[ivm - ystride]] then
+				return (y - minp.y - 1)
+			end
+			ivm = ivm - ystride
+		end
+	end
+
+	if flags.all_ceilings then
+		local ivm = area:index(x, minp.y, z)
+		for y = minp.y, maxp.y - 1 do
+			if buildable_to[data[ivm]] and not buildable_to[data[ivm + ystride]] then
+				if data[ivm] == n_air or flags.force_placement then
+					table.insert(y_s, -(y - minp.y + 1))
+				end
+			end
+			ivm = ivm + ystride
+		end
+	end
+
+	if flags.all_floors then
+		-- Don't check heightmap. It doesn't work in bubble caves.
+		local ivm = area:index(x, maxp.y, z)
+		for y = maxp.y, minp.y + 1, -1 do
+			if buildable_to[data[ivm]] and not buildable_to[data[ivm - ystride]] then
+				if data[ivm] == n_air or flags.force_placement then
+					table.insert(y_s, y - minp.y - 1)
+				end
+			end
+			ivm = ivm - ystride
+		end
+	end
+
+	if #y_s > 0 then
+		return y_s[gpr:next(1, #y_s)]
+	end
+end
+
+
 function Mapgen:generate(timed)
 	local minp, maxp = self.minp, self.maxp
 
-	--self.gpr = PcgRandom(self.seed + 5107)
-
-	-------------------------------------------
-	self:make_all_noises()
-	-------------------------------------------
-
-	local t_terrain = os_clock()
 	local chunk = vector.divide(vector.add(minp, chunk_offset), 80)
 
 	local map
@@ -409,7 +354,30 @@ function Mapgen:generate(timed)
 	end
 
 	if map then
-		map.mapgen(self, map)
+		map.params.water_level = map.water_level
+		local mapgen = map.mapgen:new(self, map.params)
+
+		-- Many of the methods called in the map.mapgen will
+		--  be inherited from Mapgen if not overridden.
+
+		mapgen:make_noises(map.noises)
+		mapgen:make_stone_layer_noise()
+
+		do
+			local t_terrain = os_clock()
+			mapgen:prepare()
+			mapgen:map_height()
+			mapgen:place_terrain(map)
+			mapgen:after_terrain()
+			mod.time_terrain = mod.time_terrain + os_clock() - t_terrain
+		end
+
+		do
+			local t_deco = os_clock()
+			mapgen:place_all_decorations()
+			mapgen:dust()
+			mod.time_deco = mod.time_deco + os_clock() - t_deco
+		end
 	else
 		self:bedrock()
 	end
@@ -417,180 +385,6 @@ function Mapgen:generate(timed)
 	self:save_map(timed)
 
 	mod.chunks = mod.chunks + 1
-end
-
-
-local function generate(minp, maxp, seed)
-	if not (minp and maxp and seed) then
-		print(mod_name..': generate did not receive minp, maxp, and seed. Aborting.')
-		return
-	end
-
-	local chunksize = tonumber(minetest.settings:get("chunksize") or 5)
-	local chunk_offset = math.floor(chunksize / 2) * 16;
-	local csize = { x=chunksize * 16, y=chunksize * 16, z=chunksize * 16 }
-
-	local mg = Mapgen:new(minp, maxp, seed)
-	if not mg then
-		return
-	end
-
-	mg.chunk_offset = chunk_offset
-
-	mg:generate(true)
-	local mem = math_floor(collectgarbage('count')/1024)
-	if mem > 200 then
-		print('Lua Memory: ' .. mem .. 'M')
-	end
-end
-
-
-local function pgenerate(...)
-	local status, err
-
-	local t_all = os_clock()
-	if use_pcall then
-		status, err = pcall(generate, ...)
-	else
-		status = true
-		generate(...)
-	end
-	mod.time_all = mod.time_all + os_clock() - t_all
-
-	if not status then
-		print(mod_name .. ': Could not generate terrain:')
-		print(dump(err))
-		collectgarbage("collect")
-	end
-end
-
-
-if minetest.registered_on_generateds then
-	-- This is unsupported. I haven't been able to think of an alternative.
-	table.insert(minetest.registered_on_generateds, 1, pgenerate)
-else
-	minetest.register_on_generated(pgenerate)
-end
-
-
-
-
-
-
-
-
-
-
-local cave_biome_names = {}
--- check
-function Mapgen:bubble_cave()
-	local data, p2data = self.data, self.p2data
-	local minp, maxp, area = self.minp, self.maxp, self.area
-	local center = vector.round(vector.divide(vector.add(minp, maxp), 2))
-	local ystride = area.ystride
-	local cave_biomes = mod.cave_biomes or {}
-
-	if #cave_biome_names < 1 then
-		for n in pairs(cave_biomes) do
-			table.insert(cave_biome_names, n)
-		end
-	end
-
-	local biome = cave_biomes[cave_biome_names[self.gpr:next(1, math_max(1, #cave_biome_names))]] or {}
-	self.biome = biome
-
-	local n_b_stone = node[biome.node_stone] or n_stone
-	local n_ceiling = node[biome.node_ceiling]
-	local n_lining = node[biome.node_lining]
-	local n_floor = node[biome.node_floor]
-	local n_fluid = node[biome.node_cave_liquid]
-	local n_gas = node[biome.node_gas] or n_air
-	local surface_depth = biome.surface_depth or 1
-
-	if biome.node_cave_liquid == 'default:lava_source'
-	or biome.gas == 'default:lava_source' then
-		self.placed_lava = true
-	end
-
-	local geo = Geomorph.new()
-	local pos = VN(0,0,0)
-	local size = VN(80,80,80)
-	geo:add({
-		action = 'cube',
-		node = biome.node_stone or 'default:stone',
-		location = table.copy(pos),
-		size = table.copy(size),
-	})
-	if biome.node_lining then
-		geo:add({
-			action = 'sphere',
-			node = biome.node_lining,
-			location = vector.add(pos, 1),
-			intersect = { biome.node_stone or 'default:stone' },
-			size = vector.add(size, -2),
-		})
-	end
-	geo:add({
-		action = 'sphere',
-		node = 'air',
-		location = vector.add(pos, surface_depth + 1),
-		size = vector.add(size, -(2 * (surface_depth + 1))),
-	})
-	geo:write_to_map(self)
-
-	local index = 1
-	for z = minp.z, maxp.z do
-		for x = minp.x, maxp.x do
-			local ground = self.noise['flat_cave_1'].map[index]
-
-			if ground < -10 then
-				ground = ground + 10
-				ground = - (ground * ground) - 10
-			elseif ground > 0 then
-				---------------------------
-				-- cpu drain
-				---------------------------
-				ground = math_sqrt(ground)
-				---------------------------
-			end
-			ground = math_floor(ground)
-
-			local ivm = area:index(x, minp.y, z)
-			for y = minp.y, maxp.y - 1 do
-				local diff = math_abs(center.y - y)
-				if diff >= cave_level + ground
-				and diff < cave_level + ground + surface_depth
-				and data[ivm] == n_air then
-					if y < center.y then
-						data[ivm] = n_lining or n_floor or n_b_stone
-						p2data[ivm] = 0
-					else
-						data[ivm] = n_lining or n_ceiling or n_b_stone
-						p2data[ivm] = 0
-					end
-				elseif diff < cave_level + ground and data[ivm] == n_air then
-					if n_fluid and y <= center.y - cave_level then
-						data[ivm] = n_fluid
-						p2data[ivm] = 0
-					else
-						data[ivm] = n_gas
-						p2data[ivm] = 0
-					end
-				elseif data[ivm] == n_air then
-					if diff < 10 then
-						data[ivm] = n_floor or n_b_stone
-					else
-						data[ivm] = n_b_stone
-					end
-					p2data[ivm] = 0
-				end
-
-				ivm = ivm + ystride
-			end
-
-			index = index + 1
-		end
-	end
 end
 
 
@@ -605,17 +399,6 @@ function Mapgen:geomorph(box_type)
 			geo:add(v)
 		end
 		geo:write_to_map(self, nil, geo_replace[box_type])
-end
-
-
--- check
-function Mapgen:erosion(height, index, depth, factor)
-	local e = self.noise['erosion'].map[index]
-	if e <= 0 then
-		return depth
-	end
-	e = depth - math_floor(height * height / factor / factor * (e + 1))
-	return e
 end
 
 
@@ -643,6 +426,7 @@ function Mapgen:get_noise(n, v)
 		end
 
 		if not v.noise then
+			print(mod_name..': could not get noise '..n)
 			return
 		end
 	end
@@ -673,228 +457,6 @@ function Mapgen:get_noise(n, v)
 end
 
 
-function Mapgen:make_all_noises()
-	local minp, csize = self.minp, self.csize
-
-	-- Generate all noises.
-	for n, v in pairs(mod.noise) do
-		self:get_noise(n, v)
-	end
-
-	local stone_layers = {}
-	do
-		local x, z = math.floor(minp.x / csize.x), math.floor(minp.z / csize.z)
-		for y = 0, csize.y - 1 do
-			stone_layers[y] = math_floor(math_abs(stone_layer_noise:get_3d({x=x, y=minp.y+y, z=z})) * 7) * 32
-		end
-	end
-	self.stone_layers = stone_layers
-end
-
-
-function Mapgen:place_puzzles()
-	local width = 7
-	local geo = Geomorph.new()
-
-	for _, puz in pairs(self.puzzle_boxes) do
-		local pos = vector.add(puz.pos, -1)
-		pos.y = pos.y + 4
-		local size = vector.add(puz.size, 2)
-		geo:add({
-			action = 'cube',
-			node = 'air',
-			clear_up = 13,
-			location = pos,
-			size = size,
-		})
-
-		pos = table.copy(puz.pos)
-		pos.y = pos.y + 4
-		geo:add({
-			action = 'puzzle',
-			chance = 1,
-			clear_up = 13,
-			location = pos,
-			size = VN(width, width, width),
-		})
-
-		-- Only the first.
-		--break
-	end
-	geo:write_to_map(self, 0)
-end
-
-
-function Mapgen:save_map(timed)
-	local t_over
-	if timed then
-		t_over = os_clock()
-	end
-
-	self.vm:set_data(self.data)
-	self.vm:set_param2_data(self.p2data)
-
-	if DEBUG then
-		self.vm:set_lighting({day = 10, night = 10})
-	else
-		self.vm:set_lighting({day = 0, night = 0}, self.minp, self.maxp)
-		self.vm:calc_lighting(nil, nil, false)
-	end
-
-	self.vm:update_liquids()
-	self.vm:write_to_map()
-
-	-- Save all meta data for chests, cabinets, etc.
-	for _, t in ipairs(self.meta_data) do
-		local meta = minetest.get_meta({x=t.x, y=t.y, z=t.z})
-		meta:from_table()
-		meta:from_table(t.meta)
-	end
-
-	-- Call on_construct methods for nodes that request it.
-	-- This is mainly useful for starting timers.
-	for i, n in ipairs(self.data) do
-		if mod.construct_nodes[n] then
-			local pos = self.area:position(i)
-			local node_name = minetest.get_name_from_content_id(n)
-			if minetest.registered_nodes[node_name] and minetest.registered_nodes[node_name].on_construct then
-				minetest.registered_nodes[node_name].on_construct(pos)
-			else
-				local timer = minetest.get_node_timer(pos)
-				if timer then
-					timer:start(math_random(100))
-				end
-			end
-		end
-	end
-
-	if timed then
-		mod.time_overhead = mod.time_overhead + os_clock() - t_over
-	end
-end
-
-
--- check
-function Mapgen:simple_caves()
-	local minp, maxp = self.minp, self.maxp
-	local pr = self.gpr
-	local sup_chunk = self.sup_chunk
-	local csize = self.csize
-
-	local geo = Geomorph.new()
-
-	local biome = self.biomemap_cave[math_floor(csize.z / 2 * csize.x + csize.x / 2)] or {}
-	local liquid = biome.node_cave_liquid
-
-	for _ = 1, 40 do
-		local size = VN(
-			pr:next(9, 25),
-			pr:next(9, 25),
-			pr:next(9, 25)
-		)
-		local big = pr:next(1, 10)
-		if big == 1 then
-			size.x = pr:next(9, 78)
-		elseif big == 2 then
-			size.y = pr:next(9, 78)
-		elseif big == 3 then
-			size.z = pr:next(9, 78)
-		end
-
-		local pos = VN(
-			pr:next(1, 79 - size.x),
-			pr:next(1, 79 - size.y),
-			pr:next(1, 79 - size.z)
-		)
-
-		local index = pos.z * csize.x + pos.x + 1
-		biome = self.biomemap_cave[index] or {}
-
-		if maxp.y < self.water_level or pos.y <= self.heightmap[index] then
-			if biome.node_floor or biome.node_ceiling then
-				local hpos = vector.add(pos, -(biome.surface_depth or 1))
-				local hsize = vector.add(size, (2 * (biome.surface_depth or 1)))
-				local hy = math_floor(hsize.y / 2)
-				if biome.node_floor then
-					geo:add({
-						action = 'sphere',
-						node = biome.node_floor,
-						location = hpos,
-						intersect = { biome.node_stone or 'default:stone' },
-						underground = cave_underground,
-						size = hsize,
-					})
-					geo:add({
-						action = 'cube',
-						node = biome.node_stone or 'default:stone',
-						location = VN(hpos.x, hpos.y + hy, hpos.z),
-						intersect = { biome.node_floor },
-						underground = cave_underground,
-						size = VN(hsize.x, hy, hsize.z)
-					})
-				end
-				if biome.node_ceiling then
-					geo:add({
-						action = 'sphere',
-						node = biome.node_ceiling,
-						location = hpos,
-						intersect = { biome.node_stone or 'default:stone' },
-						underground = cave_underground,
-						size = hsize,
-					})
-					geo:add({
-						action = 'cube',
-						node = biome.node_stone or 'default:stone',
-						location = VN(hpos.x, hpos.y, hpos.z),
-						intersect = { biome.node_ceiling },
-						underground = cave_underground,
-						size = VN(hsize.x, hy, hsize.z)
-					})
-				end
-			elseif biome.node_lining then
-				geo:add({
-					action = 'sphere',
-					node = biome.node_lining,
-					location = vector.add(pos, -(biome.surface_depth or 1)),
-					intersect = { biome.node_stone or 'default:stone' },
-					underground = cave_underground,
-					size = vector.add(size, (2 * (biome.surface_depth or 1))),
-				})
-			end
-
-			geo:add({
-				action = 'sphere',
-				node = 'air',
-				location = vector.add(pos, 1),
-				underground = cave_underground,
-				size = vector.add(size, -2),
-			})
-			geo:add({
-				action = 'sphere',
-				node = 'air',
-				random = 6,
-				location = pos,
-				underground = cave_underground,
-				size = size,
-			})
-		end
-	end
-
-	if minp.y < self.water_level and liquid then
-		geo:add({
-			action = 'cube',
-			node = liquid,
-			location = VN(1, 1, 1),
-			underground = cave_underground,
-			intersect = 'air',
-			size = VN(78, pr:next(10, 40), 78),
-		})
-	end
-
-	geo:write_to_map(self)
-end
-
-
 function Mapgen:get_ore(f_alt)
 	local oren = 0
 	for _, i in pairs(ores) do
@@ -904,334 +466,6 @@ function Mapgen:get_ore(f_alt)
 	end
 
 	return ores[self.gpr:next(1, oren)][1]
-end
-
-
-function Mapgen:simple_ore()
-	local minp, maxp = self.minp, self.maxp
-	local f_alt = math_max(0, - math_floor((minp.y + self.chunk_offset) / self.csize.y))
-
-	local pr = self.gpr
-
-	local geo = Geomorph.new()
-	for _ = 1, 25 do
-		local ore = self:get_ore(f_alt)
-
-		local size = VN(
-			pr:next(1, 10) + pr:next(1, 10),
-			pr:next(1, 10) + pr:next(1, 10),
-			pr:next(1, 10) + pr:next(1, 10)
-		)
-		if self.placed_lava then
-			size = VN(size, 2)
-		end
-
-		local p = VN(
-			pr:next(0, 80 - size.x),
-			pr:next(0, 80 - size.y),
-			pr:next(0, 80 - size.z)
-		)
-
-		geo:add({
-			action = 'cube',
-			node = ore,
-			random = 4,
-			location = p,
-			size = size,
-			intersect = ore_intersect,
-		})
-	end
-	geo:write_to_map(self)
-
-	-- Change the colors of all default stone.
-	-- The time for this is negligible.
-	local area = self.area
-	local data, p2data = self.data, self.p2data
-	local stone_layers = self.stone_layers
-	local ystride = area.ystride
-	for z = minp.z, maxp.z do
-		for x = minp.x, maxp.x do
-			local ivm = area:index(x, minp.y, z)
-			for y = minp.y, maxp.y do
-				local dy = y - minp.y
-
-				if data[ivm] == n_stone then
-					p2data[ivm] = stone_layers[dy]
-				end
-
-				ivm = ivm + ystride
-			end
-		end
-	end
-end
-
-
--- check
-function Mapgen:simple_ruin()
-	if not self.flattened then
-		return
-	end
-
-	local csize = self.csize
-	local heightmap = self.heightmap
-	local boxes = {}
-
-	for _ = 1, 15 do
-		local scale = self.gpr:next(2, 3) * 4
-		local size = VN(self.gpr:next(1, 3), 1, self.gpr:next(1, 3))
-		size.x = size.x * scale + 5
-		size.y = size.y * 8
-		size.z = size.z * scale + 5
-
-		for _ = 1, 10 do
-			local pos = VN(self.gpr:next(1, csize.x - size.x - 2), base_level, self.gpr:next(1, csize.z - size.z - 2))
-			local good = true
-			for _, box in pairs(boxes) do
-				if box.pos.x + box.size.x < pos.x or pos.x + size.x < box.pos.x
-				or box.pos.z + box.size.z < pos.z or pos.z + size.z < box.pos.z then
-					-- nop
-				else
-					good = false
-					break
-				end
-			end
-			if good then
-				table.insert(boxes, { pos = pos, size = size })
-				break
-			end
-		end
-	end
-	local geo = Geomorph.new()
-	local stone = 'default:sandstone'
-	for _, box in pairs(boxes) do
-		local pos = table.copy(box.pos)
-		local size = table.copy(box.size)
-
-		for z = pos.z, pos.z + size.z do
-			local index = z * csize.x + pos.x + 1
-			for _ = pos.x, pos.x + size.x do
-				heightmap[index] = base_level
-				index = index + 1
-			end
-		end
-
-		-- foundation
-		pos.y = pos.y - 2
-		size.y = 3
-		geo:add({
-			action = 'cube',
-			node = stone,
-			location = pos,
-			size = size,
-		})
-
-		pos = table.copy(pos)
-		pos.y = pos.y + 3
-		size = table.copy(size)
-		size.y = 1
-		geo:add({
-			action = 'cube',
-			node = 'air',
-			location = pos,
-			size = size,
-		})
-
-		box.pos.x = box.pos.x + 2
-		box.pos.z = box.pos.z + 2
-		box.size.x = box.size.x - 4
-		box.size.z = box.size.z - 4
-
-		pos = table.copy(box.pos)
-		pos.y = pos.y + 8
-		size = table.copy(box.size)
-		size.y = 1
-		geo:add({
-			action = 'cube',
-			node = stone,
-			location = pos,
-			size = size,
-		})
-		pos = vector.add(box.pos, 1)
-		pos.y = pos.y + 8
-		size = vector.add(box.size, -2)
-		size.y = 1
-		geo:add({
-			action = 'cube',
-			node = stone,
-			location = pos,
-			size = size,
-		})
-		pos = table.copy(pos)
-		pos.y = pos.y - 1
-		geo:add({
-			action = 'cube',
-			node = 'air',
-			location = pos,
-			size = size,
-		})
-		local pool = 14
-		if box.size.x > pool and box.size.z > pool then
-			pos = vector.add(box.pos, (pool / 2) - 1)
-			pos.y = box.pos.y + 1
-			size = vector.add(box.size, -(pool - 2))
-			size.y = 1
-			geo:add({
-				action = 'cube',
-				node = stone,
-				location = pos,
-				size = size,
-			})
-			pos = vector.add(box.pos, pool / 2)
-			pos.y = box.pos.y + 1
-			size = vector.add(box.size, -pool)
-			size.y = 1
-			geo:add({
-				action = 'cube',
-				node = 'default:water_source',
-				location = pos,
-				size = size,
-			})
-		end
-
-		for z = box.pos.z, box.pos.z + box.size.z, 4 do
-			for x = box.pos.x, box.pos.x + box.size.x, 4 do
-				if x == box.pos.x or x == box.pos.x + box.size.x - 1
-				or z == box.pos.z or z == box.pos.z + box.size.z - 1 then
-					geo:add({
-						action = 'cube',
-						node = stone,
-						location = VN(x, box.pos.y, z),
-						size = VN(1, box.size.y, 1),
-					})
-				end
-			end
-		end
-	end
-	geo:write_to_map(self)
-
-	return true
-end
-
-
--- check
-function Mapgen:spirals()
-	local area = self.area
-	local data = self.data
-	local maxp = self.maxp
-	local minp = self.minp
-	local flets = false
-	local n_leaves = node['default:leaves']
-	local n_bark = node[mod_name .. ':bark']
-	local sup_chunk = self.sup_chunk
-
-	local geo = Geomorph.new()
-	if sup_chunk.y < 4 then
-		geo:add({
-			action = 'cube',
-			intersect = 'air',
-			node = mod_name..':cloud_hard',
-			location = VN(0, base_level, 0),
-			size = VN(80, 1, 80),
-		})
-		geo:add({
-			action = 'cube',
-			intersect = 'air',
-			node = mod_name..':cloud_hard',
-			location = VN(0, 50, 0),
-			size = VN(80, 1, 80),
-		})
-	end
-	if sup_chunk.y <= 4 then
-		geo:add({
-			action = 'cube',
-			intersect = {'default:water_source', 'default:lava_source'},
-			node = 'default:stone',
-			location = VN(0, 0, 0),
-			size = VN(80, 1, 80),
-		})
-	end
-	if sup_chunk.y >= 4 and sup_chunk.y < 6 then
-		geo:add({
-			action = 'cylinder',
-			axis = 'y',
-			intersect = {'default:water_source'},
-			node = mod_name..':bark',
-			location = VN(5, 0, 5),
-			size = VN(70, 80, 70),
-		})
-	else
-		geo:add({
-			action = 'cylinder',
-			axis = 'y',
-			intersect = {'default:water_source', 'default:lava_source'},
-			node = 'default:stone',
-			location = VN(5, 0, 5),
-			size = VN(70, 80, 70),
-		})
-	end
-	geo:add({
-		action = 'cylinder',
-		axis = 'y',
-		node = 'air',
-		location = VN(7, 0, 7),
-		size = VN(66, 80, 66),
-	})
-	geo:add({
-		action = 'cylinder',
-		axis = 'y',
-		node = mod_name..':cloud_hard',
-		location = VN(12, base_level, 12),
-		size = VN(56, 1, 56),
-	})
-	geo:add({
-		action = 'cylinder',
-		axis = 'y',
-		node = mod_name..':cloud_hard',
-		location = VN(12, 75, 12),
-		size = VN(56, 1, 56),
-	})
-	geo:write_to_map(self)
-
-	local r1, n1, s1, l1 = 30, 3, 20, 20
-
-	for my = minp.y - 2, maxp.y + 2 do
-		for ot = 1, n1 * 2 do
-			local t = my / s1 + math_pi * (ot / n1)
-			local mx = math_floor(minp.x + 40 + r1 * math_cos(t))
-			local mz = math_floor(minp.z + 40 + r1 * math_sin(t))
-			local ivm = area:index(mx, my, mz)
-			if buildable_to[data[ivm]] then
-				data[ivm] = node['default:tree']
-			end
-			for oz = -2, 2 do
-				for oy = -2, 2 do
-					ivm = area:index(mx - 2, my + oy, mz + oz)
-					for _ = -2, 2 do
-						if buildable_to[data[ivm]] then
-							data[ivm] = n_leaves
-						end
-						ivm = ivm + 1
-					end
-				end
-			end
-		end
-		local r2 = r1 - 3
-		local r22 = r2 * r2
-		local r32 = 5 * 5
-		if flets and my % l1 == 0 then
-			for oz = -r2, r2 do
-				local ivm = area:index(minp.x + 40 - r2, my, minp.z + 40 + oz)
-				for ox = -r2, r2 do
-					local r = ox * ox + oz * oz
-					if (buildable_to[data[ivm]])
-					and r < r22 and r > r32 then
-						data[ivm] = n_bark
-					end
-					ivm = ivm + 1
-				end
-			end
-		end
-	end
 end
 
 
@@ -1319,7 +553,7 @@ function Mapgen:map_biomes()
 end
 
 
-function Mapgen:map_heat_humidity()
+function Mapgen:map_heat_humidity(map)
 	local minp, maxp = self.minp, self.maxp
 	local base_heat = self.base_heat or 65
 	local heightmap = self.heightmap
@@ -1330,7 +564,7 @@ function Mapgen:map_heat_humidity()
 	local humidity_2_map = self.noise['humidity_2'].map
 	local heat_2_map = self.noise['heat_2'].map
 	local humidity, hu2
-	local base_level = self.base_level
+	local water_level = map.water_level
 
 	local index = 1
 	for z = minp.z, maxp.z do
@@ -1340,8 +574,8 @@ function Mapgen:map_heat_humidity()
 			hu2 = humidity_2_map[index]
 			humidity = humidity_1_map[index] + hu2
 			local heat = base_heat + heat_2_map[index]
-			if height > base_level + 20 then
-				local h2 = height - base_level - 20
+			if height > water_level + 25 then
+				local h2 = height - water_level - 25
 				heat = heat - h2 * h2 * 0.005
 			end
 
@@ -1355,6 +589,30 @@ function Mapgen:map_heat_humidity()
 			index = index + 1
 		end
 	end
+end
+
+
+function Mapgen:map_height()
+	-- Override this.
+
+	local minp, maxp = self.minp, self.maxp
+	local height = 8
+
+	local index = 1
+	for z = minp.z, maxp.z do
+		for x = minp.x, maxp.x do
+			self.heightmap[index] = self.water_level + height
+			index = index + 1
+		end
+	end
+
+	self.height_max = height
+	self.height_min = height
+end
+
+
+function Mapgen:prepare()
+	-- Override this.
 end
 
 
@@ -1386,61 +644,8 @@ function Mapgen:place_all_decorations()
 end
 
 
-local y_s = {}
-function Mapgen:find_break(x, z, flags)
-	local minp, maxp = self.minp, self.maxp
-	local data, area = self.data, self.area
-	local ystride = self.area.ystride
-
-	for k in pairs(y_s) do
-		y_s[k] = nil
-	end
-
-	if flags.liquid_surface then
-		local ivm = area:index(x, maxp.y, z)
-		for y = maxp.y, minp.y + 1, -1 do
-			if data[ivm] ~= n_air then
-				return
-			end
-			if liquids[data[ivm - ystride]] then
-				return (y - minp.y - 1)
-			end
-			ivm = ivm - ystride
-		end
-	end
-
-	if flags.all_ceilings then
-		local ivm = area:index(x, minp.y, z)
-		for y = minp.y, maxp.y - 1 do
-			if buildable_to[data[ivm]] and not buildable_to[data[ivm + ystride]] then
-				if data[ivm] == n_air or flags.force_placement then
-					table.insert(y_s, -(y - minp.y + 1))
-				end
-			end
-			ivm = ivm + ystride
-		end
-	end
-
-	if flags.all_floors then
-		-- Don't check heightmap. It doesn't work in bubble caves.
-		local ivm = area:index(x, maxp.y, z)
-		for y = maxp.y, minp.y + 1, -1 do
-			if buildable_to[data[ivm]] and not buildable_to[data[ivm - ystride]] then
-				if data[ivm] == n_air or flags.force_placement then
-					table.insert(y_s, y - minp.y - 1)
-				end
-			end
-			ivm = ivm - ystride
-		end
-	end
-
-	if #y_s > 0 then
-		return y_s[self.gpr:next(1, #y_s)]
-	end
-end
-
-
 -- check
+local cave_level = 20
 function Mapgen:place_deco(ps, deco)
     local data, p2data, vm_area = self.data, self.p2data, self.area
     local minp, maxp = self.minp, self.maxp
@@ -1500,7 +705,7 @@ function Mapgen:place_deco(ps, deco)
 				local upside_down
 
                 if deco.liquid_surface or deco.all_floors or deco.all_ceilings then
-					y = self:find_break(x, z, deco)
+					y = self:find_break(x, z, deco, ps)
 					if y then
 						if y < 0 then
 							y = math_abs(y)
@@ -1552,19 +757,19 @@ function Mapgen:place_deco(ps, deco)
 								------------------------------
 
 								if (deco.force_placement or buildable_to[data[ivm]]) and not too_close then
-									local rot = self.gpr:next(0, 3)
+									local rot = ps:next(0, 3)
 									local sch = deco.schematic_array or deco.schematic
 									if upside_down then
 										y = y - (deco.place_offset_y or 0) - sch.size.y + 1
-										self:place_schematic(sch, VN(x, y, z), deco.flags, rot, 2)
+										self:place_schematic(sch, VN(x, y, z), deco.flags, ps, rot, 2)
 									else
 										y = y + (deco.place_offset_y or 0)
-										self:place_schematic(sch, VN(x, y, z), deco.flags, rot)
+										self:place_schematic(sch, VN(x, y, z), deco.flags, ps, rot)
 									end
 									schem[#schem+1] = VN(x, y, z)
 								end
 							elseif deco.force_placement or buildable_to[data[ivm]] then
-								local ht = self.gpr:next(1, (deco.height_max or 1))
+								local ht = ps:next(1, (deco.height_max or 1))
 								local inc = 1
 								if upside_down then
 									ht = -ht
@@ -1591,15 +796,15 @@ function Mapgen:place_deco(ps, deco)
 										end
 										data[ivm] = node[d]
 										if deco.param2_max then
-											p2data[ivm] = self.gpr:next(deco.param2, deco.param2_max)
+											p2data[ivm] = ps:next(deco.param2, deco.param2_max)
 										else
 											p2data[ivm] = deco.param2 or grass_p2 or 0
 										end
 										if deco.random_color_floor_ceiling then
 											if upside_down then
-												p2data[ivm] = 0 + self.gpr:next(0, 7) * 32
+												p2data[ivm] = 0 + ps:next(0, 7) * 32
 											else
-												p2data[ivm] = 1 + self.gpr:next(0, 7) * 32
+												p2data[ivm] = 1 + ps:next(0, 7) * 32
 											end
 										end
 									end
@@ -1624,10 +829,10 @@ local rotated_schematics = {}
 for _ = 1, 21 do
 	table.insert(rotated_schematics, {})
 end
-function Mapgen:place_schematic(schem, pos, flags, rot, rot_z)
+function Mapgen:place_schematic(schem, pos, flags, ps, rot, rot_z)
 	local area = self.area
 	local data, p2data = self.data, self.p2data
-	local color = self.gpr:next(1, 8)
+	local color = ps:next(1, 8)
 
 	if not rot_z then
 		rot_z = 0
@@ -1645,7 +850,7 @@ function Mapgen:place_schematic(schem, pos, flags, rot, rot_z)
 	local yslice = {}  -- true if the slice should be removed
 	if schem.yslice_prob then
 		for _, ys in pairs(schem.yslice_prob) do
-			yslice[ys.ypos] = ((ys.prob or 255) <= self.gpr:next(1, 255))
+			yslice[ys.ypos] = ((ys.prob or 255) <= ps:next(1, 255))
 
 			if rot_z == 2 and yslice[ys.ypos] then
 				yslice_offset = yslice_offset + 1
@@ -1789,7 +994,7 @@ function Mapgen:place_schematic(schem, pos, flags, rot, rot_z)
 						force = true
 					end
 
-					if prob >= self.gpr:next(1, 126)
+					if prob >= ps:next(1, 126)
 					and (
 						force or buildable_to[data[ivm]]
 					) then
@@ -1828,53 +1033,166 @@ function Mapgen:place_schematic(schem, pos, flags, rot, rot_z)
 end
 
 
-function Mapgen:dust()
-	local area, data, p2data = self.area, self.data, self.p2data
-	local minp, maxp = self.minp, self.maxp
-	local biomemap = self.biomemap
+-- check
+function Mapgen:place_terrain(map)
+	local csize, area = self.csize, self.area
+	local csize_y = csize.y
+	local biomes = mod.biomes
+	local cave_biomes = mod.cave_biomes
+	local data = self.data
 	local heightmap = self.heightmap
-	--local treetop
+	local grassmap = self.grassmap
+	local biomemap = self.biomemap
+	local biomemap_cave = self.biomemap_cave
+	local maxp = self.maxp
+	local minp = self.minp
+	local ystride = area.ystride
+	local p2data = self.p2data
+	local div = self.div
+	local water_level = map.water_level
 
-	local biome = self.biome
+	local ground = (maxp.y >= water_level and minp.y <= water_level)
+
+	local stone_layers = self.stone_layers
+
+	local n_cobble = node['default:cobble']
+	local n_mossy = node['default:mossycobble']
+
+	local make_roads = true
+	local make_tracks = false
+	local n_rail_power = node['carts:powerrail']
+	local n_rail = node['carts:rail']
+
+	local roads = self.roads or {}
+	local tracks = self.tracks or {}
+
+	self:map_heat_humidity(map)
+	self:map_biomes()
 
 	local index = 1
 	for z = minp.z, maxp.z do
 		for x = minp.x, maxp.x do
-			local ivm = area:index(x, maxp.y - 1, z)
-			if biomemap and biomemap[index] then
-				biome = biomemap[index]
+			local height = heightmap[index]
+			local biome, biome_cave
+
+			if self.biome then
+				biome = self.biome
+				biome_cave = cave_biomes['stone']
+			else
+				biome = biomemap[index] or {}
+				biome_cave = biomemap_cave[index] or {}
 			end
 
-			local node_dust
-			if biome then
-				node_dust = biome.node_dust
+			local depth_filler = biome.depth_filler or 0
+			local depth_top = biome.depth_top or 0
+			if depth_top > 0 then
+				depth_top = self:erosion(height, index, depth_top, 100)
+			end
+			if depth_filler > 0 then
+				depth_filler = self:erosion(height, index, depth_filler, 20)
 			end
 
-			if node_dust and buildable_to[data[ivm]] then
-				local yc
-				for y = maxp.y - 1, minp.y + 1, -1 do
-					if y >= heightmap[index] and not buildable_to[data[ivm]] then
-						yc = y
-						break
-					end
+			local stone = node['default:stone']
+			if biome.node_stone then
+				stone = node[biome.node_stone] or stone
+			end
+			local stone_cave = node['default:stone']
+			if biome_cave.node_stone then
+				stone_cave = node[biome_cave.node_stone] or stone
+			end
 
-					ivm = ivm - area.ystride
+			local filler = biome.node_filler or 'air'
+			filler = node[filler]
+			local top = biome.node_top or 'air'
+			top = node[top]
+			local grass_p2 = 0
+			if biome.node_top == 'default:dirt_with_dry_grass'
+			or biome.node_top == 'default:dirt_with_grass' then
+				grass_p2 = grassmap[index] or 0
+			end
+
+			local ww = biome.water or 'default:water_source'
+			local wt = biome.node_water_top
+			local wtd = biome.node_water_top_depth or 0
+			do
+				local heat = self.heatmap[index]
+				if heat < 28 and ((not wt and ww:find('water')) or wt:find('ice')) then
+					wt = node['default:ice']
+					wtd = math_ceil(math_max(0, (30 - heat) / 3))
+				elseif wt then
+					wt = node[wt]
 				end
+			end
+			ww = node[ww]
 
-				if yc then
-					local name = minetest.get_name_from_content_id(data[ivm])
-					local n = minetest.registered_nodes[name]
-					if data[ivm] == n_ignore
-					or (
-						n and (not n.drawtype or dusty_types[n.drawtype])
-						and n.walkable ~= false
-					) then
-						ivm = ivm + area.ystride
-						data[ivm] = node[node_dust]
+			local fill_1 = height - depth_top
+			local fill_2 = fill_1 - math_max(0, depth_filler)
+
+			local t_y_loop = os_clock()
+			local hu2_check
+			-----------------------------------------
+			-- Fix this.
+			-----------------------------------------
+			do
+				local humiditymap = self.humiditymap
+				local humidity_2_map = self.noise['humidity_2'].map
+				local hu2 = humidity_2_map[index]
+				local humidity = humiditymap[index]
+				if humidity and hu2 then
+					hu2_check = (humidity > 70 and (hu2 > 1 or math_floor(hu2 * 1000) % 2 == 0))
+				end
+			end
+			-----------------------------------------
+
+			local ivm = area:index(x, minp.y, z)
+			for y = minp.y, maxp.y do
+				-----------------------------------------
+				-- Move roads and tracks
+				-----------------------------------------
+				if make_tracks and ground and (not div)
+				and y == height and tracks[index] then
+					if x % 5 == 0 or z % 5 == 0 then
+						data[ivm] = n_rail_power
+					else
+						data[ivm] = n_rail
+					end
+				elseif make_roads and ground and (not div)
+				and y >= height - 1 and y <= height
+				and roads[index] then
+					if hu2_check then
+						data[ivm] = n_mossy
+					else
+						data[ivm] = n_cobble
+					end
+				-----------------------------------------
+				elseif y > height and y <= water_level then
+					if y > water_level - wtd then
+						data[ivm] = wt
+					else
+						data[ivm] = ww
+					end
+					p2data[ivm] = 0
+				elseif y <= height and y > fill_1 then
+					data[ivm] = top
+					p2data[ivm] = 0 + grass_p2
+				elseif filler and y <= height and y > fill_2 then
+					data[ivm] = filler
+					p2data[ivm] = 0
+				elseif y < height - 20 then
+					data[ivm] = stone_cave
+					p2data[ivm] = 0
+				elseif y <= height then
+					data[ivm] = stone
+					if stone == n_stone then
+						p2data[ivm] = stone_layers[y - minp.y]
+					else
 						p2data[ivm] = 0
 					end
 				end
+
+				ivm = ivm + ystride
 			end
+			mod.time_y_loop = mod.time_y_loop + os_clock() - t_y_loop
 
 			index = index + 1
 		end
@@ -1882,13 +1200,296 @@ function Mapgen:dust()
 end
 
 
+function Mapgen:save_map(timed)
+	local t_over
+	if timed then
+		t_over = os_clock()
+	end
+
+	self.vm:set_data(self.data)
+	self.vm:set_param2_data(self.p2data)
+
+	if DEBUG then
+		self.vm:set_lighting({day = 10, night = 10})
+	else
+		self.vm:set_lighting({day = 0, night = 0}, self.minp, self.maxp)
+		self.vm:calc_lighting(nil, nil, false)
+	end
+
+	self.vm:update_liquids()
+	self.vm:write_to_map()
+
+	-- Save all meta data for chests, cabinets, etc.
+	for _, t in ipairs(self.meta_data) do
+		local meta = minetest.get_meta({x=t.x, y=t.y, z=t.z})
+		meta:from_table()
+		meta:from_table(t.meta)
+	end
+
+	-- Call on_construct methods for nodes that request it.
+	-- This is mainly useful for starting timers.
+	for i, n in ipairs(self.data) do
+		if mod.construct_nodes[n] then
+			local pos = self.area:position(i)
+			local node_name = minetest.get_name_from_content_id(n)
+			if minetest.registered_nodes[node_name] and minetest.registered_nodes[node_name].on_construct then
+				minetest.registered_nodes[node_name].on_construct(pos)
+			else
+				local timer = minetest.get_node_timer(pos)
+				if timer then
+					timer:start(math_random(100))
+				end
+			end
+		end
+	end
+
+	if timed then
+		mod.time_overhead = mod.time_overhead + os_clock() - t_over
+	end
+end
+
+
+-- check
+local cave_underground = 5
+function Mapgen:simple_caves()
+	local minp, maxp = self.minp, self.maxp
+	local pr = self.gpr
+	local sup_chunk = self.sup_chunk
+	local csize = self.csize
+
+	local geo = Geomorph.new()
+
+	local biome = self.biomemap_cave[math_floor(csize.z / 2 * csize.x + csize.x / 2)] or {}
+	local liquid = biome.node_cave_liquid
+
+	for _ = 1, 40 do
+		local size = VN(
+			pr:next(9, 25),
+			pr:next(9, 25),
+			pr:next(9, 25)
+		)
+		local big = pr:next(1, 10)
+		if big == 1 then
+			size.x = pr:next(9, 78)
+		elseif big == 2 then
+			size.y = pr:next(9, 78)
+		elseif big == 3 then
+			size.z = pr:next(9, 78)
+		end
+
+		local pos = VN(
+			pr:next(1, 79 - size.x),
+			pr:next(1, 79 - size.y),
+			pr:next(1, 79 - size.z)
+		)
+
+		local index = pos.z * csize.x + pos.x + 1
+		biome = self.biomemap_cave[index] or {}
+
+		if maxp.y < self.water_level or pos.y <= self.heightmap[index] then
+			if biome.node_floor or biome.node_ceiling then
+				local hpos = vector.add(pos, -(biome.surface_depth or 1))
+				local hsize = vector.add(size, (2 * (biome.surface_depth or 1)))
+				local hy = math_floor(hsize.y / 2)
+				if biome.node_floor then
+					geo:add({
+						action = 'sphere',
+						node = biome.node_floor,
+						location = hpos,
+						intersect = { biome.node_stone or 'default:stone' },
+						underground = cave_underground,
+						size = hsize,
+					})
+					geo:add({
+						action = 'cube',
+						node = biome.node_stone or 'default:stone',
+						location = VN(hpos.x, hpos.y + hy, hpos.z),
+						intersect = { biome.node_floor },
+						underground = cave_underground,
+						size = VN(hsize.x, hy, hsize.z)
+					})
+				end
+				if biome.node_ceiling then
+					geo:add({
+						action = 'sphere',
+						node = biome.node_ceiling,
+						location = hpos,
+						intersect = { biome.node_stone or 'default:stone' },
+						underground = cave_underground,
+						size = hsize,
+					})
+					geo:add({
+						action = 'cube',
+						node = biome.node_stone or 'default:stone',
+						location = VN(hpos.x, hpos.y, hpos.z),
+						intersect = { biome.node_ceiling },
+						underground = cave_underground,
+						size = VN(hsize.x, hy, hsize.z)
+					})
+				end
+			elseif biome.node_lining then
+				geo:add({
+					action = 'sphere',
+					node = biome.node_lining,
+					location = vector.add(pos, -(biome.surface_depth or 1)),
+					intersect = { biome.node_stone or 'default:stone' },
+					underground = cave_underground,
+					size = vector.add(size, (2 * (biome.surface_depth or 1))),
+				})
+			end
+
+			geo:add({
+				action = 'sphere',
+				node = 'air',
+				location = vector.add(pos, 1),
+				underground = cave_underground,
+				size = vector.add(size, -2),
+			})
+			geo:add({
+				action = 'sphere',
+				node = 'air',
+				random = 6,
+				location = pos,
+				underground = cave_underground,
+				size = size,
+			})
+		end
+	end
+
+	if minp.y < self.water_level and liquid then
+		geo:add({
+			action = 'cube',
+			node = liquid,
+			location = VN(1, 1, 1),
+			underground = cave_underground,
+			intersect = 'air',
+			size = VN(78, pr:next(10, 40), 78),
+		})
+	end
+
+	geo:write_to_map(self)
+end
+
+
+function Mapgen:simple_ore()
+	local minp, maxp = self.minp, self.maxp
+	local f_alt = math_max(0, - math_floor((minp.y + self.chunk_offset) / self.csize.y))
+
+	local pr = self.gpr
+
+	local geo = Geomorph.new()
+	for _ = 1, 25 do
+		local ore = self:get_ore(f_alt)
+
+		local size = VN(
+			pr:next(1, 10) + pr:next(1, 10),
+			pr:next(1, 10) + pr:next(1, 10),
+			pr:next(1, 10) + pr:next(1, 10)
+		)
+		if self.placed_lava then
+			size = VN(size, 2)
+		end
+
+		local p = VN(
+			pr:next(0, 80 - size.x),
+			pr:next(0, 80 - size.y),
+			pr:next(0, 80 - size.z)
+		)
+
+		geo:add({
+			action = 'cube',
+			node = ore,
+			random = 4,
+			location = p,
+			size = size,
+			intersect = ore_intersect,
+		})
+	end
+	geo:write_to_map(self)
+
+	-- Change the colors of all default stone.
+	-- The time for this is negligible.
+	local area = self.area
+	local data, p2data = self.data, self.p2data
+	local stone_layers = self.stone_layers
+	local ystride = area.ystride
+	for z = minp.z, maxp.z do
+		for x = minp.x, maxp.x do
+			local ivm = area:index(x, minp.y, z)
+			for y = minp.y, maxp.y do
+				local dy = y - minp.y
+
+				if data[ivm] == n_stone then
+					p2data[ivm] = stone_layers[dy]
+				end
+
+				ivm = ivm + ystride
+			end
+		end
+	end
+end
+
+
+
+
+local function generate(minp, maxp, seed)
+	if not (minp and maxp and seed) then
+		print(mod_name..': generate did not receive minp, maxp, and seed. Aborting.')
+		return
+	end
+
+	local csize = { x=chunksize * 16, y=chunksize * 16, z=chunksize * 16 }
+
+	local mg = Mapgen:new(minp, maxp, seed)
+	if not mg then
+		return
+	end
+
+	mg.chunk_offset = chunk_offset
+
+	mg:generate(true)
+	local mem = math_floor(collectgarbage('count')/1024)
+	if mem > 200 then
+		print('Lua Memory: ' .. mem .. 'M')
+	end
+end
+
+
+local function pgenerate(...)
+	local status, err
+
+	local t_all = os_clock()
+	if use_pcall then
+		status, err = pcall(generate, ...)
+	else
+		status = true
+		generate(...)
+	end
+	mod.time_all = mod.time_all + os_clock() - t_all
+
+	if not status then
+		print(mod_name .. ': Could not generate terrain:')
+		print(dump(err))
+		collectgarbage("collect")
+	end
+end
+
+
+if minetest.registered_on_generateds then
+	-- This is unsupported. I haven't been able to think of an alternative.
+	table.insert(minetest.registered_on_generateds, 1, pgenerate)
+else
+	minetest.register_on_generated(pgenerate)
+end
+
+
 --------------------------------------
 -- Fix this.
 --------------------------------------
 function mod.spawnplayer(player)
-	local csize = mod.csize
+	local csize = { x=chunksize * 16, y=chunksize * 16, z=chunksize * 16 }
 	----------------------------------
-	local base_level = 40
+	local spawn_level = 40
 	----------------------------------
 	local range = 6
 	local beds_here = (minetest.get_modpath('beds') and beds and beds.spawn)
@@ -1914,7 +1515,7 @@ function mod.spawnplayer(player)
 	--pos = VN(1,0,5)
 	pos = vector.multiply(pos, 800)
 	pos = vector.subtract(vector.add(pos, vector.divide(csize, 2)), chunk_offset)
-	pos.y = pos.y + base_level - csize.y / 2 + 2
+	pos.y = pos.y + spawn_level - csize.y / 2 + 2
 
 	--pos = VN(90 + -2 * 3200, 100, 584 + -8 * 3200)
 	--pos = VN(1760, 3200, 1090)
@@ -1932,3 +1533,177 @@ end
 
 minetest.register_on_newplayer(mod.spawnplayer)
 minetest.register_on_respawnplayer(mod.spawnplayer)
+
+
+
+
+
+
+
+
+
+
+
+
+function Mapgen:make_noises(noises)
+	for n, v in pairs(noises or {}) do
+		self:get_noise(n, v)
+	end
+end
+
+
+local stone_layer_noise = mod.stone_layer_noise
+function Mapgen:make_stone_layer_noise()
+	local minp, csize = self.minp, self.csize
+
+	local stone_layers = {}
+	do
+		local x, z = math.floor(minp.x / csize.x), math.floor(minp.z / csize.z)
+		for y = 0, csize.y - 1 do
+			stone_layers[y] = math_floor(math_abs(stone_layer_noise:get_3d({x=x, y=minp.y+y, z=z})) * 7) * 32
+		end
+	end
+	self.stone_layers = stone_layers
+end
+
+
+local stone_layer_noise = mod.stone_layer_noise
+function Mapgen:_make_all_noises()
+	local minp, csize = self.minp, self.csize
+
+	-- Generate all noises.
+	for n, v in pairs(mod.noise) do
+		self:get_noise(n, v)
+	end
+
+	local stone_layers = {}
+	do
+		local x, z = math.floor(minp.x / csize.x), math.floor(minp.z / csize.z)
+		for y = 0, csize.y - 1 do
+			stone_layers[y] = math_floor(math_abs(stone_layer_noise:get_3d({x=x, y=minp.y+y, z=z})) * 7) * 32
+		end
+	end
+	self.stone_layers = stone_layers
+end
+
+
+-- check
+function Mapgen:spirals()
+	local area = self.area
+	local data = self.data
+	local maxp = self.maxp
+	local minp = self.minp
+	local flets = false
+	local n_leaves = node['default:leaves']
+	local n_bark = node[mod_name .. ':bark']
+	local sup_chunk = self.sup_chunk
+
+	local geo = Geomorph.new()
+	if sup_chunk.y < 4 then
+		geo:add({
+			action = 'cube',
+			intersect = 'air',
+			node = mod_name..':cloud_hard',
+			location = VN(0, 25, 0),
+			size = VN(80, 1, 80),
+		})
+		geo:add({
+			action = 'cube',
+			intersect = 'air',
+			node = mod_name..':cloud_hard',
+			location = VN(0, 50, 0),
+			size = VN(80, 1, 80),
+		})
+	end
+	if sup_chunk.y <= 4 then
+		geo:add({
+			action = 'cube',
+			intersect = {'default:water_source', 'default:lava_source'},
+			node = 'default:stone',
+			location = VN(0, 0, 0),
+			size = VN(80, 1, 80),
+		})
+	end
+	if sup_chunk.y >= 4 and sup_chunk.y < 6 then
+		geo:add({
+			action = 'cylinder',
+			axis = 'y',
+			intersect = {'default:water_source'},
+			node = mod_name..':bark',
+			location = VN(5, 0, 5),
+			size = VN(70, 80, 70),
+		})
+	else
+		geo:add({
+			action = 'cylinder',
+			axis = 'y',
+			intersect = {'default:water_source', 'default:lava_source'},
+			node = 'default:stone',
+			location = VN(5, 0, 5),
+			size = VN(70, 80, 70),
+		})
+	end
+	geo:add({
+		action = 'cylinder',
+		axis = 'y',
+		node = 'air',
+		location = VN(7, 0, 7),
+		size = VN(66, 80, 66),
+	})
+	geo:add({
+		action = 'cylinder',
+		axis = 'y',
+		node = mod_name..':cloud_hard',
+		location = VN(12, 25, 12),
+		size = VN(56, 1, 56),
+	})
+	geo:add({
+		action = 'cylinder',
+		axis = 'y',
+		node = mod_name..':cloud_hard',
+		location = VN(12, 50, 12),
+		size = VN(56, 1, 56),
+	})
+	geo:write_to_map(self)
+
+	local r1, n1, s1, l1 = 30, 3, 20, 20
+
+	for my = minp.y - 2, maxp.y + 2 do
+		for ot = 1, n1 * 2 do
+			local t = my / s1 + math_pi * (ot / n1)
+			local mx = math_floor(minp.x + 40 + r1 * math_cos(t))
+			local mz = math_floor(minp.z + 40 + r1 * math_sin(t))
+			local ivm = area:index(mx, my, mz)
+			if buildable_to[data[ivm]] then
+				data[ivm] = node['default:tree']
+			end
+			for oz = -2, 2 do
+				for oy = -2, 2 do
+					ivm = area:index(mx - 2, my + oy, mz + oz)
+					for _ = -2, 2 do
+						if buildable_to[data[ivm]] then
+							data[ivm] = n_leaves
+						end
+						ivm = ivm + 1
+					end
+				end
+			end
+		end
+		local r2 = r1 - 3
+		local r22 = r2 * r2
+		local r32 = 5 * 5
+		if flets and my % l1 == 0 then
+			for oz = -r2, r2 do
+				local ivm = area:index(minp.x + 40 - r2, my, minp.z + 40 + oz)
+				for ox = -r2, r2 do
+					local r = ox * ox + oz * oz
+					if (buildable_to[data[ivm]])
+					and r < r22 and r > r32 then
+						data[ivm] = n_bark
+					end
+					ivm = ivm + 1
+				end
+			end
+		end
+	end
+end
