@@ -60,6 +60,10 @@ end
 
 
 function Roads_Mapgen:after_terrain()
+	if self.disruptive then
+		return
+	end
+
 	self:houses()
 
 	if #self.puzzle_boxes > 0 then
@@ -474,6 +478,10 @@ end
 
 
 function Roads_Mapgen:prepare()
+	if self.disruptive then
+		return
+	end
+
 	self.gpr = PcgRandom(self.seed + 5245)
 
 	self:map_roads()

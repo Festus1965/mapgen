@@ -80,6 +80,7 @@ function DFlat_Mapgen:after_terrain()
 			self:simple_ruin()
 		end
 		do_ore = false
+		self.disruptive = true
 	end
 
 	if self.height_max >= minp.y
@@ -145,8 +146,9 @@ function DFlat_Mapgen:map_height()
 	self.height_min = height_min
 	self.height_max = height_max
 
-	if (math_max(altitude_cutoff_high, height_max) - altitude_cutoff_high)
-	- (math_min(altitude_cutoff_low, height_min) - altitude_cutoff_low) < 3 then
+	local f1 = math_max(altitude_cutoff_high, height_max - minp.y)
+	local f2 = math_min(altitude_cutoff_low, height_min - minp.y)
+	if (f1 - altitude_cutoff_high) - (f2 - altitude_cutoff_low) < 3 then
 		self.flattened = true
 	end
 end
@@ -183,7 +185,8 @@ function DFlat_Mapgen:simple_ruin()
 
 	local csize = self.csize
 	local heightmap = self.heightmap
-	local base_level = self.base_level
+	local chunk_offset = self.chunk_offset
+	local base_level = self.base_level + chunk_offset  -- Figure from height?
 	local boxes = {}
 
 	for _ = 1, 15 do
