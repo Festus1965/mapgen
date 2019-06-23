@@ -123,7 +123,8 @@ end
 -- check
 function Planets_Mapgen:after_terrain()
 	local minp, maxp = self.minp, self.maxp
-	if self.disruptive or (self.height_max and self.height_max > minp.y) then
+	local water_level = self.water_level
+	if self.disruptive or (self.height_max and math_max(water_level, self.height_max) > minp.y) then
 		return
 	end
 
