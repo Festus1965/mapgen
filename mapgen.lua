@@ -186,6 +186,11 @@ function Mapgen:new(minp, maxp, seed)
 end
 
 
+function Mapgen:after_decorations()
+	-- Override this.
+end
+
+
 function Mapgen:after_terrain()
 	-- Override this.
 end
@@ -280,7 +285,7 @@ end
 
 
 -------------------------------------------------
--- Find a place to put decorations with the all_floors,
+-- Finds a place to put decorations with the all_floors,
 --  all_ceilings, or liquid_surface flags.
 -------------------------------------------------
 
@@ -346,41 +351,50 @@ function Mapgen:generate(timed)
 	local chunk = vector.divide(vector.add(minp, chunk_offset), 80)
 
 	local map
+	local mapgen = self
+	local mapgens = { self }
 	for _, m in pairs(mod.world_map) do
 		if vector.contains(m.minp, m.maxp, chunk) then
 			map = m
-			break
+
+			map.params.water_level = map.water_level
+			mapgen = map.mapgen:new(mapgen, map.params)
+			-- Save each mapgen object to do after_deco.
+			table.insert(mapgens, mapgen)
+
+			-- Many of the methods called in the map.mapgen will
+			--  be inherited from Mapgen if not overridden.
+
+			mapgen:make_noises(map.noises)
+			mapgen:make_stone_layer_noise()  -- This isn't always needed.
+
+			do
+				local t_terrain = os_clock()
+				mapgen:prepare()
+				mapgen:map_height()
+				mapgen:place_terrain(map)
+				mapgen:after_terrain()
+				mod.time_terrain = mod.time_terrain + os_clock() - t_terrain
+			end
 		end
 	end
 
 	if map then
-		map.params.water_level = map.water_level
-		local mapgen = map.mapgen:new(self, map.params)
-
-		-- Many of the methods called in the map.mapgen will
-		--  be inherited from Mapgen if not overridden.
-
-		mapgen:make_noises(map.noises)
-		mapgen:make_stone_layer_noise()
-
-		do
-			local t_terrain = os_clock()
-			mapgen:prepare()
-			mapgen:map_height()
-			mapgen:place_terrain(map)
-			mapgen:after_terrain()
-			mod.time_terrain = mod.time_terrain + os_clock() - t_terrain
-		end
-
-		do
-			local t_deco = os_clock()
-			mapgen:place_all_decorations()
-			mapgen:dust()
-			mod.time_deco = mod.time_deco + os_clock() - t_deco
-		end
+		local t_deco = os_clock()
+		mapgen:place_all_decorations()
+		mapgen:dust()
+		mod.time_deco = mod.time_deco + os_clock() - t_deco
 	else
 		self:bedrock()
 	end
+
+	-------------------------------------------
+	-- Untested!
+	-------------------------------------------
+	for _, mg in pairs(mapgens) do
+		mg:after_decorations()
+	end
+	-------------------------------------------
 
 	self:save_map(timed)
 
@@ -1035,9 +1049,7 @@ end
 
 -- check
 function Mapgen:place_terrain(map)
-	local csize, area = self.csize, self.area
-	local csize_y = csize.y
-	local biomes = mod.biomes
+	local area = self.area
 	local cave_biomes = mod.cave_biomes
 	local data = self.data
 	local heightmap = self.heightmap
@@ -1254,7 +1266,6 @@ local cave_underground = 5
 function Mapgen:simple_caves()
 	local minp, maxp = self.minp, self.maxp
 	local pr = self.gpr
-	local sup_chunk = self.sup_chunk
 	local csize = self.csize
 
 	local geo = Geomorph.new()
@@ -1438,8 +1449,6 @@ local function generate(minp, maxp, seed)
 		return
 	end
 
-	local csize = { x=chunksize * 16, y=chunksize * 16, z=chunksize * 16 }
-
 	local mg = Mapgen:new(minp, maxp, seed)
 	if not mg then
 		return
@@ -1567,7 +1576,6 @@ function Mapgen:make_stone_layer_noise()
 end
 
 
-local stone_layer_noise = mod.stone_layer_noise
 function Mapgen:_make_all_noises()
 	local minp, csize = self.minp, self.csize
 
