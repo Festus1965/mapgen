@@ -124,7 +124,8 @@ end
 function Planets_Mapgen:after_terrain()
 	local minp, maxp = self.minp, self.maxp
 	local water_level = self.water_level
-	if self.disruptive or (self.height_max and math_max(water_level, self.height_max) > minp.y) then
+	local height_max = self.share.height_max
+	if self.share.disruptive or (height_max and math_max(water_level, height_max) > minp.y) then
 		return
 	end
 
@@ -146,7 +147,7 @@ function Planets_Mapgen:after_terrain()
 
 	local biome_name = planet_biomes[self.gpr:next(1, #planet_biomes)]
 	local biome = biomes[biome_name] or {}
-	self.biome = biome
+	self.share.biome = biome
 	local b_stone = biome.node_stone or 'default:stone'
 
 	for _ = 1, sphere_count do
@@ -250,11 +251,6 @@ function Planets_Mapgen:after_terrain()
 			index = index + 1
 		end
 	end
-end
-
-
-function Planets_Mapgen:map_height()
-	-- nop
 end
 
 

@@ -41,6 +41,8 @@ local function roads_mapgen(base_class)
 		end
 
 		new_inst.puzzle_boxes = {}
+		new_inst.roads = {}
+		new_inst.tracks = {}
 
 		setmetatable(new_inst, new_mt)
 		return new_inst
@@ -60,7 +62,7 @@ end
 
 
 function Roads_Mapgen:after_terrain()
-	if self.disruptive then
+	if self.share.disruptive then
 		return
 	end
 
@@ -80,7 +82,7 @@ function Roads_Mapgen:houses()
 	local plots = self.plots
 	local pr = self.gpr
 	local heightmap = self.heightmap
-	local base_level = self.base_level or 9
+	local base_level = self.share.base_level or 9
 
 	for _, box in pairs(plots) do
 		local pos = vector.add(box.pos, -2)
@@ -276,11 +278,6 @@ function Roads_Mapgen:houses()
 end
 
 
-function Roads_Mapgen:map_height()
-	-- nop
-end
-
-
 -- check
 local road_w = 3
 function Roads_Mapgen:map_roads()
@@ -375,7 +372,7 @@ function Roads_Mapgen:map_roads()
 		end
 	end
 
-	self.has_roads = has_roads
+	self.share.has_roads = has_roads
 	self.roads = roads
 	self.tracks = tracks
 end
@@ -384,7 +381,7 @@ end
 function Roads_Mapgen:mark_plots()
 	local csize = self.csize
 	local chunk_offset = self.chunk_offset
-	local base_level = (self.base_level or 9) + chunk_offset  -- Figure from height?
+	local base_level = (self.share.base_level or 9) + chunk_offset  -- Figure from height?
 	local plots = {}
 	local roads = self.roads
 	local pr = self.gpr
@@ -471,14 +468,79 @@ function Roads_Mapgen:place_puzzles()
 end
 
 
--- This mapgen only adds to already placed terrain.
+-- check
 function Roads_Mapgen:place_terrain()
-	-- nop
+	local make_roads = true
+	local make_tracks = false
+	local div = self.share.div
+
+	local area = self.area
+	local data = self.data
+	local heightmap = self.heightmap
+	local maxp = self.maxp
+	local minp = self.minp
+	local ystride = area.ystride
+	local p2data = self.p2data
+	--local water_level = self.water_level
+
+	local n_cobble = node['default:cobble']
+	local n_mossy = node['default:mossycobble']
+
+	local n_rail_power = node['carts:powerrail']
+	local n_rail = node['carts:rail']
+
+	local roads = self.roads
+	local tracks = self.tracks
+
+	local index = 1
+	for z = minp.z, maxp.z do
+		for x = minp.x, maxp.x do
+			local height = heightmap[index]
+			local hu2_check
+			-----------------------------------------
+			-- Fix this.
+			-----------------------------------------
+			do
+				local humiditymap = self.humiditymap
+				local humidity_noise_blend_map = self.noise['humidity_blend'].map
+				local hu2 = humidity_noise_blend_map[index]
+				local humidity = humiditymap[index]
+				if humidity and hu2 then
+					hu2_check = (humidity > 70 and (hu2 > 1 or math_floor(hu2 * 1000) % 2 == 0))
+				end
+			end
+			-----------------------------------------
+
+			local ivm = area:index(x, height - 1, z)
+			for y = height - 1, height do
+				if make_tracks and (not div)
+				and y == height and tracks[index] then
+					if x % 5 == 0 or z % 5 == 0 then
+						data[ivm] = n_rail_power
+					else
+						data[ivm] = n_rail
+					end
+				elseif make_roads and (not div)
+				and y >= height - 1 and y <= height
+				and roads[index] then
+					if hu2_check then
+						data[ivm] = n_mossy
+					else
+						data[ivm] = n_cobble
+					end
+				end
+
+				ivm = ivm + ystride
+			end
+
+			index = index + 1
+		end
+	end
 end
 
 
 function Roads_Mapgen:prepare()
-	if self.disruptive then
+	if self.share.disruptive then
 		return
 	end
 

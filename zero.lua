@@ -70,7 +70,7 @@ function DFlat_Mapgen:after_terrain()
 	local ground = (maxp.y >= water_level and minp.y <= water_level)
 
 	local do_ore = true
-	if (not self.div) and ground and self.flattened and self.gpr:next(1, 5) == 1 then
+	if (not self.div) and ground and self.share.flattened and self.gpr:next(1, 5) == 1 then
 		local sr = self.gpr:next(1, 3)
 		if sr == 1 then
 			self:geomorph('pyramid_temple')
@@ -80,11 +80,11 @@ function DFlat_Mapgen:after_terrain()
 			self:simple_ruin()
 		end
 		do_ore = false
-		self.disruptive = true
+		self.share.disruptive = true
 	end
 
-	if (not self.div) and self.height_max >= minp.y
-	and self.height_min > minp.y + cave_underground then
+	if (not self.div) and self.share.height_max >= minp.y
+	and self.share.height_min > minp.y + cave_underground then
 		local t_cave = os_clock()
 		self:simple_caves()
 		layer_mod.time_caves = layer_mod.time_caves + os_clock() - t_cave
@@ -102,7 +102,7 @@ function DFlat_Mapgen:map_height()
 	local minp, maxp = self.minp, self.maxp
 	local ground_noise_map = self.noise['ground'].map
 	local heightmap = self.heightmap
-	local base_level = self.base_level
+	local base_level = self.share.base_level
 	local div = self.div
 
 	local height_min = layer_mod.max_height
@@ -135,13 +135,13 @@ function DFlat_Mapgen:map_height()
 		end
 	end
 
-	self.height_min = height_min
-	self.height_max = height_max
+	self.share.height_min = height_min
+	self.share.height_max = height_max
 
 	local f1 = math_max(altitude_cutoff_high, height_max - minp.y)
 	local f2 = math_min(altitude_cutoff_low, height_min - minp.y)
 	if (f1 - altitude_cutoff_high) - (f2 - altitude_cutoff_low) < 3 then
-		self.flattened = true
+		self.share.flattened = true
 	end
 end
 
@@ -153,32 +153,30 @@ function DFlat_Mapgen:prepare()
 	self.gpr = PcgRandom(self.seed + 5107)
 
 	if self.div then
-		self.biome = layer_mod.biomes['ether']
-	else
-		self.biome = nil
+		self.share.biome = layer_mod.biomes['ether']
 	end
 
 	local base_level = self.water_level + water_diff
 	if self.div then
 		base_level = self.water_level + 1
 	end
-	self.base_level = base_level
+	self.share.base_level = base_level
 
 	local base_heat = 20 + math_abs(70 - ((((minp.z + chunk_offset + 1000) / 6000) * 140) % 140))
-	self.base_heat = base_heat
+	self.share.base_heat = base_heat
 end
 
 
 -- check
 function DFlat_Mapgen:simple_ruin()
-	if not self.flattened then
+	if not self.share.flattened then
 		return
 	end
 
 	local csize = self.csize
 	local heightmap = self.heightmap
 	local chunk_offset = self.chunk_offset
-	local base_level = self.base_level + chunk_offset  -- Figure from height?
+	local base_level = self.share.base_level + chunk_offset  -- Figure from height?
 	local boxes = {}
 
 	for _ = 1, 15 do
@@ -221,6 +219,17 @@ function DFlat_Mapgen:simple_ruin()
 		end
 
 		-- foundation
+		pos.y = pos.y - 8
+		size.y = 6
+		geo:add({
+			action = 'cube',
+			node = 'default:dirt',
+			intersect = 'air',
+			location = pos,
+			size = size,
+		})
+		pos = table.copy(box.pos)
+		size = table.copy(box.size)
 		pos.y = pos.y - 2
 		size.y = 3
 		geo:add({

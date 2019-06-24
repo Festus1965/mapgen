@@ -183,10 +183,10 @@ function Mapgen:new(minp, maxp, seed)
 	inst.maxp = maxp
 	inst.node = mod.node
 	inst.p2data = vm:get_param2_data(m_p2data)
-	inst.placed_lava = nil
 	inst.noise = {}
 	inst.noises = table.copy(default_noises)
 	inst.schem = {}
+	inst.share = {}
 	inst.seed = seed
 	inst.vm = vm
 
@@ -237,7 +237,7 @@ function Mapgen:dust()
 	local n_ignore = node['ignore']
 	local n_air = node['air']
 
-	local biome = self.biome
+	local biome = self.share.biome
 
 	local index = 1
 	for z = minp.z, maxp.z do
@@ -361,45 +361,47 @@ function Mapgen:generate(timed)
 	local minp, maxp = self.minp, self.maxp
 
 	local chunk = vector.divide(vector.add(minp, chunk_offset), 80)
+	self:make_stone_layer_noise()  -- This isn't always needed.
 
-	local map
-	local mapgen = self
-	local mapgens = { self }
-	for _, m in pairs(mod.world_map) do
-		if vector.contains(m.minp, m.maxp, chunk) then
-			map = m
-
-			map.params.water_level = map.water_level
-			mapgen = map.mapgen:new(mapgen, map.params)
-			-- Save each mapgen object to do after_deco.
-			table.insert(mapgens, mapgen)
-
-			-- Many of the methods called in the map.mapgen will
-			--  be inherited from Mapgen if not overridden.
+	local mapgens = { }
+	for _, map in pairs(mod.world_map) do
+		if vector.contains(map.minp, map.maxp, chunk) then
+			local mapgen = map.mapgen:new(self, map.params)
+			------------------------------------------
+			-- Better way to do this?
+			------------------------------------------
+			mapgen.water_level = map.water_level
+			------------------------------------------
 
 			for k, v in pairs(map.noises or {}) do
 				self.noises[k] = v
 			end
-			mapgen:make_noises(self.noises)
-			mapgen:make_stone_layer_noise()  -- This isn't always needed.
 
-			do
-				local t_terrain = os_clock()
-				mapgen:prepare()
-				mapgen:map_height()
-				mapgen:place_terrain(map)
-				mapgen:after_terrain()
-				mod.time_terrain = mod.time_terrain + os_clock() - t_terrain
-			end
+			table.insert(mapgens, mapgen)
 		end
 	end
 
-	if map then
-		local t_deco = os_clock()
-		mapgen:place_all_decorations()
-		if not mapgen.no_dust then
-			mapgen:dust()
+	self:make_noises(self.noises)
+
+	local terrain_funcs = { 'prepare', 'place_terrain', 'after_terrain' }
+	local t_terrain = os_clock()
+	for _, func in pairs(terrain_funcs) do
+		for _, mapgen in pairs(mapgens) do
+			mapgen[func](mapgen)
 		end
+	end
+	mod.time_terrain = mod.time_terrain + os_clock() - t_terrain
+
+	if #mapgens > 0 then
+		local t_deco = os_clock()
+		-------------------------------------------
+		-- How can we override this?
+		-------------------------------------------
+		self:place_all_decorations()
+		if not self.share.no_dust then
+			self:dust()
+		end
+		-------------------------------------------
 		mod.time_deco = mod.time_deco + os_clock() - t_deco
 	else
 		self:bedrock()
@@ -408,8 +410,8 @@ function Mapgen:generate(timed)
 	-------------------------------------------
 	-- Untested!
 	-------------------------------------------
-	for _, mg in pairs(mapgens) do
-		mg:after_decorations()
+	for _, mapgen in pairs(mapgens) do
+		mapgen:after_decorations()
 	end
 	-------------------------------------------
 
@@ -617,13 +619,13 @@ function Mapgen:map_biomes()
 end
 
 
-function Mapgen:map_heat_humidity(map)
+function Mapgen:map_heat_humidity()
 	local minp, maxp = self.minp, self.maxp
 	local heightmap = self.heightmap
 	local heatmap = self.heatmap
 	local humiditymap = self.humiditymap
 	local grassmap = self.grassmap
-	local water_level = map.water_level
+	local water_level = self.water_level
 
 	local heat_noise = map.heat or 'heat'
 	local heat_noise_map = self.noise[heat_noise] or self[heat_noise] or heat_noise
@@ -725,8 +727,8 @@ function Mapgen:map_height()
 		end
 	end
 
-	self.height_max = height
-	self.height_min = height
+	self.share.height_max = height
+	self.share.height_min = height
 end
 
 
@@ -772,7 +774,7 @@ function Mapgen:place_deco(ps, deco)
 	local biomemap = self.biomemap
 	local biomemap_cave = self.biomemap_cave
 	local ystride = vm_area.ystride
-	local biome = self.biome
+	local biome = self.share.biome
 
     local csize = self.csize
     local sidelen = deco.sidelen or csize.x
@@ -840,7 +842,7 @@ function Mapgen:place_deco(ps, deco)
                 end
 
 				if y then
-					if not self.biome then
+					if not self.share.biome then
 						if y < heightmap[mapindex] - cave_level then
 							biome = biomemap_cave[mapindex]
 						else
@@ -1153,7 +1155,7 @@ end
 
 
 -- check
-function Mapgen:place_terrain(map)
+function Mapgen:place_terrain()
 	local area = self.area
 	local cave_biomes = mod.cave_biomes
 	local data = self.data
@@ -1166,7 +1168,7 @@ function Mapgen:place_terrain(map)
 	local ystride = area.ystride
 	local p2data = self.p2data
 	local div = self.div
-	local water_level = map.water_level
+	local water_level = self.water_level
 
 	local ground = (maxp.y >= water_level and minp.y <= water_level)
 
@@ -1175,16 +1177,11 @@ function Mapgen:place_terrain(map)
 	local n_cobble = node['default:cobble']
 	local n_mossy = node['default:mossycobble']
 
-	local make_roads = true
-	local make_tracks = false
-	local n_rail_power = node['carts:powerrail']
-	local n_rail = node['carts:rail']
-
-	local roads = self.roads or {}
-	local tracks = self.tracks or {}
-
-	self:map_heat_humidity(map)
-	self:map_biomes()
+	self:map_height()
+	self:map_heat_humidity()
+	if not self.share.biome then
+		self:map_biomes()
+	end
 
 	local index = 1
 	for z = minp.z, maxp.z do
@@ -1192,8 +1189,8 @@ function Mapgen:place_terrain(map)
 			local height = heightmap[index]
 			local biome, biome_cave
 
-			if self.biome then
-				biome = self.biome
+			if self.share.biome then
+				biome = self.share.biome
 				biome_cave = cave_biomes['stone']
 			else
 				biome = biomemap[index] or {}
@@ -1246,43 +1243,10 @@ function Mapgen:place_terrain(map)
 			local fill_2 = fill_1 - math_max(0, depth_filler)
 
 			local t_y_loop = os_clock()
-			local hu2_check
-			-----------------------------------------
-			-- Fix this.
-			-----------------------------------------
-			do
-				local humiditymap = self.humiditymap
-				local humidity_noise_blend_map = self.noise['humidity_blend'].map
-				local hu2 = humidity_noise_blend_map[index]
-				local humidity = humiditymap[index]
-				if humidity and hu2 then
-					hu2_check = (humidity > 70 and (hu2 > 1 or math_floor(hu2 * 1000) % 2 == 0))
-				end
-			end
-			-----------------------------------------
 
 			local ivm = area:index(x, minp.y, z)
 			for y = minp.y, maxp.y do
-				-----------------------------------------
-				-- Move roads and tracks
-				-----------------------------------------
-				if make_tracks and ground and (not div)
-				and y == height and tracks[index] then
-					if x % 5 == 0 or z % 5 == 0 then
-						data[ivm] = n_rail_power
-					else
-						data[ivm] = n_rail
-					end
-				elseif make_roads and ground and (not div)
-				and y >= height - 1 and y <= height
-				and roads[index] then
-					if hu2_check then
-						data[ivm] = n_mossy
-					else
-						data[ivm] = n_cobble
-					end
-				-----------------------------------------
-				elseif y > height and y <= water_level then
+				if y > height and y <= water_level then
 					if y > water_level - wtd then
 						data[ivm] = wt
 					else

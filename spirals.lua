@@ -184,11 +184,6 @@ function Spirals_Mapgen:after_terrain()
 end
 
 
-function Spirals_Mapgen:map_height()
-	-- nop
-end
-
-
 -- This mapgen only adds to already placed terrain.
 function Spirals_Mapgen:place_terrain()
 	-- nop
@@ -199,8 +194,8 @@ function Spirals_Mapgen:prepare()
 	-- Geomorph requires this.
 	self.gpr = PcgRandom(self.seed + 7201)
 
-	self.no_dust = true
-	self.disruptive = true
+	self.share.no_dust = true
+	self.share.disruptive = true
 end
 
 
