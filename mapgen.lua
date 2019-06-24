@@ -140,6 +140,17 @@ local ore_intersect = {
 }
 
 
+local default_noises = {
+	heat = { offset = 50, scale = 50, spread = {x = 1000, y = 1000, z = 1000}, seed = 5349, octaves = 3, persistence = 0.5, lacunarity = 2.0, flags = 'eased' },
+	heat_blend = { offset = 0, scale = 1.5, spread = {x = 8, y = 8, z = 8}, seed = 13, octaves = 2, persistence = 1.0, lacunarity = 2.0, flags = 'eased' },
+	humidity = { offset = 50, scale = 50, seed = 842, spread = {x = 1000, y = 1000, z = 1000}, octaves = 3, persist = 0.5, lacunarity = 2, flags = 'eased' },
+	humidity_blend = { offset = 0, scale = 1.5, seed = 90003, spread = {x = 8, y = 8, z = 8}, octaves = 2, persist = 1.0, lacunarity = 2, flags = 'eased' },
+	--flat_cave_1 = { offset = 0, scale = 10, seed = 6386, spread = {x = 23, y = 23, z = 23}, octaves = 3, persist = 0.7, lacunarity = 1.8 },
+	--cave_heat = { offset = 50, scale = 50, seed = 1578, spread = {x = 200, y = 200, z = 200}, octaves = 3, persist = 0.5, lacunarity = 2 },
+}
+
+
+
 -----------------------------------------------
 -- Mapgen class
 -----------------------------------------------
@@ -174,6 +185,7 @@ function Mapgen:new(minp, maxp, seed)
 	inst.p2data = vm:get_param2_data(m_p2data)
 	inst.placed_lava = nil
 	inst.noise = {}
+	inst.noises = table.copy(default_noises)
 	inst.schem = {}
 	inst.seed = seed
 	inst.vm = vm
@@ -365,7 +377,10 @@ function Mapgen:generate(timed)
 			-- Many of the methods called in the map.mapgen will
 			--  be inherited from Mapgen if not overridden.
 
-			mapgen:make_noises(map.noises)
+			for k, v in pairs(map.noises or {}) do
+				self.noises[k] = v
+			end
+			mapgen:make_noises(self.noises)
 			mapgen:make_stone_layer_noise()  -- This isn't always needed.
 
 			do
@@ -421,6 +436,8 @@ end
 function Mapgen:get_noise(n, v)
 	local minp, csize = self.minp, self.csize
 	local size = table.copy(csize)
+
+	v = { def = v }
 
 	-------------------------------------------
 	-- Move this stuff.
@@ -519,7 +536,10 @@ function Mapgen:map_biomes()
 	-----------------------------------------
 	-- Move this.
 	-----------------------------------------
-	local cave_heat_map = self.noise['cave_heat'].map
+	local cave_heat_map
+	if not self.div then
+		cave_heat_map = self.noise['cave_heat'].map
+	end
 	-----------------------------------------
 	local cave_biomes = mod.cave_biomes
 	local minp, maxp = self.minp, self.maxp
@@ -564,26 +584,32 @@ function Mapgen:map_biomes()
 			biomemap[index] = biome
 			self.biomes_here[biome.name] = true
 
-			biome_diff = nil
-			local cave_heat = cave_heat_map[index] + cave_depth_mod
-			-- Why is this necessary?
-			local biome_cave = cave_biomes['stone']
-			-- This time just look at the middle of the chunk,
-			--  since decorations could go all through it.
-			for _, b in ipairs(cave_biomes_i) do
-				if b and (not b.y_max or b.y_max >= minp.y)
-					and (not b.y_min or b.y_min <= maxp.y) then
-					local diff_he = b.heat_point - cave_heat
-					local diff_hu = b.humidity_point - humidity
-					local diff = diff_he * diff_he + diff_hu * diff_hu
-					if ((not biome_diff) or diff < biome_diff) then
-						biome_diff = diff
-						biome_cave = b
+			-----------------------------------------
+			-- Move this.
+			-----------------------------------------
+			if not self.div then
+				biome_diff = nil
+				local cave_heat = cave_heat_map[index] + cave_depth_mod
+				-- Why is this necessary?
+				local biome_cave = cave_biomes['stone']
+				-- This time just look at the middle of the chunk,
+				--  since decorations could go all through it.
+				for _, b in ipairs(cave_biomes_i) do
+					if b and (not b.y_max or b.y_max >= minp.y)
+						and (not b.y_min or b.y_min <= maxp.y) then
+						local diff_he = b.heat_point - cave_heat
+						local diff_hu = b.humidity_point - humidity
+						local diff = diff_he * diff_he + diff_hu * diff_hu
+						if ((not biome_diff) or diff < biome_diff) then
+							biome_diff = diff
+							biome_cave = b
+						end
 					end
 				end
+				biomemap_cave[index] = biome_cave
+				self.biomes_here[biome_cave.name] = true
 			end
-			biomemap_cave[index] = biome_cave
-			self.biomes_here[biome_cave.name] = true
+			-----------------------------------------
 
 			index = index + 1
 		end
@@ -593,29 +619,84 @@ end
 
 function Mapgen:map_heat_humidity(map)
 	local minp, maxp = self.minp, self.maxp
-	local base_heat = self.base_heat or 65
 	local heightmap = self.heightmap
 	local heatmap = self.heatmap
 	local humiditymap = self.humiditymap
 	local grassmap = self.grassmap
-	local humidity_1_map = self.noise['humidity_1'].map
-	local humidity_2_map = self.noise['humidity_2'].map
-	local heat_2_map = self.noise['heat_2'].map
-	local humidity, hu2
 	local water_level = map.water_level
+
+	local heat_noise = map.heat or 'heat'
+	local heat_noise_map = self.noise[heat_noise] or self[heat_noise] or heat_noise
+	local heat_blend_noise = map.heat_blend or 'heat_blend'
+	local heat_blend_noise_map = self.noise[heat_blend_noise] or self[heat_blend_noise] or heat_blend_noise
+	local humidity_noise = map.humidity or 'humidity'
+	local humidity_noise_map = self.noise[humidity_noise] or self[humidity_noise] or humidity_noise
+	local humidity_blend_noise = map.humidity_blend or 'humidity_blend'
+	local humidity_blend_noise_map = self.noise[humidity_blend_noise] or self[humidity_blend_noise] or humidity_blend_noise
+
+	if type(heat_noise_map) == 'table' and heat_noise_map.map then
+		heat_noise_map = heat_noise_map.map
+	end
+	if type(heat_blend_noise_map) == 'table' and heat_blend_noise_map.map then
+		heat_blend_noise_map = heat_blend_noise_map.map
+	end
+	if type(humidity_noise_map) == 'table' and humidity_noise_map.map then
+		humidity_noise_map = humidity_noise_map.map
+	end
+	if type(humidity_blend_noise_map) == 'table' and humidity_blend_noise_map.map then
+		humidity_blend_noise_map = humidity_blend_noise_map.map
+	end
 
 	local index = 1
 	for z = minp.z, maxp.z do
 		for x = minp.x, maxp.x do
 			local height = heightmap[index]
+			local heat, heat_blend, humidity, humidity_blend
 
-			hu2 = humidity_2_map[index]
-			humidity = humidity_1_map[index] + hu2
-			local heat = base_heat + heat_2_map[index]
+			if type(heat_noise_map) == 'table' then
+				heat = heat_noise_map[index]
+			elseif type(heat_noise_map) == 'function' then
+				heat = heat_noise_map(index)
+			elseif type(heat_noise_map) == 'number' then
+				heat = heat_noise_map
+			else
+				return
+			end
+			if type(heat_blend_noise_map) == 'table' then
+				heat_blend = heat_blend_noise_map[index]
+			elseif type(heat_blend_noise_map) == 'function' then
+				heat_blend = heat_blend_noise_map(index)
+			elseif type(heat_blend_noise_map) == 'number' then
+				heat_blend = heat_blend_noise_map
+			else
+				return
+			end
+			heat = heat + heat_blend
+
 			if height > water_level + 25 then
 				local h2 = height - water_level - 25
 				heat = heat - h2 * h2 * 0.005
 			end
+
+			if type(humidity_noise_map) == 'table' then
+				humidity = humidity_noise_map[index]
+			elseif type(humidity_noise_map) == 'function' then
+				humidity = humidity_noise_map(index)
+			elseif type(humidity_noise_map) == 'number' then
+				humidity = humidity_noise_map
+			else
+				return
+			end
+			if type(humidity_blend_noise_map) == 'table' then
+				humidity_blend = humidity_blend_noise_map[index]
+			elseif type(humidity_blend_noise_map) == 'function' then
+				humidity_blend = humidity_blend_noise_map(index)
+			elseif type(humidity_blend_noise_map) == 'number' then
+				humidity_blend = humidity_blend_noise_map
+			else
+				return
+			end
+			humidity = humidity + humidity_blend
 
 			heatmap[index] = heat
 			humiditymap[index] = humidity
@@ -1171,8 +1252,8 @@ function Mapgen:place_terrain(map)
 			-----------------------------------------
 			do
 				local humiditymap = self.humiditymap
-				local humidity_2_map = self.noise['humidity_2'].map
-				local hu2 = humidity_2_map[index]
+				local humidity_noise_blend_map = self.noise['humidity_blend'].map
+				local hu2 = humidity_noise_blend_map[index]
 				local humidity = humiditymap[index]
 				if humidity and hu2 then
 					hu2_check = (humidity > 70 and (hu2 > 1 or math_floor(hu2 * 1000) % 2 == 0))

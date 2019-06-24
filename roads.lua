@@ -80,7 +80,7 @@ function Roads_Mapgen:houses()
 	local plots = self.plots
 	local pr = self.gpr
 	local heightmap = self.heightmap
-	local base_level = self.base_level
+	local base_level = self.base_level or 9
 
 	for _, box in pairs(plots) do
 		local pos = vector.add(box.pos, -2)
@@ -384,7 +384,7 @@ end
 function Roads_Mapgen:mark_plots()
 	local csize = self.csize
 	local chunk_offset = self.chunk_offset
-	local base_level = self.base_level + chunk_offset  -- Figure from height?
+	local base_level = (self.base_level or 9) + chunk_offset  -- Figure from height?
 	local plots = {}
 	local roads = self.roads
 	local pr = self.gpr
@@ -502,7 +502,7 @@ do
 		-----------------------------------------------
 		-- Copy from terrain somehow?
 		-----------------------------------------------
-		['road_1'] = { def = {offset = 0, scale = terrain_scale, seed = 4382, spread = {x = 320, y = 320, z = 320}, octaves = 3, persist = 0.5, lacunarity = 2.0} },
+		road_1 = { offset = 0, scale = terrain_scale, seed = 4382, spread = {x = 320, y = 320, z = 320}, octaves = 3, persist = 0.5, lacunarity = 2.0},
 	}
 
 

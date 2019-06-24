@@ -70,7 +70,7 @@ function DFlat_Mapgen:after_terrain()
 	local ground = (maxp.y >= water_level and minp.y <= water_level)
 
 	local do_ore = true
-	if ground and self.flattened and self.gpr:next(1, 5) == 1 then
+	if (not self.div) and ground and self.flattened and self.gpr:next(1, 5) == 1 then
 		local sr = self.gpr:next(1, 3)
 		if sr == 1 then
 			self:geomorph('pyramid_temple')
@@ -83,7 +83,7 @@ function DFlat_Mapgen:after_terrain()
 		self.disruptive = true
 	end
 
-	if self.height_max >= minp.y
+	if (not self.div) and self.height_max >= minp.y
 	and self.height_min > minp.y + cave_underground then
 		local t_cave = os_clock()
 		self:simple_caves()
@@ -107,14 +107,6 @@ function DFlat_Mapgen:map_height()
 
 	local height_min = layer_mod.max_height
 	local height_max = -layer_mod.max_height
-
-	-----------------------------------------
-	-- Fix this.
-	-----------------------------------------
-	if div then
-		ground_noise_map = self.noise['ground_ether'].map
-	end
-	-----------------------------------------
 
 	local index = 1
 	for z = minp.z, maxp.z do
@@ -215,7 +207,7 @@ function DFlat_Mapgen:simple_ruin()
 		end
 	end
 	local geo = Geomorph.new()
-	local stone = 'default:sandstone'
+	local stone = 'default:sandstone_block'
 	for _, box in pairs(boxes) do
 		local pos = table.copy(box.pos)
 		local size = table.copy(box.size)
@@ -339,23 +331,22 @@ do
 	local max_chunks_ether = math_floor(layer_mod.max_chunks / ether_div)
 
 	local noises = {
-		['ground'] = { def = {offset = 0, scale = terrain_scale, seed = 4382, spread = {x = 320, y = 320, z = 320}, octaves = 6, persist = 0.5, lacunarity = 2.0} },
-		['ground_ether'] = { def = {offset = 0, scale = terrain_scale, seed = 4382, spread = {x = 40, y = 40, z = 40}, octaves = 6, persist = 0.5, lacunarity = 2.0} },
-		['heat_2'] = { def = {offset = 0, scale = 4, seed = 5349, spread = {x = 10, y = 10, z = 10}, octaves = 3, persist = 0.5, lacunarity = 2} },
-		['humidity_1'] = { def = {offset = 50, scale = 50, seed = 842, spread = {x = 1000, y = 1000, z = 1000}, octaves = 3, persist = 0.5, lacunarity = 2} },
-		['humidity_2'] = { def = {offset = 0, scale = 1.5, seed = 90003, spread = {x = 8, y = 8, z = 8}, octaves = 2, persist = 1.0, lacunarity = 2} },
-		['erosion'] = { def = {offset = 0, scale = 1.5, seed = -47383, spread = {x = 8, y = 8, z = 8}, octaves = 2, persist = 1.0, lacunarity = 2} },
-		['flat_cave_1'] = { def = {offset = 0, scale = 10, seed = 6386, spread = {x = 23, y = 23, z = 23}, octaves = 3, persist = 0.7, lacunarity = 1.8} },
-		['cave_heat'] = { def = {offset = 50, scale = 50, seed = 1578, spread = {x = 200, y = 200, z = 200}, octaves = 3, persist = 0.5, lacunarity = 2} },
+		ground = { offset = 0, scale = terrain_scale, seed = 4382, spread = {x = 320, y = 320, z = 320}, octaves = 6, persist = 0.5, lacunarity = 2.0},
+		ground_ether = { offset = 0, scale = terrain_scale, seed = 4382, spread = {x = 40, y = 40, z = 40}, octaves = 6, persist = 0.5, lacunarity = 2.0 },
+		heat_blend = { offset = 0, scale = 4, seed = 5349, spread = {x = 10, y = 10, z = 10}, octaves = 3, persist = 0.5, lacunarity = 2, flags = 'eased' },
+		erosion = { offset = 0, scale = 1.5, seed = -47383, spread = {x = 8, y = 8, z = 8}, octaves = 2, persist = 1.0, lacunarity = 2 },
+		flat_cave_1 = { offset = 0, scale = 10, seed = 6386, spread = {x = 23, y = 23, z = 23}, octaves = 3, persist = 0.7, lacunarity = 1.8 },
+		cave_heat = { offset = 50, scale = 50, seed = 1578, spread = {x = 200, y = 200, z = 200}, octaves = 3, persist = 0.5, lacunarity = 2 },
 	}
 
-	local e_noises = table.copy(noises)
-	e_noises.ground.def.spread = vector.divide(e_noises.ground.def.spread, ether_div)
+	local e_noises = { ground = table.copy(noises.ground) }
+	e_noises.ground.spread = vector.divide(e_noises.ground.spread, ether_div)
 
 
 	layer_mod.register_map({
 		name = 'zero',
 		biomes = 'default',
+		heat = 'base_heat',
 		mapgen = DFlat_Mapgen,
 		mapgen_name = 'dflat',
 		minp = VN(-max_chunks, -20, -max_chunks),
@@ -368,6 +359,8 @@ do
 	layer_mod.register_map({
 		name = 'ether',
 		biomes = 'ether',
+		heat = 50,
+		humidity = 50,
 		mapgen = DFlat_Mapgen,
 		mapgen_name = 'dflat',
 		minp = VN(-max_chunks_ether, -360, -max_chunks_ether),
