@@ -547,7 +547,9 @@ function Mapgen:map_biomes(offset)
 	local cave_biomes = mod.cave_biomes
 	local minp, maxp = self.minp, self.maxp
 
-	if not offset then
+	if offset then
+		offset = offset - 1
+	else
 		offset = 0
 	end
 
@@ -1185,7 +1187,7 @@ function Mapgen:place_terrain()
 	self:map_height()
 	self:map_heat_humidity()
 	if not self.share.biome then
-		self:map_biomes()
+		self:map_biomes(self.share.height_offset)
 	end
 
 	local index = 1
