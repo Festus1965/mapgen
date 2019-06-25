@@ -151,6 +151,96 @@ local default_noises = {
 
 
 
+--[[
+-- generic subclass
+function mod.subclass(...)
+	-- "cls" is the new class
+	local cls, bases = {}, {...}
+
+	-- copy base class contents into the new class
+	for i, base in ipairs(bases) do
+		for k, v in pairs(base) do
+			cls[k] = v
+		end
+	end
+
+	-- set the class's __index, and start filling an "is_a" table that contains this class and all of its bases
+	-- so you can do an "instance of" check using my_instance.is_a[MyClass]
+	cls.__index, cls.is_a = cls, {[cls] = true}
+	for i, base in ipairs(bases) do
+		for c in pairs(base.is_a or {}) do
+			cls.is_a[c] = true
+		end
+		cls.is_a[base] = true
+	end
+
+	cls.super = bases[1]
+
+	-- the class's __call metamethod
+	setmetatable(cls, {__call = function (c, ...)
+		local instance = setmetatable({}, c)
+		-- run the init method if it's there
+		local init = instance._init
+		if init then init(instance, ...) end
+		return instance
+	end})
+
+	-- return the new class table, that's ready to fill with methods
+	return cls
+end
+--]]
+
+
+
+function mod.subclass_mapgen()
+	-- "cls" is the new class
+	local cls, bases = {}, { mod.Mapgen }
+
+	-- copy base class contents into the new class
+	for i, base in ipairs(bases) do
+		for k, v in pairs(base) do
+			cls[k] = v
+		end
+	end
+
+	-- set the class's __index, and start filling an "is_a" table that contains this class and all of its bases
+	-- so you can do an "instance of" check using my_instance.is_a[MyClass]
+	cls.__index, cls.is_a = cls, {[cls] = true}
+	for i, base in ipairs(bases) do
+		for c in pairs(base.is_a or {}) do
+			cls.is_a[c] = true
+		end
+		cls.is_a[base] = true
+	end
+
+	cls.super = bases[1]
+
+	-- the class's __call metamethod
+	setmetatable(cls, {__call = function (c, mg, params, ...)
+		local instance = setmetatable({}, c)
+
+		-- These are specific to a Mapgen subclass.
+		-- Should they run after _init?
+		for k, v in pairs(mg or {}) do
+			instance[k] = v
+		end
+		for k, v in pairs(params or {}) do
+			instance[k] = v
+		end
+
+		-- run the init method if it's there
+		local init = instance._init
+		if init then init(instance, ...) end
+
+		return instance
+	end})
+
+	-- return the new class table, that's ready to fill with methods
+	return cls
+end
+
+
+
 -----------------------------------------------
 -- Mapgen class
 -----------------------------------------------
@@ -193,16 +283,6 @@ function Mapgen:new(minp, maxp, seed)
 	assert(inst.p2data == m_p2data)
 
 	return inst
-end
-
-
-function Mapgen:after_decorations()
-	-- Override this.
-end
-
-
-function Mapgen:after_terrain()
-	-- Override this.
 end
 
 
@@ -362,7 +442,30 @@ function Mapgen:find_break(x, z, flags, gpr)
 end
 
 
-function Mapgen:generate(timed)
+function Mapgen:flat_map_height()
+	local minp, maxp = self.minp, self.maxp
+	local height = 8
+
+	local index = 1
+	for z = minp.z, maxp.z do
+		for x = minp.x, maxp.x do
+			self.heightmap[index] = self.water_level + height
+			index = index + 1
+		end
+	end
+
+	self.share.height_max = height
+	self.share.height_min = height
+end
+
+
+function Mapgen:generate()
+	-- Override this.
+	print(mod_name..': You must override the generate method.')
+end
+
+
+function Mapgen:generate_all(timed)
 	local minp, maxp = self.minp, self.maxp
 
 	local chunk = vector.divide(vector.add(minp, chunk_offset), 80)
@@ -371,7 +474,7 @@ function Mapgen:generate(timed)
 	local mapgens = { }
 	for _, map in pairs(mod.world_map) do
 		if vector.contains(map.minp, map.maxp, chunk) then
-			local mapgen = map.mapgen:new(self, map.params)
+			local mapgen = map.mapgen(self, map.params)
 			------------------------------------------
 			-- Better way to do this?
 			------------------------------------------
@@ -388,12 +491,13 @@ function Mapgen:generate(timed)
 
 	self:make_noises(self.noises)
 
-	local terrain_funcs = { 'prepare', 'place_terrain', 'after_terrain' }
 	local t_terrain = os_clock()
-	for _, func in pairs(terrain_funcs) do
-		for _, mapgen in pairs(mapgens) do
-			mapgen[func](mapgen)
-		end
+	for _, mapgen in pairs(mapgens) do
+		-------------------------------------------
+		-- This must include height and biome mapping.
+		-------------------------------------------
+		mapgen.generate(mapgen)
+		-------------------------------------------
 	end
 	mod.time_terrain = mod.time_terrain + os_clock() - t_terrain
 
@@ -411,14 +515,6 @@ function Mapgen:generate(timed)
 	else
 		self:bedrock()
 	end
-
-	-------------------------------------------
-	-- Untested!
-	-------------------------------------------
-	for _, mapgen in pairs(mapgens) do
-		mapgen:after_decorations()
-	end
-	-------------------------------------------
 
 	self:save_map(timed)
 
@@ -717,30 +813,6 @@ function Mapgen:map_heat_humidity()
 			index = index + 1
 		end
 	end
-end
-
-
-function Mapgen:map_height()
-	-- Override this.
-
-	local minp, maxp = self.minp, self.maxp
-	local height = 8
-
-	local index = 1
-	for z = minp.z, maxp.z do
-		for x = minp.x, maxp.x do
-			self.heightmap[index] = self.water_level + height
-			index = index + 1
-		end
-	end
-
-	self.share.height_max = height
-	self.share.height_min = height
-end
-
-
-function Mapgen:prepare()
-	-- Override this.
 end
 
 
@@ -1532,7 +1604,7 @@ local function generate(minp, maxp, seed)
 
 	mg.chunk_offset = chunk_offset
 
-	mg:generate(true)
+	mg:generate_all(true)
 	local mem = math_floor(collectgarbage('count')/1024)
 	if mem > 200 then
 		print('Lua Memory: ' .. mem .. 'M')

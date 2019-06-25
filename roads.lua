@@ -24,49 +24,20 @@ local road_w = 3
 -- Roads_Mapgen class
 -----------------------------------------------
 
-local function roads_mapgen(base_class)
-	if not base_class then
-		return
-	end
-
-	local new_class = {}
-	local new_mt = { __index = new_class, }
-
-	function new_class:new(mg, params)
-		local new_inst = {}
-		for k, v in pairs(mg) do
-			new_inst[k] = v
-		end
-		for k, v in pairs(params) do
-			new_inst[k] = v
-		end
-
-		new_inst.puzzle_boxes = {}
-		new_inst.roads = {}
-		new_inst.tracks = {}
-
-		setmetatable(new_inst, new_mt)
-		return new_inst
-	end
-
-	setmetatable(new_class, { __index = base_class })
-
-	return new_class
-end
-
-local Roads_Mapgen = roads_mapgen(layer_mod.Mapgen)
+local Roads_Mapgen = layer_mod.subclass_mapgen()
 
 
-function Roads_Mapgen:after_decorations()
-	-- nop
-end
-
-
-function Roads_Mapgen:after_terrain()
+function Roads_Mapgen:generate()
 	if self.share.disruptive then
 		return
 	end
 
+	self.gpr = PcgRandom(self.seed + 5245)
+	self.puzzle_boxes = {}
+
+	self:map_roads()
+	self:mark_plots()
+	self:place_terrain()
 	self:houses()
 
 	if #self.puzzle_boxes > 0 then
@@ -536,18 +507,6 @@ function Roads_Mapgen:place_terrain()
 			index = index + 1
 		end
 	end
-end
-
-
-function Roads_Mapgen:prepare()
-	if self.share.disruptive then
-		return
-	end
-
-	self.gpr = PcgRandom(self.seed + 5245)
-
-	self:map_roads()
-	self:mark_plots()
 end
 
 

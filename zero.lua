@@ -29,38 +29,7 @@ local cave_underground = 5
 -- DFlat_Mapgen class
 -----------------------------------------------
 
-local function dflat_mapgen(base_class)
-	if not base_class then
-		return
-	end
-
-	local new_class = {}
-	local new_mt = { __index = new_class, }
-
-	function new_class:new(mg, params)
-		local new_inst = {}
-		for k, v in pairs(mg) do
-			new_inst[k] = v
-		end
-		for k, v in pairs(params) do
-			new_inst[k] = v
-		end
-
-		setmetatable(new_inst, new_mt)
-		return new_inst
-	end
-
-	setmetatable(new_class, { __index = base_class })
-
-	return new_class
-end
-
-local DFlat_Mapgen = dflat_mapgen(layer_mod.Mapgen)
-
-
-function DFlat_Mapgen:after_decorations()
-	-- nop
-end
+local DFlat_Mapgen = layer_mod.subclass_mapgen()
 
 
 function DFlat_Mapgen:after_terrain()
@@ -95,6 +64,14 @@ function DFlat_Mapgen:after_terrain()
 		self:simple_ore()
 		layer_mod.time_ore = layer_mod.time_ore + os_clock() - t_ore
 	end
+end
+
+
+function DFlat_Mapgen:generate()
+	self:prepare()
+	self:map_height()
+	self:place_terrain()
+	self:after_terrain()
 end
 
 

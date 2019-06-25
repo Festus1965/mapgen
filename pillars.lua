@@ -29,56 +29,11 @@ local cave_underground = 5
 -- Pillars_Mapgen class
 -----------------------------------------------
 
-local function pillars_mapgen(base_class)
-	if not base_class then
-		return
-	end
-
-	local new_class = {}
-	local new_mt = { __index = new_class, }
-
-	function new_class:new(mg, params)
-		local new_inst = {}
-		for k, v in pairs(mg) do
-			new_inst[k] = v
-		end
-		for k, v in pairs(params) do
-			new_inst[k] = v
-		end
-
-		setmetatable(new_inst, new_mt)
-		return new_inst
-	end
-
-	setmetatable(new_class, { __index = base_class })
-
-	return new_class
-end
-
-local Pillars_Mapgen = pillars_mapgen(layer_mod.Mapgen)
-
-
-function Pillars_Mapgen:after_decorations()
-	-- nop
-end
+local Pillars_Mapgen = layer_mod.subclass_mapgen()
 
 
 function Pillars_Mapgen:after_terrain()
-	local minp, maxp = self.minp, self.maxp
-	local chunk_offset = self.chunk_offset
-	local water_level = self.water_level
-	local ground = (maxp.y >= water_level and minp.y <= water_level)
-
-	local do_ore = true
-
-	if (not self.div) and self.share.height_max >= minp.y
-	and self.share.height_min > minp.y + cave_underground then
-		local t_cave = os_clock()
-		self:simple_caves()
-		layer_mod.time_caves = layer_mod.time_caves + os_clock() - t_cave
-	end
-
-	if do_ore then
+	if not (self.coop or self.abort) then
 		local t_ore = os_clock()
 		self:simple_ore()
 		layer_mod.time_ore = layer_mod.time_ore + os_clock() - t_ore
@@ -86,11 +41,34 @@ function Pillars_Mapgen:after_terrain()
 end
 
 
+function Pillars_Mapgen:generate()
+	local water_level = self.water_level
+	if self.share.height_max and self.share.height_min then
+		self.coop = true
+
+		if self.share.height_max - water_level > 0
+		or self.share.height_min - water_level < -10 then
+			self.abort = true
+			return
+		end
+	end
+
+	self:prepare()
+	if self.coop then
+		self:map_height()
+	else
+		self:place_terrain()
+	end
+	self:after_terrain()
+end
+
+
 function Pillars_Mapgen:map_height()
 	local water_level = self.water_level
+
 	local minp, maxp = self.minp, self.maxp
 	local csize = self.csize
-	local ground_noise_map = self.noise['ground'].map
+	local ground_noise_map = self.noise['groundp'].map
 	local heightmap = self.heightmap
 	local base_level = self.share.base_level
 	local div = self.div
@@ -102,27 +80,36 @@ function Pillars_Mapgen:map_height()
 	-----------------------------
 
 	local index = 1
-	for z = minp.z, maxp.z do
-		for x = minp.x, maxp.x do
-			if not heightmap[index] then
-				heightmap[index] = water_level + math_floor(self.noise['ground'].map[index])
+	if not self.coop then
+		for z = minp.z, maxp.z do
+			for x = minp.x, maxp.x do
+				if not heightmap[index] then
+					heightmap[index] = math_max(water_level - 30, water_level + math_floor(self.noise['groundp'].map[index]))
+				end
+
+				index = index + 1
 			end
-
-			index = index + 1
 		end
+
+		self.share.height_min = water_level - 10
+		if water_level < minp.y or water_level > maxp.y then
+			self.share.height_max = water_level - 10
+			return
+		end
+		self.share.height_max = water_level + 20
+		print('not coop')
 	end
 
-	self.share.height_min = water_level - 10
-	if water_level < minp.y or water_level > maxp.y then
-		self.share.height_max = water_level - 10
-		return
-	end
-	self.share.height_max = water_level + 20
-
+	local hts = {}
 	for _ = 1, 25 do
+		local h = ps:next(1, 10) + ps:next(1, 10) + ps:next(1, 10) - 8
+		table.insert(hts, h)
+		table.sort(hts)
+	end
+
+	for _, h in ipairs(hts) do
 		local c = VN(ps:next(10, csize.x - 10), 0, ps:next(10, csize.z - 10))
 		local r = ps:next(5, 10)
-		local h = ps:next(1, 10) + ps:next(1, 10) + ps:next(1, 10) - 8
 
 		local r2 = r * r
 		local min = vector.add(c, -r)
@@ -142,10 +129,12 @@ function Pillars_Mapgen:map_height()
 		end
 	end
 
-	local f1 = math_max(altitude_cutoff_high, height_max - minp.y)
-	local f2 = math_min(altitude_cutoff_low, height_min - minp.y)
-	if (f1 - altitude_cutoff_high) - (f2 - altitude_cutoff_low) < 3 then
-		self.share.flattened = true
+	if not self.coop then
+		local f1 = math_max(altitude_cutoff_high, height_max - minp.y)
+		local f2 = math_min(altitude_cutoff_low, height_min - minp.y)
+		if (f1 - altitude_cutoff_high) - (f2 - altitude_cutoff_low) < 3 then
+			self.share.flattened = true
+		end
 	end
 end
 
@@ -155,20 +144,23 @@ function Pillars_Mapgen:prepare()
 	local chunk_offset = self.chunk_offset
 
 	self.gpr = PcgRandom(self.seed + 4731)
-	self.share.height_offset = self.water_level
 
-	if self.div then
-		self.share.biome = layer_mod.biomes['ether']
+	if not self.coop then
+		self.share.height_offset = self.water_level
+
+		if self.div then
+			self.share.biome = layer_mod.biomes['ether']
+		end
+
+		local base_level = self.water_level + water_diff
+		if self.div then
+			base_level = self.water_level + 1
+		end
+		self.share.base_level = base_level
+
+		local base_heat = 20 + math_abs(70 - ((((minp.z + chunk_offset + 1000) / 6000) * 140) % 140))
+		self.share.base_heat = base_heat
 	end
-
-	local base_level = self.water_level + water_diff
-	if self.div then
-		base_level = self.water_level + 1
-	end
-	self.share.base_level = base_level
-
-	local base_heat = 20 + math_abs(70 - ((((minp.z + chunk_offset + 1000) / 6000) * 140) % 140))
-	self.share.base_heat = base_heat
 end
 
 
@@ -185,15 +177,17 @@ do
 	local max_chunks_ether = math_floor(layer_mod.max_chunks / ether_div)
 
 	local noises = {
-		ground = { def = { offset = -5, scale = 20, seed = -4620, spread = {x = 320, y = 320, z = 320}, octaves = 6, persist = 0.5, lacunarity = 2.0}, },
-		ground_ether = { def = { offset = 0, scale = terrain_scale, seed = 4382, spread = {x = 40, y = 40, z = 40}, octaves = 6, persist = 0.5, lacunarity = 2.0 }, },
+		groundp = { def = { offset = -5, scale = 20, seed = -4620, spread = {x = 320, y = 320, z = 320}, octaves = 6, persist = 0.5, lacunarity = 2.0}, },
+		--ground_ether = { def = { offset = 0, scale = terrain_scale, seed = 4382, spread = {x = 40, y = 40, z = 40}, octaves = 6, persist = 0.5, lacunarity = 2.0 }, },
 		heat_blend = { def = { offset = 0, scale = 4, seed = 5349, spread = {x = 10, y = 10, z = 10}, octaves = 3, persist = 0.5, lacunarity = 2, flags = 'eased' }, },
-		flat_cave_1 = { def = { offset = 0, scale = 10, seed = 6386, spread = {x = 23, y = 23, z = 23}, octaves = 3, persist = 0.7, lacunarity = 1.8 }, },
-		cave_heat = { def = { offset = 50, scale = 50, seed = 1578, spread = {x = 200, y = 200, z = 200}, octaves = 3, persist = 0.5, lacunarity = 2 }, },
+		--flat_cave_1 = { def = { offset = 0, scale = 10, seed = 6386, spread = {x = 23, y = 23, z = 23}, octaves = 3, persist = 0.7, lacunarity = 1.8 }, },
+		--cave_heat = { def = { offset = 50, scale = 50, seed = 1578, spread = {x = 200, y = 200, z = 200}, octaves = 3, persist = 0.5, lacunarity = 2 }, },
 	}
 
+	--[[
 	local e_noises = { ground = table.copy(noises.ground) }
 	e_noises.ground.def.spread = vector.divide(e_noises.ground.def.spread, ether_div)
+	--]]
 
 
 	layer_mod.register_map({
@@ -207,6 +201,19 @@ do
 		noises = noises,
 		params = {},
 		water_level = 4640,
+	})
+
+	layer_mod.register_map({
+		name = 'pillars',
+		biomes = 'default',
+		--heat = 'base_heat',
+		mapgen = Pillars_Mapgen,
+		mapgen_name = 'pillars',
+		minp = VN(-max_chunks, 0, -max_chunks),
+		maxp = VN(max_chunks, 0, max_chunks),
+		noises = noises,
+		params = {},
+		water_level = 1,
 	})
 
 	--[[

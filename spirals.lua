@@ -55,42 +55,17 @@ end
 -- Spirals_Mapgen class
 -----------------------------------------------
 
-local function spirals_mapgen(base_class)
-	if not base_class then
-		return
-	end
-
-	local new_class = {}
-	local new_mt = { __index = new_class, }
-
-	function new_class:new(mg, params)
-		local new_inst = {}
-		for k, v in pairs(mg) do
-			new_inst[k] = v
-		end
-		for k, v in pairs(params) do
-			new_inst[k] = v
-		end
-
-		setmetatable(new_inst, new_mt)
-		return new_inst
-	end
-
-	setmetatable(new_class, { __index = base_class })
-
-	return new_class
-end
-
-local Spirals_Mapgen = spirals_mapgen(layer_mod.Mapgen)
-
-
-function Spirals_Mapgen:after_decorations()
-	-- nop
-end
+local Spirals_Mapgen = layer_mod.subclass_mapgen()
 
 
 -- check
-function Spirals_Mapgen:after_terrain()
+function Spirals_Mapgen:generate()
+	-- Geomorph requires this.
+	self.gpr = PcgRandom(self.seed + 7201)
+
+	self.share.no_dust = true
+	self.share.disruptive = true
+
 	local area = self.area
 	local buildable_to = self.buildable_to
 	local data = self.data
@@ -181,21 +156,6 @@ function Spirals_Mapgen:after_terrain()
 			end
 		end
 	end
-end
-
-
--- This mapgen only adds to already placed terrain.
-function Spirals_Mapgen:place_terrain()
-	-- nop
-end
-
-
-function Spirals_Mapgen:prepare()
-	-- Geomorph requires this.
-	self.gpr = PcgRandom(self.seed + 7201)
-
-	self.share.no_dust = true
-	self.share.disruptive = true
 end
 
 

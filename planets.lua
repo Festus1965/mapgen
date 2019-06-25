@@ -86,42 +86,14 @@ end
 -- Planets_Mapgen class
 -----------------------------------------------
 
-local function planets_mapgen(base_class)
-	if not base_class then
-		return
-	end
-
-	local new_class = {}
-	local new_mt = { __index = new_class, }
-
-	function new_class:new(mg, params)
-		local new_inst = {}
-		for k, v in pairs(mg) do
-			new_inst[k] = v
-		end
-		for k, v in pairs(params) do
-			new_inst[k] = v
-		end
-
-		setmetatable(new_inst, new_mt)
-		return new_inst
-	end
-
-	setmetatable(new_class, { __index = base_class })
-
-	return new_class
-end
-
-local Planets_Mapgen = planets_mapgen(layer_mod.Mapgen)
-
-
-function Planets_Mapgen:after_decorations()
-	-- nop
-end
+local Planets_Mapgen = layer_mod.subclass_mapgen()
 
 
 -- check
-function Planets_Mapgen:after_terrain()
+function Planets_Mapgen:generate()
+	-- Geomorph requires this.
+	self.gpr = PcgRandom(self.seed + 4563)
+
 	local minp, maxp = self.minp, self.maxp
 	local water_level = self.water_level
 	local height_max = self.share.height_max
@@ -251,18 +223,6 @@ function Planets_Mapgen:after_terrain()
 			index = index + 1
 		end
 	end
-end
-
-
--- This mapgen only adds to already placed terrain.
-function Planets_Mapgen:place_terrain()
-	-- nop
-end
-
-
-function Planets_Mapgen:prepare()
-	-- Geomorph requires this.
-	self.gpr = PcgRandom(self.seed + 4563)
 end
 
 
