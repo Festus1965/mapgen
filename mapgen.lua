@@ -141,12 +141,12 @@ local ore_intersect = {
 
 
 local default_noises = {
-	heat = { offset = 50, scale = 50, spread = {x = 1000, y = 1000, z = 1000}, seed = 5349, octaves = 3, persistence = 0.5, lacunarity = 2.0, flags = 'eased' },
-	heat_blend = { offset = 0, scale = 1.5, spread = {x = 8, y = 8, z = 8}, seed = 13, octaves = 2, persistence = 1.0, lacunarity = 2.0, flags = 'eased' },
-	humidity = { offset = 50, scale = 50, seed = 842, spread = {x = 1000, y = 1000, z = 1000}, octaves = 3, persist = 0.5, lacunarity = 2, flags = 'eased' },
-	humidity_blend = { offset = 0, scale = 1.5, seed = 90003, spread = {x = 8, y = 8, z = 8}, octaves = 2, persist = 1.0, lacunarity = 2, flags = 'eased' },
-	--flat_cave_1 = { offset = 0, scale = 10, seed = 6386, spread = {x = 23, y = 23, z = 23}, octaves = 3, persist = 0.7, lacunarity = 1.8 },
-	--cave_heat = { offset = 50, scale = 50, seed = 1578, spread = {x = 200, y = 200, z = 200}, octaves = 3, persist = 0.5, lacunarity = 2 },
+	heat = { def = { offset = 50, scale = 50, spread = {x = 1000, y = 1000, z = 1000}, seed = 5349, octaves = 3, persistence = 0.5, lacunarity = 2.0, flags = 'eased' }, },
+	heat_blend = { def = { offset = 0, scale = 1.5, spread = {x = 8, y = 8, z = 8}, seed = 13, octaves = 2, persistence = 1.0, lacunarity = 2.0, flags = 'eased' }, },
+	humidity = { def = { offset = 50, scale = 50, seed = 842, spread = {x = 1000, y = 1000, z = 1000}, octaves = 3, persist = 0.5, lacunarity = 2, flags = 'eased' }, },
+	humidity_blend = { def = { offset = 0, scale = 1.5, seed = 90003, spread = {x = 8, y = 8, z = 8}, octaves = 2, persist = 1.0, lacunarity = 2, flags = 'eased' }, },
+	--flat_cave_1 = { def = { offset = 0, scale = 10, seed = 6386, spread = {x = 23, y = 23, z = 23}, octaves = 3, persist = 0.7, lacunarity = 1.8 }, },
+	--cave_heat = { def = { offset = 50, scale = 50, seed = 1578, spread = {x = 200, y = 200, z = 200}, octaves = 3, persist = 0.5, lacunarity = 2 }, },
 }
 
 
@@ -233,6 +233,7 @@ function Mapgen:dust()
 	local minp, maxp = self.minp, self.maxp
 	local biomemap = self.biomemap
 	local heightmap = self.heightmap
+	local water_level = self.water_level
 
 	local n_ignore = node['ignore']
 	local n_air = node['air']
@@ -242,7 +243,7 @@ function Mapgen:dust()
 	local index = 1
 	for z = minp.z, maxp.z do
 		for x = minp.x, maxp.x do
-			local height = heightmap[index]
+			local height = heightmap[index] or water_level or minp.y - 2
 			local ivm = area:index(x, maxp.y - 1, z)
 			if biomemap and biomemap[index] then
 				biome = biomemap[index]
@@ -287,6 +288,10 @@ end
 
 -- check
 function Mapgen:erosion(height, index, depth, factor)
+	if not self.noise['erosion'] then
+		return depth
+	end
+
 	local e = self.noise['erosion'].map[index]
 	if e <= 0 then
 		return depth
@@ -437,18 +442,13 @@ end
 
 function Mapgen:get_noise(n, v)
 	local minp, csize = self.minp, self.csize
-	local size = table.copy(csize)
-
-	v = { def = v }
+	local size = v.size or table.copy(csize)
 
 	-------------------------------------------
 	-- Move this stuff.
 	-------------------------------------------
-	local road_w = 3
 	if n == 'flat_cave_1' then
 		v.def.seed = 6386 + math_floor(minp.y / csize.y)
-	elseif n == 'road_1' then
-		size = vector.add(size, road_w * 2)
 	end
 	-------------------------------------------
 
@@ -528,25 +528,30 @@ end
 
 -- Since these are tables of references, memory shouldn't be an issue.
 local biomes_i, cave_biomes_i
-function Mapgen:map_biomes()
+function Mapgen:map_biomes(offset)
 	local heightmap = self.heightmap
 	local heatmap = self.heatmap
 	local humiditymap = self.humiditymap
 	local biomemap = self.biomemap
 	local biomemap_cave = self.biomemap_cave
 	local biomes = mod.biomes
+	local water_level = self.water_level
 	-----------------------------------------
 	-- Move this.
 	-----------------------------------------
 	local cave_heat_map
-	if not self.div then
+	if not self.div and self.noise['cave_heat'] then
 		cave_heat_map = self.noise['cave_heat'].map
 	end
 	-----------------------------------------
 	local cave_biomes = mod.cave_biomes
 	local minp, maxp = self.minp, self.maxp
 
-	local cave_depth_mod = -10 - math_floor((minp.y + self.chunk_offset) / 80) * 5
+	if not offset then
+		offset = 0
+	end
+
+	local cave_depth_mod = -10 - math_floor((minp.y - offset + self.chunk_offset) / 80) * 5
 
 	-- Biome selection is expensive. This helps a bit.
 	if not biomes_i then
@@ -570,7 +575,7 @@ function Mapgen:map_biomes()
 			local biome = cave_biomes['stone']
 			local biome_diff
 			-- Converting to actual height (relative to the layer).
-			local biome_height = height
+			local biome_height = height and (height - offset) or water_level
 			for _, b in ipairs(biomes_i) do
 				if b and (not b.y_max or b.y_max >= biome_height)
 					and (not b.y_min or b.y_min <= biome_height) then
@@ -589,7 +594,7 @@ function Mapgen:map_biomes()
 			-----------------------------------------
 			-- Move this.
 			-----------------------------------------
-			if not self.div then
+			if not self.div and cave_heat_map then
 				biome_diff = nil
 				local cave_heat = cave_heat_map[index] + cave_depth_mod
 				-- Why is this necessary?
@@ -652,7 +657,7 @@ function Mapgen:map_heat_humidity()
 	local index = 1
 	for z = minp.z, maxp.z do
 		for x = minp.x, maxp.x do
-			local height = heightmap[index]
+			local height = heightmap[index] or minp.y - 2
 			local heat, heat_blend, humidity, humidity_blend
 
 			if type(heat_noise_map) == 'table' then
@@ -1186,7 +1191,7 @@ function Mapgen:place_terrain()
 	local index = 1
 	for z = minp.z, maxp.z do
 		for x = minp.x, maxp.x do
-			local height = heightmap[index]
+			local height = heightmap[index] or minp.y - 2
 			local biome, biome_cave
 
 			if self.share.biome then

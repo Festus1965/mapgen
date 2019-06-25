@@ -17,6 +17,7 @@ local VN = vector.new
 
 local make_roads = true
 local make_tracks = false
+local road_w = 3
 
 
 -----------------------------------------------
@@ -279,7 +280,6 @@ end
 
 
 -- check
-local road_w = 3
 function Roads_Mapgen:map_roads()
 	local csize = self.csize
 	local roads = {}
@@ -560,11 +560,15 @@ do
 	local terrain_scale = 100
 	local max_chunks = layer_mod.max_chunks
 
+	local chunksize = tonumber(minetest.settings:get("chunksize") or 5)
+	local csize = { x=chunksize * 16, y=chunksize * 16, z=chunksize * 16 }
+	local rsize = vector.add(csize, road_w * 2)
+
 	local noises = {
 		-----------------------------------------------
 		-- Copy from terrain somehow?
 		-----------------------------------------------
-		road_1 = { offset = 0, scale = terrain_scale, seed = 4382, spread = {x = 320, y = 320, z = 320}, octaves = 3, persist = 0.5, lacunarity = 2.0},
+		road_1 = { def = { offset = 0, scale = terrain_scale, seed = 4382, spread = {x = 320, y = 320, z = 320}, octaves = 3, persist = 0.5, lacunarity = 2.0}, size = rsize, },
 	}
 
 
