@@ -331,7 +331,7 @@ function Valleys_Mapgen:generate()
 
 	self:map_heat_humidity()
 	if not self.share.biome then
-		self:map_biomes(water_level)
+		self:map_biomes()
 	end
 
 	self:terrain()

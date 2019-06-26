@@ -150,8 +150,6 @@ function Pillars_Mapgen:prepare()
 	self.gpr = PcgRandom(self.seed + 4731)
 
 	if not self.coop then
-		self.share.height_offset = self.water_level
-
 		if self.div then
 			self.share.biome = layer_mod.biomes['ether']
 		end
@@ -208,7 +206,7 @@ do
 
 	layer_mod.register_map({
 		name = 'pillars',
-		biomes = 'default',
+		--biomes = 'default',
 		--heat = 'base_heat',
 		mapgen = Pillars_Mapgen,
 		mapgen_name = 'pillars',

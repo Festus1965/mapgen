@@ -1,4 +1,4 @@
--- Duane's mapgen environ.lua
+-- Duane's mapgen dflat_biomes.lua
 -- Copyright Duane Robertson (duane@duanerobertson.com), 2019
 -- Distributed under the LGPLv2.1 (https://www.gnu.org/licenses/old-licenses/lgpl-2.1.en.html)
 
@@ -8,47 +8,17 @@ local mod_name = 'mapgen'
 local clone_node = mod.clone_node
 
 
+-----------------------------------------------
+-- DFlat environment changes
+-----------------------------------------------
+
 do
-	local rep = {
-		--[[
-		['rainforest_ocean'] = {
-			node_stone = mod_name..':stone_with_algae',
-		},
-		['deciduous_forest_ocean'] = {
-			node_stone = mod_name..':stone_with_lichen',
-		},
-		['coniferous_forest_ocean'] = {
-			node_stone = mod_name..':stone_with_moss',
-		},
-		['desert_ocean'] = {
-			node_stone = mod_name..':basalt',
-		},
-		['cold_desert_ocean'] = {
-			node_stone = mod_name..':granite',
-		},
-		--]]
-	}
-
-	local bio = {}
-	for n, d in pairs(minetest.registered_biomes) do
-		local b = table.copy(d)
-		for k, v in pairs(rep[n] or {}) do
-			b[k] = v
-		end
-		bio[n] = b
-	end
-	minetest.clear_registered_biomes()
-	for n, v in pairs(bio) do
-		if n ~= 'underground' then
-			minetest.register_biome(v)
-		end
-	end
-
 	minetest.register_biome({
 		name = 'ether',
 		heat_point = -99,
 		humidity_point = -99,
 		node_stone = mod_name..':etherstone',
+		source = 'dflat_ether',
 	})
 end
 

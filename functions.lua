@@ -148,7 +148,279 @@ function mod.register_map(def)
 	-------------------------------------------
 	-- Check parameters.
 	-------------------------------------------
+
+	local biomes = def.biomes
+	if biomes and biomes == 'default' then
+		biomes = {}
+		for n, v in pairs(mod.biomes) do
+			if v.source == 'default' then
+				local w = table.copy(v)
+				if v.y_max then
+					w.y_max = v.y_max + def.water_level - 1
+				end
+				if v.y_min then
+					w.y_min = v.y_min + def.water_level - 1
+				end
+
+				biomes[n] = w
+			end
+		end
+		def.biomes = biomes
+		print('registering mapgen: '..def.mapgen_name)
+	end
+
 	table.insert(mod.world_map, def)
+end
+
+
+mod.biomes = {}
+mod.cave_biomes = {}
+
+
+function mod.register_biome(def, source)
+	if not def.name then
+		print('No-name biome', dump(def))
+		return
+	end
+
+	local w = table.copy(def)
+	w.source = source
+	mod.biomes[w.name] = w
+end
+
+
+do
+	-- This tries to determine which biomes are default.
+	local default_biome_names = {
+		['cold_desert_ocean'] = true,
+		['cold_desert_ocean'] = true,
+		['cold_desert'] = true,
+		['cold_desert'] = true,
+		['coniferous_forest_dunes'] = true,
+		['coniferous_forest_dunes'] = true,
+		['coniferous_forest_ocean'] = true,
+		['coniferous_forest_ocean'] = true,
+		['coniferous_forest'] = true,
+		['coniferous_forest'] = true,
+		['deciduous_forest_ocean'] = true,
+		['deciduous_forest_ocean'] = true,
+		['deciduous_forest_shore'] = true,
+		['deciduous_forest_shore'] = true,
+		['deciduous_forest'] = true,
+		['deciduous_forest'] = true,
+		['desert_ocean'] = true,
+		['desert_ocean'] = true,
+		['desert'] = true,
+		['desert'] = true,
+		['grassland_dunes'] = true,
+		['grassland_dunes'] = true,
+		['grassland_ocean'] = true,
+		['grassland_ocean'] = true,
+		['grassland'] = true,
+		['grassland'] = true,
+		['icesheet_ocean'] = true,
+		['icesheet_ocean'] = true,
+		['icesheet'] = true,
+		['icesheet'] = true,
+		['rainforest_ocean'] = true,
+		['rainforest_ocean'] = true,
+		['rainforest_swamp'] = true,
+		['rainforest_swamp'] = true,
+		['rainforest'] = true,
+		['rainforest'] = true,
+		['sandstone_desert_ocean'] = true,
+		['sandstone_desert_ocean'] = true,
+		['sandstone_desert'] = true,
+		['sandstone_desert'] = true,
+		['savanna_ocean'] = true,
+		['savanna_ocean'] = true,
+		['savanna_shore'] = true,
+		['savanna_shore'] = true,
+		['savanna'] = true,
+		['savanna'] = true,
+		['snowy_grassland_ocean'] = true,
+		['snowy_grassland_ocean'] = true,
+		['snowy_grassland'] = true,
+		['snowy_grassland'] = true,
+		['taiga_ocean'] = true,
+		['taiga_ocean'] = true,
+		['taiga'] = true,
+		['taiga'] = true,
+		['tundra_beach'] = true,
+		['tundra_beach'] = true,
+		['tundra_highland'] = true,
+		['tundra_highland'] = true,
+		['tundra_ocean'] = true,
+		['tundra_ocean'] = true,
+		['tundra'] = true,
+		['tundra'] = true,
+		['underground'] = true,
+	}
+
+	for _, v in pairs(minetest.registered_biomes) do
+		if default_biome_names[v.name] then
+			mod.register_biome(v, 'default')
+		else
+			mod.register_biome(v, v.source)
+		end
+	end
+end
+
+
+
+function mod.invert_table(t, use_node)
+	local any
+	local new_t = {}
+
+	if type(t) == 'string' then
+		t = {t}
+	end
+
+	for _, d in ipairs(t) do
+		if type(d) == 'string' then
+			local l = {}
+			if use_node and d:find('^group:') then
+				local gr = d:gsub('^group:', '')
+				for n, v in pairs(minetest.registered_nodes) do
+					if v.groups[gr] then
+						l[#l+1] = n
+					end
+				end
+			elseif use_node then
+				l = {d}
+			end
+
+			if use_node then
+				for _, v in pairs(l) do
+					new_t[node[v]] = node[v]
+				end
+			else
+				new_t[d] = d
+			end
+			any = true
+		end
+	end
+
+	if any then
+		return new_t
+	end
+end
+
+
+function mod.register_decoration(def)
+	local deco = table.copy(def)
+	table.insert(mod.decorations, deco)
+
+	if not deco.name then
+		local nname = (deco.decoration or deco.schematic):gsub('^.*[:/]([^%.]+)', '%1')
+		deco.name = nname
+	end
+
+	if deco.flags and deco.flags ~= '' then
+		for flag in deco.flags:gmatch('[^, ]+') do
+			deco[flag] = deco[flag] or true
+		end
+	end
+
+	if deco.place_on then
+		deco.place_on_i = mod.invert_table(deco.place_on, true)
+	end
+
+	if deco.biomes then
+		deco.biomes_i = mod.invert_table(deco.biomes)
+	end
+
+	for _, a in pairs(mod.aquatic_decorations or {}) do
+		if deco.decoration == a or deco.schematic == a then
+			deco.aquatic = true
+		end
+	end
+
+	if deco.deco_type == 'schematic' then
+		if deco.schematic and type(deco.schematic) == 'string' then
+			local s = deco.schematic
+			local f = io.open(s, 'r')
+			if f then
+				f:close()
+				local sch = minetest.serialize_schematic(s, 'lua', {})
+				sch = minetest.deserialize('return {'..sch..'}')
+				sch = sch.schematic
+				deco.schematic_array = sch
+			else
+				print(mod_name .. ': ** Error opening: '..deco.schematic)
+			end
+
+			--print(dump(deco.schematic_array))
+			if not deco.schematic_array then
+				print(mod_name .. ': ** Error opening: '..deco.name)
+			end
+		end
+
+		if not deco.schematic_array and deco.schematic and type(deco.schematic) == 'table' then
+			deco.schematic_array = deco.schematic
+		end
+
+		if deco.schematic_array then
+			-- Force air placement to 0 probability.
+			-- This is usually correct.
+			for _, v in pairs(deco.schematic_array.data) do
+				if v.name == 'air' then
+					v.prob = 0
+					if v.param1 then
+						v.param1 = 0
+					end
+				elseif v.name:find('leaves') or v.name:find('needles') then
+					if v.prob > 127 then
+						v.prob = v.prob - 128
+					end
+				end
+			end
+		else
+			print('FAILed to translate schematic: ' .. deco.name)
+			deco.bad_schem = true
+		end
+	end
+
+	return deco
+end
+
+
+do
+	mod.decorations = {}
+	for _, v in pairs(minetest.registered_decorations) do
+		mod.register_decoration(v)
+	end
+end
+
+
+-- Catch any registered by other mods.
+do
+	local old_register_decoration = minetest.register_decoration
+	minetest.register_decoration = function (def)
+		mod.register_decoration(def)
+		old_register_decoration(def)
+	end
+
+
+	local old_clear_registered_decorations = minetest.clear_registered_decorations
+	minetest.clear_registered_decorations = function ()
+		mod.decorations = {}
+		old_clear_registered_decorations()
+	end
+
+
+	local old_register_biome = minetest.register_biome
+	minetest.register_biome = function (def)
+		mod.register_biome(def)
+		old_register_biome(def)
+	end
+
+
+	local old_clear_registered_biomes = minetest.clear_registered_biomes
+	minetest.clear_registered_biomes = function ()
+		mod.biomes = {}
+		old_clear_registered_biomes()
+	end
 end
 
 

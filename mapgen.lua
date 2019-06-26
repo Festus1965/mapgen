@@ -479,6 +479,7 @@ function Mapgen:generate_all(timed)
 			-- Better way to do this?
 			------------------------------------------
 			mapgen.water_level = map.water_level
+			mapgen.biomes = map.biomes
 			------------------------------------------
 
 			for k, v in pairs(map.noises or {}) do
@@ -623,15 +624,20 @@ end
 
 
 -- Since these are tables of references, memory shouldn't be an issue.
-local biomes_i, cave_biomes_i
 function Mapgen:map_biomes(offset)
+	if not self.biomes then
+		return
+	end
+
 	local heightmap = self.heightmap
 	local heatmap = self.heatmap
 	local humiditymap = self.humiditymap
 	local biomemap = self.biomemap
 	local biomemap_cave = self.biomemap_cave
-	local biomes = mod.biomes
+	local biomes = self.biomes
 	local water_level = self.water_level
+	local biomes_i, cave_biomes_i
+
 	-----------------------------------------
 	-- Move this.
 	-----------------------------------------

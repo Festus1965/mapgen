@@ -25,6 +25,9 @@ local altitude_cutoff_low_2 = 63
 local cave_underground = 5
 
 
+dofile(mod.path..'/dflat_biomes.lua')
+
+
 -----------------------------------------------
 -- DFlat_Mapgen class
 -----------------------------------------------
@@ -378,11 +381,11 @@ do
 
 	layer_mod.register_map({
 		name = 'ether',
-		biomes = 'ether',
+		biomes = 'dflat_ether',
 		heat = 50,
 		humidity = 50,
 		mapgen = DFlat_Mapgen,
-		mapgen_name = 'dflat',
+		mapgen_name = 'dflat_ether',
 		minp = VN(-max_chunks_ether, -360, -max_chunks_ether),
 		maxp = VN(max_chunks_ether, -350, max_chunks_ether),
 		noises = e_noises,
