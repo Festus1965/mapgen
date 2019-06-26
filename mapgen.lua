@@ -1640,15 +1640,10 @@ else
 end
 
 
---------------------------------------
--- Fix this.
---------------------------------------
 function mod.spawnplayer(player)
 	local csize = { x=chunksize * 16, y=chunksize * 16, z=chunksize * 16 }
-	----------------------------------
-	local spawn_level = 40
-	----------------------------------
-	local range = 6
+	local range = 1000
+
 	local beds_here = (minetest.get_modpath('beds') and beds and beds.spawn)
 
 	local name = player:get_player_name()
@@ -1662,21 +1657,41 @@ function mod.spawnplayer(player)
 		return
 	end
 
-	-- Very simple, compared to typical mapgen spawn code,
+	local pos
 
-	local pos = VN(
-		math_random(range) + math_random(range) - range,
-		0,
-		math_random(range) + math_random(range) - range
-	)
-	--pos = VN(1,0,5)
-	pos = vector.multiply(pos, 800)
-	pos = vector.subtract(vector.add(pos, vector.divide(csize, 2)), chunk_offset)
-	pos.y = pos.y + spawn_level - csize.y / 2 + 2
+	for ct = 1, 1000 do
+		pos = VN(
+			math_random(range) + math_random(range) - range,
+			0,
+			math_random(range) + math_random(range) - range
+		)
+		local chunk = vector.floor(vector.divide(vector.add(pos, chunk_offset), csize))
 
-	--pos = VN(90 + -2 * 3200, 100, 584 + -8 * 3200)
-	--pos = VN(1760, 3200, 1090)
+		local mg_map
+		for _, map in pairs(mod.world_map) do
+			if vector.contains(map.minp, map.maxp, chunk) then
+				mg_map = map
+				break
+			end
+		end
 
+		if not (mg_map.mapgen and mg_map.mapgen.get_spawn_level) then
+			return
+		end
+
+		pos.y = mg_map.mapgen:get_spawn_level(mg_map, pos.x, pos.z)
+
+		if pos.y then
+			--print(ct..' spawns attempted')
+			break
+		end
+	end
+
+	if not pos.y then
+		return
+	end
+
+	pos.y = pos.y + 2
 	player:setpos(pos)
 
 	if beds_here then

@@ -54,12 +54,12 @@ function Valleys_Mapgen:map_height()
 	local heightmap = self.heightmap
 	local water_level = self.water_level
 
-	local n1 = self.noise['v1'].map
-	local n2 = self.noise['v2'].map
-	local n3 = self.noise['v3'].map
-	local n4 = self.noise['v4'].map
-	local n5 = self.noise['v5'].map
-	local n6 = self.noise['v6'].map
+	local n1 = self.noise['valleys_v1'].map
+	local n2 = self.noise['valleys_v2'].map
+	local n3 = self.noise['valleys_v3'].map
+	local n4 = self.noise['valleys_v4'].map
+	local n5 = self.noise['valleys_v5'].map
+	local n6 = self.noise['valleys_v6'].map
 
 	local height_max
 	local height_min
@@ -207,12 +207,12 @@ function Valleys_Mapgen:terrain()
 
 	local n_stone = self.node['default:stone']
 
-	local n1 = self.noise['v1'].map
-	local n2 = self.noise['v2'].map
-	local n3 = self.noise['v3'].map
-	local n4 = self.noise['v4'].map
-	local n5 = self.noise['v5'].map
-	local n6 = self.noise['v6'].map
+	local n1 = self.noise['valleys_v1'].map
+	local n2 = self.noise['valleys_v2'].map
+	local n3 = self.noise['valleys_v3'].map
+	local n4 = self.noise['valleys_v4'].map
+	local n5 = self.noise['valleys_v5'].map
+	local n6 = self.noise['valleys_v6'].map
 
 	local index = 1
 	for z = minp.z, maxp.z do
@@ -386,13 +386,28 @@ do
 	v6_size.y = v6_size.y + 6
 
 	local noises = {
-		v1 = { def = { offset = -10, scale = 50, seed = 5202, spread = {x = 1024, y = 1024, z = 1024}, octaves = 6, persist = 0.4, lacunarity = 2.0} },
-		v2 = { def = { offset = 0, scale = 1, seed = -6050, spread = {x = 512, y = 512, z = 512}, octaves = 5, persist = 0.6, lacunarity = 2.0} },
-		v3 = { def = { offset = 5, scale = 4, seed = -1914, spread = {x = 512, y = 512, z = 512}, octaves = 1, persist = 1, lacunarity = 2.0} },
-		v4 = { def = { offset = 0.6, scale = 0.5, seed = 777, spread = {x = 512, y = 512, z = 512}, octaves = 1, persist = 1, lacunarity = 2.0} },
-		v5 = { def = { offset = 0.5, scale = 0.5, seed = 746, spread = {x = 128, y = 128, z = 128}, octaves = 1, persist = 1, lacunarity = 2.0} },
-		v6 = { def = { offset = 0, scale = 1, seed = 1993, spread = {x = 256, y = 512, z = 256}, octaves = 6, persist = 0.8, lacunarity = 2.0 }, is3d = true, size = v6_size },
+		valleys_v1 = { def = { offset = -10, scale = 50, seed = 5202, spread = {x = 1024, y = 1024, z = 1024}, octaves = 6, persist = 0.4, lacunarity = 2.0} },
+		valleys_v2 = { def = { offset = 0, scale = 1, seed = -6050, spread = {x = 512, y = 512, z = 512}, octaves = 5, persist = 0.6, lacunarity = 2.0} },
+		valleys_v3 = { def = { offset = 5, scale = 4, seed = -1914, spread = {x = 512, y = 512, z = 512}, octaves = 1, persist = 1, lacunarity = 2.0} },
+		valleys_v4 = { def = { offset = 0.6, scale = 0.5, seed = 777, spread = {x = 512, y = 512, z = 512}, octaves = 1, persist = 1, lacunarity = 2.0} },
+		valleys_v5 = { def = { offset = 0.5, scale = 0.5, seed = 746, spread = {x = 128, y = 128, z = 128}, octaves = 1, persist = 1, lacunarity = 2.0} },
+		valleys_v6 = { def = { offset = 0, scale = 1, seed = 1993, spread = {x = 256, y = 512, z = 256}, octaves = 6, persist = 0.8, lacunarity = 2.0 }, is3d = true, size = v6_size },
 	}
+
+	--[[
+	layer_mod.register_map({
+		name = 'valleys',
+		biomes = 'default',
+		heat = 'base_heat',
+		mapgen = Valleys_Mapgen,
+		mapgen_name = 'dflat',
+		minp = VN(1, -20, -max_chunks),
+		maxp = VN(max_chunks, 15, max_chunks),
+		noises = noises,
+		params = {},
+		water_level = 1,
+	})
+	--]]
 
 	layer_mod.register_map({
 		name = 'valleys',

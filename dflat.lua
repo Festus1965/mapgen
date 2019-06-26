@@ -1,4 +1,4 @@
--- Duane's mapgen zero.lua
+-- Duane's mapgen dflat.lua
 -- Copyright Duane Robertson (duane@duanerobertson.com), 2019
 -- Distributed under the LGPLv2.1 (https://www.gnu.org/licenses/old-licenses/lgpl-2.1.en.html)
 
@@ -75,9 +75,27 @@ function DFlat_Mapgen:generate()
 end
 
 
+function DFlat_Mapgen:terrain_height(ground_1, base_level, div)
+	-- terrain height calculations
+	local height = base_level
+	if ground_1 > altitude_cutoff_high then
+		height = height + (ground_1 - altitude_cutoff_high) / (div or 1)
+	elseif ground_1 < altitude_cutoff_low then
+		local g = altitude_cutoff_low - ground_1
+		if g < altitude_cutoff_low_2 then
+			g = g * g * 0.01
+		else
+			g = (g - altitude_cutoff_low_2) * 0.5 + 40
+		end
+		height = height - g / (div or 1)
+	end
+	return height
+end
+
+
 function DFlat_Mapgen:map_height()
 	local minp, maxp = self.minp, self.maxp
-	local ground_noise_map = self.noise['ground'].map
+	local ground_noise_map = self.noise['dflat_ground'].map
 	local heightmap = self.heightmap
 	local base_level = self.share.base_level
 	local div = self.div
@@ -90,18 +108,7 @@ function DFlat_Mapgen:map_height()
 		for x = minp.x, maxp.x do
 			-- terrain height calculations
 			local ground_1 = ground_noise_map[index]
-			local height = base_level
-			if ground_1 > altitude_cutoff_high then
-				height = height + (ground_1 - altitude_cutoff_high) / (div or 1)
-			elseif ground_1 < altitude_cutoff_low then
-				local g = altitude_cutoff_low - ground_1
-				if g < altitude_cutoff_low_2 then
-					g = g * g * 0.01
-				else
-					g = (g - altitude_cutoff_low_2) * 0.5 + 40
-				end
-				height = height - g / (div or 1)
-			end
+			local height = self:terrain_height(ground_1, base_level, div)
 
 			height = math_floor(height + 0.5)
 			heightmap[index] = height
@@ -141,6 +148,20 @@ function DFlat_Mapgen:prepare()
 
 	local base_heat = 20 + math_abs(70 - ((((minp.z + chunk_offset + 1000) / 6000) * 140) % 140))
 	self.share.base_heat = base_heat
+end
+
+
+function DFlat_Mapgen:get_spawn_level(map, x, z)
+	local ground_noise = minetest.get_perlin(map.noises['dflat_ground'].def)
+	local ground_1 = ground_noise:get_2d({x=x, y=z, z=z})
+	local base_level = map.water_level + water_diff
+
+	local height = math_floor(self:terrain_height(ground_1, base_level))
+	if height <= map.water_level then
+		return
+	end
+
+	return height
 end
 
 
@@ -308,7 +329,6 @@ end
 -- Register the mapgen(s)
 -----------------------------------------------
 
-
 do
 	local terrain_scale = 100
 
@@ -317,17 +337,31 @@ do
 	local max_chunks_ether = math_floor(layer_mod.max_chunks / ether_div)
 
 	local noises = {
-		ground = { def = { offset = 0, scale = terrain_scale, seed = 4382, spread = {x = 320, y = 320, z = 320}, octaves = 6, persist = 0.5, lacunarity = 2.0}, },
-		ground_ether = { def = { offset = 0, scale = terrain_scale, seed = 4382, spread = {x = 40, y = 40, z = 40}, octaves = 6, persist = 0.5, lacunarity = 2.0 }, },
+		dflat_ground = { def = { offset = 0, scale = terrain_scale, seed = 4382, spread = {x = 320, y = 320, z = 320}, octaves = 6, persist = 0.5, lacunarity = 2.0}, },
 		heat_blend = { def = { offset = 0, scale = 4, seed = 5349, spread = {x = 10, y = 10, z = 10}, octaves = 3, persist = 0.5, lacunarity = 2, flags = 'eased' }, },
 		erosion = { def = { offset = 0, scale = 1.5, seed = -47383, spread = {x = 8, y = 8, z = 8}, octaves = 2, persist = 1.0, lacunarity = 2 }, },
 		flat_cave_1 = { def = { offset = 0, scale = 10, seed = 6386, spread = {x = 23, y = 23, z = 23}, octaves = 3, persist = 0.7, lacunarity = 1.8 }, },
 		cave_heat = { def = { offset = 50, scale = 50, seed = 1578, spread = {x = 200, y = 200, z = 200}, octaves = 3, persist = 0.5, lacunarity = 2 }, },
 	}
 
-	local e_noises = { ground = table.copy(noises.ground) }
-	e_noises.ground.def.spread = vector.divide(e_noises.ground.def.spread, ether_div)
+	local e_noises = { dflat_ground = table.copy(noises.dflat_ground) }
+	e_noises.dflat_ground.def.spread = vector.divide(e_noises.dflat_ground.def.spread, ether_div)
 
+
+	--[[
+	layer_mod.register_map({
+		name = 'zero',
+		biomes = 'default',
+		heat = 'base_heat',
+		mapgen = DFlat_Mapgen,
+		mapgen_name = 'dflat',
+		minp = VN(-max_chunks, -20, -max_chunks),
+		maxp = VN(0, 15, max_chunks),
+		noises = noises,
+		params = {},
+		water_level = 1,
+	})
+	--]]
 
 	layer_mod.register_map({
 		name = 'zero',

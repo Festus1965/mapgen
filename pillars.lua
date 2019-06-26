@@ -73,7 +73,7 @@ function Pillars_Mapgen:map_height()
 
 	local minp, maxp = self.minp, self.maxp
 	local csize = self.csize
-	local ground_noise_map = self.noise['groundp'].map
+	local ground_noise_map = self.noise['pillars_ground'].map
 	local heightmap = self.heightmap
 	local base_level = self.share.base_level
 	local div = self.div
@@ -89,7 +89,7 @@ function Pillars_Mapgen:map_height()
 		for z = minp.z, maxp.z do
 			for x = minp.x, maxp.x do
 				if not heightmap[index] then
-					heightmap[index] = math_max(water_level - 30, water_level + math_floor(self.noise['groundp'].map[index]))
+					heightmap[index] = math_max(water_level - 30, water_level + math_floor(self.noise['pillars_ground'].map[index]))
 				end
 
 				index = index + 1
@@ -181,8 +181,7 @@ do
 	local max_chunks_ether = math_floor(layer_mod.max_chunks / ether_div)
 
 	local noises = {
-		groundp = { def = { offset = -5, scale = 20, seed = -4620, spread = {x = 320, y = 320, z = 320}, octaves = 6, persist = 0.5, lacunarity = 2.0}, },
-		--ground_ether = { def = { offset = 0, scale = terrain_scale, seed = 4382, spread = {x = 40, y = 40, z = 40}, octaves = 6, persist = 0.5, lacunarity = 2.0 }, },
+		pillars_ground = { def = { offset = -5, scale = 20, seed = -4620, spread = {x = 320, y = 320, z = 320}, octaves = 6, persist = 0.5, lacunarity = 2.0}, },
 		heat_blend = { def = { offset = 0, scale = 4, seed = 5349, spread = {x = 10, y = 10, z = 10}, octaves = 3, persist = 0.5, lacunarity = 2, flags = 'eased' }, },
 		--flat_cave_1 = { def = { offset = 0, scale = 10, seed = 6386, spread = {x = 23, y = 23, z = 23}, octaves = 3, persist = 0.7, lacunarity = 1.8 }, },
 		--cave_heat = { def = { offset = 50, scale = 50, seed = 1578, spread = {x = 200, y = 200, z = 200}, octaves = 3, persist = 0.5, lacunarity = 2 }, },
