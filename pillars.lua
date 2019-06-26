@@ -33,7 +33,16 @@ local Pillars_Mapgen = layer_mod.subclass_mapgen()
 
 
 function Pillars_Mapgen:after_terrain()
+	local minp, maxp = self.minp, self.maxp
+
 	if not (self.coop or self.abort) then
+		if (not self.div) and self.share.height_max >= minp.y
+		and self.share.height_min > maxp.y + cave_underground then
+			local t_cave = os_clock()
+			self:simple_caves()
+			layer_mod.time_caves = layer_mod.time_caves + os_clock() - t_cave
+		end
+
 		local t_ore = os_clock()
 		self:simple_ore()
 		layer_mod.time_ore = layer_mod.time_ore + os_clock() - t_ore
@@ -46,19 +55,15 @@ function Pillars_Mapgen:generate()
 	if self.share.height_max and self.share.height_min then
 		self.coop = true
 
-		if self.share.height_max - water_level > 0
-		or self.share.height_min - water_level < -10 then
+		if self.share.height_max - water_level > -80
+		or self.share.height_min - water_level < -500 then
 			self.abort = true
 			return
 		end
 	end
 
 	self:prepare()
-	if self.coop then
-		self:map_height()
-	else
-		self:place_terrain()
-	end
+	self:place_terrain()
 	self:after_terrain()
 end
 
@@ -97,7 +102,6 @@ function Pillars_Mapgen:map_height()
 			return
 		end
 		self.share.height_max = water_level + 20
-		print('not coop')
 	end
 
 	local hts = {}
