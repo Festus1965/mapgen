@@ -55,13 +55,6 @@ function DFlat_Mapgen:after_terrain()
 		self.share.disruptive = true
 	end
 
-	if (not self.div) and self.share.height_max >= minp.y
-	and self.share.height_min > minp.y + cave_underground then
-		local t_cave = os_clock()
-		self:simple_caves()
-		layer_mod.time_caves = layer_mod.time_caves + os_clock() - t_cave
-	end
-
 	if do_ore then
 		local t_ore = os_clock()
 		self:simple_ore()
@@ -367,7 +360,7 @@ do
 	--]]
 
 	layer_mod.register_map({
-		name = 'zero',
+		name = 'dflat',
 		biomes = 'default',
 		heat = 'base_heat',
 		mapgen = DFlat_Mapgen,

@@ -480,6 +480,7 @@ function Mapgen:generate_all(timed)
 			------------------------------------------
 			mapgen.water_level = map.water_level
 			mapgen.biomes = map.biomes
+			mapgen.name = map.name
 			------------------------------------------
 
 			for k, v in pairs(map.noises or {}) do
@@ -492,28 +493,28 @@ function Mapgen:generate_all(timed)
 
 	self:make_noises(self.noises)
 
-	local t_terrain = os_clock()
 	for _, mapgen in pairs(mapgens) do
 		-------------------------------------------
 		-- This must include height and biome mapping.
 		-------------------------------------------
+		local t_terrain = os_clock()
 		mapgen.generate(mapgen)
+		mod.time_terrain = mod.time_terrain + os_clock() - t_terrain
 		-------------------------------------------
 	end
-	mod.time_terrain = mod.time_terrain + os_clock() - t_terrain
 
-	if #mapgens > 0 then
-		local t_deco = os_clock()
-		-------------------------------------------
-		-- How can we override this?
-		-------------------------------------------
-		self:place_all_decorations()
-		if not self.share.no_dust then
-			self:dust()
+	for _, mapgen in pairs(mapgens) do
+		if mapgen.biomes then
+			local t_deco = os_clock()
+			mapgen:place_all_decorations()
+			if not self.no_dust then
+				mapgen:dust()
+			end
+			mod.time_deco = mod.time_deco + os_clock() - t_deco
 		end
-		-------------------------------------------
-		mod.time_deco = mod.time_deco + os_clock() - t_deco
-	else
+	end
+
+	if #mapgens == 0 then
 		self:bedrock()
 	end
 
@@ -623,9 +624,26 @@ function Mapgen:make_stone_layer_noise()
 end
 
 
--- Since these are tables of references, memory shouldn't be an issue.
-function Mapgen:map_biomes(offset)
-	if not self.biomes then
+function Mapgen:get_biome(biomes_i, heat, humidity, biome_height)
+	local biome, biome_diff
+	for _, b in ipairs(biomes_i) do
+		if b and (not b.y_max or b.y_max >= biome_height)
+		and (not b.y_min or b.y_min <= biome_height) then
+			local diff_he = b.heat_point - heat
+			local diff_hu = b.humidity_point - humidity
+			local diff = diff_he * diff_he + diff_hu * diff_hu
+			if ((not biome_diff) or diff < biome_diff) then
+				biome_diff = diff
+				biome = b
+			end
+		end
+	end
+	return biome
+end
+
+
+function Mapgen:map_biomes(force_height)
+	if self.biome or not self.biomes then
 		return
 	end
 
@@ -633,94 +651,30 @@ function Mapgen:map_biomes(offset)
 	local heatmap = self.heatmap
 	local humiditymap = self.humiditymap
 	local biomemap = self.biomemap
-	local biomemap_cave = self.biomemap_cave
 	local biomes = self.biomes
 	local water_level = self.water_level
-	local biomes_i, cave_biomes_i
-
-	-----------------------------------------
-	-- Move this.
-	-----------------------------------------
-	local cave_heat_map
-	if not self.div and self.noise['cave_heat'] then
-		cave_heat_map = self.noise['cave_heat'].map
-	end
-	-----------------------------------------
-	local cave_biomes = mod.cave_biomes
+	local biomes_i = {}
 	local minp, maxp = self.minp, self.maxp
-
-	if offset then
-		offset = offset - 1
-	else
-		offset = 0
-	end
-
-	local cave_depth_mod = -10 - math_floor((minp.y - offset + self.chunk_offset) / 80) * 5
+	local offset = (self.share.height_offset or 1) - 1
 
 	-- Biome selection is expensive. This helps a bit.
-	if not biomes_i then
-		biomes_i = {}
-		for _, b in pairs(biomes) do
-			table.insert(biomes_i, b)
-		end
-		cave_biomes_i = {}
-		for _, b in pairs(cave_biomes) do
-			table.insert(cave_biomes_i, b)
-		end
+	for _, b in pairs(biomes) do
+		table.insert(biomes_i, b)
 	end
 
 	local index = 1
 	for _ = minp.z, maxp.z do
 		for _ = minp.x, maxp.x do
-			local height = heightmap[index]
+			local height = force_height or heightmap[index] or ((minp.y + maxp.y) / 2)
 			local heat = heatmap[index]
 			local humidity = humiditymap[index]
 
-			local biome = cave_biomes['stone']
-			local biome_diff
 			-- Converting to actual height (relative to the layer).
-			local biome_height = height and (height - offset) or water_level
-			for _, b in ipairs(biomes_i) do
-				if b and (not b.y_max or b.y_max >= biome_height)
-					and (not b.y_min or b.y_min <= biome_height) then
-					local diff_he = b.heat_point - heat
-					local diff_hu = b.humidity_point - humidity
-					local diff = diff_he * diff_he + diff_hu * diff_hu
-					if ((not biome_diff) or diff < biome_diff) then
-						biome_diff = diff
-						biome = b
-					end
-				end
-			end
+			local biome_height = height - offset
+			local biome = self:get_biome(biomes_i, heat, humidity, biome_height)
+
 			biomemap[index] = biome
 			self.biomes_here[biome.name] = true
-
-			-----------------------------------------
-			-- Move this.
-			-----------------------------------------
-			if not self.div and cave_heat_map then
-				biome_diff = nil
-				local cave_heat = cave_heat_map[index] + cave_depth_mod
-				-- Why is this necessary?
-				local biome_cave = cave_biomes['stone']
-				-- This time just look at the middle of the chunk,
-				--  since decorations could go all through it.
-				for _, b in ipairs(cave_biomes_i) do
-					if b and (not b.y_max or b.y_max >= minp.y)
-						and (not b.y_min or b.y_min <= maxp.y) then
-						local diff_he = b.heat_point - cave_heat
-						local diff_hu = b.humidity_point - humidity
-						local diff = diff_he * diff_he + diff_hu * diff_hu
-						if ((not biome_diff) or diff < biome_diff) then
-							biome_diff = diff
-							biome_cave = b
-						end
-					end
-				end
-				biomemap_cave[index] = biome_cave
-				self.biomes_here[biome_cave.name] = true
-			end
-			-----------------------------------------
 
 			index = index + 1
 		end
@@ -825,12 +779,13 @@ end
 function Mapgen:place_all_decorations()
 	local minp, maxp = self.minp, self.maxp
 	local ps = PcgRandom(self.seed + 53)
+	local biome = self.biome or self.share.biome
 
 	for _, deco in pairs(mod.decorations) do
 		local b_check
 		if deco.biomes then
 			for b in pairs(deco.biomes_i) do
-				if self.biomes_here[b] then
+				if (biome and b == biome.name) or self.biomes_here[b] then
 					b_check = true
 					break
 				end
@@ -857,9 +812,7 @@ function Mapgen:place_deco(ps, deco)
     local minp, maxp = self.minp, self.maxp
     local heightmap, schem = self.heightmap, self.schem
 	local biomemap = self.biomemap
-	local biomemap_cave = self.biomemap_cave
 	local ystride = vm_area.ystride
-	local biome = self.share.biome
 
     local csize = self.csize
     local sidelen = deco.sidelen or csize.x
@@ -927,15 +880,10 @@ function Mapgen:place_deco(ps, deco)
                 end
 
 				if y then
-					if not self.share.biome then
-						if y < heightmap[mapindex] - cave_level then
-							biome = biomemap_cave[mapindex]
-						else
-							biome = biomemap[mapindex]
-						end
-					end
+					local biome = self.biome or self.share.biome or biomemap[mapindex]
 
-					if not deco.biomes_i or (biome and deco.biomes_i[biome.name]) then
+					if not (biome.underground and y > heightmap[mapindex] - cave_level)
+					and ((not deco.biomes_i) or (biome and deco.biomes_i[biome.name])) then
 						local ivm = vm_area:index(x, y, z)
 						if ((not deco.place_on_i) or deco.place_on_i[data[ivm]])
 						and (not deco.y_max or deco.y_max >= y)
@@ -992,7 +940,7 @@ function Mapgen:place_deco(ps, deco)
 								for _ = y, y + ht - inc, inc do
 									local d = deco.decoration
 									if type(d) == 'table' then
-										d = deco.decoration[math_random(#d)]
+										d = deco.decoration[ps:next(1, #d)]
 									end
 
 									if type(d) == 'string' and (deco.force_placement or buildable_to[data[ivm]]) then
@@ -1263,24 +1211,16 @@ function Mapgen:place_terrain()
 	local n_mossy = node['default:mossycobble']
 
 	self:map_height()
-	self:map_heat_humidity()
-	if not self.share.biome then
-		self:map_biomes(self.share.height_offset)
+	if not (self.biome or self.share.biome) then
+		self:map_heat_humidity()
+		self:map_biomes()
 	end
 
 	local index = 1
 	for z = minp.z, maxp.z do
 		for x = minp.x, maxp.x do
 			local height = heightmap[index] or minp.y - 2
-			local biome, biome_cave
-
-			if self.share.biome then
-				biome = self.share.biome
-				biome_cave = cave_biomes['stone']
-			else
-				biome = biomemap[index] or {}
-				biome_cave = biomemap_cave[index] or {}
-			end
+			local biome = self.biome or self.share.biome or biomemap[index]
 
 			local depth_filler = biome.depth_filler or 0
 			local depth_top = biome.depth_top or 0
@@ -1294,10 +1234,6 @@ function Mapgen:place_terrain()
 			local stone = node['default:stone']
 			if biome.node_stone then
 				stone = node[biome.node_stone] or stone
-			end
-			local stone_cave = node['default:stone']
-			if biome_cave.node_stone then
-				stone_cave = node[biome_cave.node_stone] or stone
 			end
 
 			local filler = biome.node_filler or 'air'
@@ -1343,9 +1279,6 @@ function Mapgen:place_terrain()
 					p2data[ivm] = 0 + grass_p2
 				elseif filler and y <= height and y > fill_2 then
 					data[ivm] = filler
-					p2data[ivm] = 0
-				elseif y < height - 20 then
-					data[ivm] = stone_cave
 					p2data[ivm] = 0
 				elseif y <= height then
 					data[ivm] = stone
@@ -1412,127 +1345,6 @@ function Mapgen:save_map(timed)
 	if timed then
 		mod.time_overhead = mod.time_overhead + os_clock() - t_over
 	end
-end
-
-
--- check
-local cave_underground = 5
-function Mapgen:simple_caves()
-	local minp, maxp = self.minp, self.maxp
-	local pr = self.gpr
-	local csize = self.csize
-
-	local geo = Geomorph.new()
-
-	local biome = self.biomemap_cave[math_floor(csize.z / 2 * csize.x + csize.x / 2)] or {}
-	local liquid = biome.node_cave_liquid
-
-	for _ = 1, 40 do
-		local size = VN(
-			pr:next(9, 25),
-			pr:next(9, 25),
-			pr:next(9, 25)
-		)
-		local big = pr:next(1, 10)
-		if big == 1 then
-			size.x = pr:next(9, 78)
-		elseif big == 2 then
-			size.y = pr:next(9, 78)
-		elseif big == 3 then
-			size.z = pr:next(9, 78)
-		end
-
-		local pos = VN(
-			pr:next(1, 79 - size.x),
-			pr:next(1, 79 - size.y),
-			pr:next(1, 79 - size.z)
-		)
-
-		local index = pos.z * csize.x + pos.x + 1
-		biome = self.biomemap_cave[index] or {}
-
-		if maxp.y < self.water_level or pos.y <= self.heightmap[index] then
-			if biome.node_floor or biome.node_ceiling then
-				local hpos = vector.add(pos, -(biome.surface_depth or 1))
-				local hsize = vector.add(size, (2 * (biome.surface_depth or 1)))
-				local hy = math_floor(hsize.y / 2)
-				if biome.node_floor then
-					geo:add({
-						action = 'sphere',
-						node = biome.node_floor,
-						location = hpos,
-						intersect = { biome.node_stone or 'default:stone' },
-						underground = cave_underground,
-						size = hsize,
-					})
-					geo:add({
-						action = 'cube',
-						node = biome.node_stone or 'default:stone',
-						location = VN(hpos.x, hpos.y + hy, hpos.z),
-						intersect = { biome.node_floor },
-						underground = cave_underground,
-						size = VN(hsize.x, hy, hsize.z)
-					})
-				end
-				if biome.node_ceiling then
-					geo:add({
-						action = 'sphere',
-						node = biome.node_ceiling,
-						location = hpos,
-						intersect = { biome.node_stone or 'default:stone' },
-						underground = cave_underground,
-						size = hsize,
-					})
-					geo:add({
-						action = 'cube',
-						node = biome.node_stone or 'default:stone',
-						location = VN(hpos.x, hpos.y, hpos.z),
-						intersect = { biome.node_ceiling },
-						underground = cave_underground,
-						size = VN(hsize.x, hy, hsize.z)
-					})
-				end
-			elseif biome.node_lining then
-				geo:add({
-					action = 'sphere',
-					node = biome.node_lining,
-					location = vector.add(pos, -(biome.surface_depth or 1)),
-					intersect = { biome.node_stone or 'default:stone' },
-					underground = cave_underground,
-					size = vector.add(size, (2 * (biome.surface_depth or 1))),
-				})
-			end
-
-			geo:add({
-				action = 'sphere',
-				node = 'air',
-				location = vector.add(pos, 1),
-				underground = cave_underground,
-				size = vector.add(size, -2),
-			})
-			geo:add({
-				action = 'sphere',
-				node = 'air',
-				random = 6,
-				location = pos,
-				underground = cave_underground,
-				size = size,
-			})
-		end
-	end
-
-	if minp.y < self.water_level and liquid then
-		geo:add({
-			action = 'cube',
-			node = liquid,
-			location = VN(1, 1, 1),
-			underground = cave_underground,
-			intersect = 'air',
-			size = VN(78, pr:next(10, 40), 78),
-		})
-	end
-
-	geo:write_to_map(self)
 end
 
 
