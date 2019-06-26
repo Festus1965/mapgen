@@ -580,10 +580,7 @@ end
 -- Register the mapgen(s)
 -----------------------------------------------
 
-do
-	local max_chunks = layer_mod.max_chunks
-	local water_level = 1
-
+local function level_biomes(water_level)
 	local biomes = {}
 	for n, v in pairs(cave_biomes) do
 		local def = table.copy(v)
@@ -595,7 +592,14 @@ do
 		end
 		biomes[n] = def
 	end
+	return biomes
+end
 
+do
+	local max_chunks = layer_mod.max_chunks
+
+	local water_level = 1
+	local biomes = level_biomes(water_level)
 	layer_mod.register_map({
 		name = 'scaves',
 		biomes = biomes,
@@ -603,6 +607,19 @@ do
 		mapgen_name = 'scaves',
 		minp = VN(-max_chunks, -20, -max_chunks),
 		maxp = VN(max_chunks, 3, max_chunks),
+		params = {},
+		water_level = water_level,
+	})
+
+	water_level = 2000
+	local biomes = level_biomes(water_level)
+	layer_mod.register_map({
+		name = 'scaves',
+		biomes = biomes,
+		mapgen = SCaves_Mapgen,
+		mapgen_name = 'scaves',
+		minp = VN(-max_chunks, 17, -max_chunks),
+		maxp = VN(max_chunks, 30, max_chunks),
 		params = {},
 		water_level = water_level,
 	})

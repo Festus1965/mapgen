@@ -344,13 +344,6 @@ function Valleys_Mapgen:after_terrain()
 
 	local do_ore = false
 
-	if (self.share.height_max or minp.y - 2) >= minp.y
-	and self.share.height_min > minp.y + cave_underground then
-		local t_cave = os_clock()
-		self:simple_caves()
-		layer_mod.time_caves = layer_mod.time_caves + os_clock() - t_cave
-	end
-
 	if do_ore then
 		local t_ore = os_clock()
 		self:simple_ore()
