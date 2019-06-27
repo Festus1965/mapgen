@@ -36,13 +36,6 @@ function Pillars_Mapgen:after_terrain()
 	local minp, maxp = self.minp, self.maxp
 
 	if not (self.coop or self.abort) then
-		if (not self.div) and self.share.height_max >= minp.y
-		and self.share.height_min > maxp.y + cave_underground then
-			local t_cave = os_clock()
-			self:simple_caves()
-			layer_mod.time_caves = layer_mod.time_caves + os_clock() - t_cave
-		end
-
 		local t_ore = os_clock()
 		self:simple_ore()
 		layer_mod.time_ore = layer_mod.time_ore + os_clock() - t_ore

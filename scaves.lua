@@ -623,4 +623,16 @@ do
 		params = {},
 		water_level = water_level,
 	})
+
+	layer_mod.register_map({
+		name = 'scaves',
+		biomes = biomes,
+		mapgen = SCaves_Mapgen,
+		mapgen_name = 'scaves',
+		minp = VN(-max_chunks, 47, -max_chunks),
+		maxp = VN(max_chunks, 57, max_chunks),
+		noises = noises,
+		params = {},
+		water_level = 4640,
+	})
 end
