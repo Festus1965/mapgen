@@ -631,7 +631,6 @@ do
 		mapgen_name = 'scaves',
 		minp = VN(-max_chunks, 47, -max_chunks),
 		maxp = VN(max_chunks, 57, max_chunks),
-		noises = noises,
 		params = {},
 		water_level = 4640,
 	})

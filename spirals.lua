@@ -88,7 +88,7 @@ function Spirals_Mapgen:generate()
 	geo:add({
 		action = 'cylinder',
 		axis = 'y',
-		intersect = {'default:water_source'},
+		intersect = {'default:water_source', 'default:river_water_source'},
 		node = mod_name..':bark',
 		location = VN(5, 0, 5),
 		size = VN(70, 80, 70),

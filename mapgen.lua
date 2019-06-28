@@ -655,7 +655,7 @@ function Mapgen:map_biomes(force_height)
 	local water_level = self.water_level
 	local biomes_i = {}
 	local minp, maxp = self.minp, self.maxp
-	local offset = (self.share.height_offset or 1) - 1
+	local offset = (self.height_offset or 1) - 1
 
 	-- Biome selection is expensive. This helps a bit.
 	for _, b in pairs(biomes) do
@@ -689,6 +689,7 @@ function Mapgen:map_heat_humidity()
 	local humiditymap = self.humiditymap
 	local grassmap = self.grassmap
 	local water_level = self.water_level
+	local offset = (self.height_offset or 1) - 1
 
 	local heat_noise = map.heat or 'heat'
 	local heat_noise_map = self.noise[heat_noise] or self[heat_noise] or heat_noise
@@ -717,6 +718,8 @@ function Mapgen:map_heat_humidity()
 		for x = minp.x, maxp.x do
 			local height = heightmap[index] or minp.y - 2
 			local heat, heat_blend, humidity, humidity_blend
+
+			height = height - offset
 
 			if type(heat_noise_map) == 'table' then
 				heat = heat_noise_map[index]
@@ -1195,20 +1198,13 @@ function Mapgen:place_terrain()
 	local heightmap = self.heightmap
 	local grassmap = self.grassmap
 	local biomemap = self.biomemap
-	local biomemap_cave = self.biomemap_cave
 	local maxp = self.maxp
 	local minp = self.minp
 	local ystride = area.ystride
 	local p2data = self.p2data
-	local div = self.div
 	local water_level = self.water_level
 
-	local ground = (maxp.y >= water_level and minp.y <= water_level)
-
 	local stone_layers = self.stone_layers
-
-	local n_cobble = node['default:cobble']
-	local n_mossy = node['default:mossycobble']
 
 	self:map_height()
 	if not (self.biome or self.share.biome) then

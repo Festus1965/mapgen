@@ -424,6 +424,87 @@ do
 end
 
 
+function mod.register_flower(name, desc, biomes, seed)
+	local groups = { }
+	groups.snappy = 3
+	groups.flammable = 2
+	groups.flower = 1
+	groups.flora = 1
+	groups.attached_node = 1
+	local img = mod_name .. '_' .. name .. '.png'
+
+	minetest.register_node(mod_name..':' .. name, {
+		description = desc,
+		drawtype = 'plantlike',
+		waving = 1,
+		tiles = { img },
+		inventory_image = img,
+		wield_image = img,
+		sunlight_propagates = true,
+		paramtype = 'light',
+		walkable = false,
+		buildable_to = true,
+		stack_max = 99,
+		groups = groups,
+		sounds = default.node_sound_leaves_defaults(),
+		selection_box = {
+			type = 'fixed',
+			fixed = { -0.5, -0.5, -0.5, 0.5, -5/16, 0.5 },
+		}
+	})
+
+	local bi = { }
+	if biomes then
+		bi = { }
+		for _, b in pairs(biomes) do
+			bi[b] = true
+		end
+	end
+
+	if bi['rainforest'] then
+		minetest.register_decoration({
+			deco_type = 'simple',
+			place_on = { 'default:dirt_with_rainforest_litter' },
+			sidelen = 16,
+			noise_params = {
+				offset = 0.015,
+				scale = 0.025,
+				spread = { x = 200, y = 200, z = 200 },
+				seed = seed,
+				octaves = 3,
+				persist = 0.6
+			},
+			biomes = { 'rainforest', 'rainforest_swamp' },
+			y_min = 1,
+			y_max = 31000,
+			decoration = mod_name..':'..name,
+			name = name,
+			flower = true,
+		})
+	end
+
+	minetest.register_decoration({
+		deco_type = 'simple',
+		place_on = { 'default:dirt_with_grass', 'default:dirt_with_dry_grass', 'default:dirt_with_rainforest_litter' },
+		sidelen = 16,
+		noise_params = {
+			offset = -0.015,
+			scale = 0.025,
+			spread = { x = 200, y = 200, z = 200 },
+			seed = seed,
+			octaves = 3,
+			persist = 0.6
+		},
+		biomes = biomes,
+		y_min = 1,
+		y_max = 31000,
+		decoration = mod_name..':'..name,
+		name = name,
+		flower = true,
+	})
+end
+
+
 minetest.register_on_shutdown(function()
   print('time caves: '..math.floor(1000 * mod.time_caves / mod.chunks))
   print('time decorations: '..math.floor(1000 * mod.time_deco / mod.chunks))

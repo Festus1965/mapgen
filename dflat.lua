@@ -71,24 +71,6 @@ function DFlat_Mapgen:generate()
 end
 
 
-function DFlat_Mapgen:terrain_height(ground_1, base_level, div)
-	-- terrain height calculations
-	local height = base_level
-	if ground_1 > altitude_cutoff_high then
-		height = height + (ground_1 - altitude_cutoff_high) / (div or 1)
-	elseif ground_1 < altitude_cutoff_low then
-		local g = altitude_cutoff_low - ground_1
-		if g < altitude_cutoff_low_2 then
-			g = g * g * 0.01
-		else
-			g = (g - altitude_cutoff_low_2) * 0.5 + 40
-		end
-		height = height - g / (div or 1)
-	end
-	return height
-end
-
-
 function DFlat_Mapgen:map_height()
 	local minp, maxp = self.minp, self.maxp
 	local ground_noise_map = self.noise['dflat_ground'].map
@@ -318,6 +300,24 @@ function DFlat_Mapgen:simple_ruin()
 	geo:write_to_map(self)
 
 	return true
+end
+
+
+function DFlat_Mapgen:terrain_height(ground_1, base_level, div)
+	-- terrain height calculations
+	local height = base_level
+	if ground_1 > altitude_cutoff_high then
+		height = height + (ground_1 - altitude_cutoff_high) / (div or 1)
+	elseif ground_1 < altitude_cutoff_low then
+		local g = altitude_cutoff_low - ground_1
+		if g < altitude_cutoff_low_2 then
+			g = g * g * 0.01
+		else
+			g = (g - altitude_cutoff_low_2) * 0.5 + 40
+		end
+		height = height - g / (div or 1)
+	end
+	return height
 end
 
 
