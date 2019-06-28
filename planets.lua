@@ -238,7 +238,7 @@ do
 		name = 'planets',
 		mapgen = Planets_Mapgen,
 		mapgen_name = 'planets',
-		minp = VN(-max_chunks, -20, -max_chunks),
+		minp = VN(-max_chunks, 4, -max_chunks),
 		maxp = VN(max_chunks, 15, max_chunks),
 		params = {},
 		water_level = 1,

@@ -81,6 +81,7 @@ do
 		paramtype = 'light',
 		is_ground_content = false,
 		light_source = 8,
+		sunlight_propagates = true,
 		groups = {snappy = 3, leafdecay = 4, flammable = 2, leaves = 1},
 		drop = {
 			max_items = 1,
@@ -108,6 +109,7 @@ do
 			'default_tree_top.png', 'default_tree_top.png', 'mapgen_lumin_tree.png'
 		},
 		paramtype = 'light',
+		sunlight_propagates = true,
 		drawtype = 'nodebox',
 		node_box = {
 			type = 'fixed', 
@@ -157,7 +159,7 @@ do
 		deco_type = 'simple',
 		place_on = { mod_name..':cloud', mod_name..':storm_cloud' },
 		sidelen = 16,
-		fill_ratio = 0.01,
+		fill_ratio = 0.005,
 		--[[
 		noise_params = {
 			offset = -0.015,
@@ -228,7 +230,6 @@ do
 		def.decoration = new_name
 		minetest.register_decoration(def)
 	end
-		print(dump(layer_mod.grass_nodes))
 end
 
 
@@ -239,11 +240,22 @@ end
 local Cloudscape_Mapgen = layer_mod.subclass_mapgen()
 
 
+function Cloudscape_Mapgen:_init()
+	self.ores = {
+		{ mod_name..':silver_lining', 0, },
+	}
+	self.ore_intersect = {
+		mod_name..':cloud',
+		mod_name..':storm_cloud',
+	}
+end
+
+
 function Cloudscape_Mapgen:generate()
 	self:prepare()
 	self:map_height()
 	self:place_terrain()
-	--self:after_terrain()
+	self:simple_ore(1)
 end
 
 
@@ -493,7 +505,7 @@ do
 	}
 
 	local noises = {
-		cloudscape_1 = { def = {offset = 10, scale = 10, seed = 4877, spread = {x = 120, y = 120, z = 120}, octaves = 3, persist = 1, lacunarity = 2}, },
+		cloudscape_1 = { def = {offset = 0, scale = 10, seed = 4877, spread = {x = 120, y = 120, z = 120}, octaves = 3, persist = 1, lacunarity = 2}, },
 		cloudscape_2 = { def = {offset = 0, scale = 1, seed = 5748, spread = {x = 40, y = 10, z = 40}, octaves = 3, persist = 1, lacunarity = 2}, },
 		cloudscape_rainbow = { def = {offset = 0, scale = 7, seed = 4877, spread = {x = 100, y = 100, z = 100}, octaves = 2, persist = 0.4, lacunarity = 2}, },
 	}
@@ -505,7 +517,7 @@ do
 		mapgen = Cloudscape_Mapgen,
 		mapgen_name = 'cloudscape',
 		minp = VN(-max_chunks, 2, -max_chunks),
-		maxp = VN(max_chunks, 4, max_chunks),
+		maxp = VN(max_chunks, 3, max_chunks),
 		noises = noises,
 		params = { cloud_level = 168 },
 		water_level = 1,

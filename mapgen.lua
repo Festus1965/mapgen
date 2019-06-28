@@ -273,6 +273,8 @@ function Mapgen:new(minp, maxp, seed)
 	inst.minp = minp
 	inst.maxp = maxp
 	inst.node = mod.node
+	inst.ore_intersect = ore_intersect
+	inst.ores = ores
 	inst.p2data = vm:get_param2_data(m_p2data)
 	inst.noise = {}
 	inst.noises = table.copy(default_noises)
@@ -593,13 +595,13 @@ end
 
 function Mapgen:get_ore(f_alt)
 	local oren = 0
-	for _, i in pairs(ores) do
+	for _, i in pairs(self.ores) do
 		if f_alt >= (i[2] or 0) then
 			oren = oren + 1
 		end
 	end
 
-	return ores[self.gpr:next(1, oren)][1]
+	return self.ores[self.gpr:next(1, oren)][1]
 end
 
 
@@ -1247,7 +1249,7 @@ function Mapgen:place_terrain()
 			local wt = biome.node_water_top
 			local wtd = biome.node_water_top_depth or 0
 			do
-				local heat = self.heatmap[index]
+				local heat = self.heatmap[index] or 50
 				if heat < 28 and ((not wt and ww:find('water')) or wt:find('ice')) then
 					wt = node['default:ice']
 					wtd = math_ceil(math_max(0, (30 - heat) / 3))
@@ -1345,14 +1347,17 @@ function Mapgen:save_map(timed)
 end
 
 
-function Mapgen:simple_ore()
+function Mapgen:simple_ore(num_deposits)
 	local minp, maxp = self.minp, self.maxp
 	local f_alt = math_max(0, - math_floor((minp.y + self.chunk_offset) / self.csize.y))
 
 	local pr = self.gpr
+	if not num_deposits then
+		num_deposits = 25
+	end
 
 	local geo = Geomorph.new()
-	for _ = 1, 25 do
+	for _ = 1, num_deposits do
 		local ore = self:get_ore(f_alt)
 
 		local size = VN(
@@ -1376,7 +1381,7 @@ function Mapgen:simple_ore()
 			random = 4,
 			location = p,
 			size = size,
-			intersect = ore_intersect,
+			intersect = self.ore_intersect,
 		})
 	end
 	geo:write_to_map(self)
