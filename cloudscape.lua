@@ -27,6 +27,12 @@ do
 	newnode.sunlight_propagates = true
 	minetest.register_node(mod_name..':cloud', newnode)
 
+	local newnode = mod.clone_node('default:sand')
+	newnode.description = 'Wet Cloud'
+	newnode.tiles = {'mapgen_wet_cloud.png'}
+	newnode.sunlight_propagates = true
+	minetest.register_node(mod_name..':wet_cloud', newnode)
+
 	newnode = mod.clone_node('default:dirt')
 	newnode.description = 'Storm Cloud'
 	newnode.sunlight_propagates = true
@@ -56,7 +62,8 @@ do
 		paramtype = 'light',
 		light_source = 8,
 		walkable = false,
-		groups = {snappy=3,flammable=2,flora=1,attached_node=1},
+		--groups = {snappy=3, flammable=2, flora=1, attached_node=1}, 
+		groups = {snappy=3, flammable=2, flora=1}, 
 		sounds = default.node_sound_leaves_defaults(),
 		selection_box = {
 			type = 'fixed',
@@ -146,163 +153,83 @@ do
 	minetest.register_node(':default:ice', newnode)
 
 
-	--register_flower('orchid', 'Orchid', {'rainforest', 'rainforest_swamp'}, 0.025)
-	--register_flower('bird_of_paradise', 'Bird of Paradise', {'rainforest', 'desertstone_grassland'}, 0.025)
-	--register_flower('gerbera', 'Gerbera', {'savanna', 'rainforest', 'desertstone_grassland'}, 0.005)
+	minetest.register_decoration({
+		deco_type = 'simple',
+		place_on = { mod_name..':cloud', mod_name..':storm_cloud' },
+		sidelen = 16,
+		fill_ratio = 0.01,
+		--[[
+		noise_params = {
+			offset = -0.015,
+			scale = 0.025,
+			spread = { x = 200, y = 200, z = 200 },
+			seed = 3874,
+			octaves = 3,
+			persist = 0.6
+		},
+		--]]
+		biomes = { 'cloud_sunny', 'cloud_storm' },
+		y_min = 100,
+		decoration = mod_name..':moon_weed',
+		name = 'moon_weed',
+		flower = true,
+	})
+end
 
 
-	mod.water_plants = {}
-	local function register_water_plant(desc)
-		if not (desc and type(desc) == 'table') then
-			return
+do
+	local aspen_deco
+	local grasses = {}
+	for _, v in pairs(mod.decorations) do
+		if v.name == 'default:aspen_tree' then
+			aspen_deco = v
+		elseif v.name:find('default:grass_[0-9]') then
+			table.insert(grasses, v)
 		end
-
-		mod.water_plants[#mod.water_plants+1] = desc
 	end
 
+	if aspen_deco and aspen_deco.schematic_array and aspen_deco.schematic_array.data then
+		local def = table.copy(aspen_deco)
 
-	plantlist = {
-		{name='water_plant_1',
-		 desc='Water Plant',
-		 water=true,
-		},
-	}
-
-
-	for _, plant in ipairs(plantlist) do
-		if plant.coral then
-			groups = {cracky=3, stone=1, attached_node=1}
-		else
-			groups = {snappy=3,flammable=2,flora=1,attached_node=1}
-		end
-		if plant.groups then
-			for k,v in pairs(plant.groups) do
-				groups[k] = v
+		def.noise_params.seed = 754
+		def.noise_params.offset = def.noise_params.offset - 0.005
+		def.schematic = nil
+		def.name = mod_name..':lumin_tree'
+		def.schematic_array = table.copy(aspen_deco.schematic_array)
+		for _, v in pairs(def.schematic_array.data) do
+			if v.name == 'default:aspen_leaves' then
+				v.name = mod_name..':leaves_lumin'
+			end
+			if v.name == 'default:aspen_tree' then
+				v.name = mod_name..':lumin_tree'
 			end
 		end
-
-		minetest.register_node(mod_name..':'..plant.name, {
-			description = plant.desc,
-			drawtype = 'plantlike',
-			tiles = {'mapgen_'..plant.name..'.png'},
-			waving = plant.wave,
-			sunlight_propagates = plant.light,
-			paramtype = 'light',
-			walkable = false,
-			groups = groups,
-			sounds = default.node_sound_leaves_defaults(),
-			selection_box = {
-				type = 'fixed',
-				fixed = {-0.5, -0.5, -0.5, 0.5, -5/16, 0.5},
-			},
-		})
-
-		if plant.water then
-			local def = {
-				description = plant.desc,
-				drawtype = 'nodebox',
-				node_box = {type='fixed', fixed={{-0.5, -0.5, -0.5, 0.5, 0.5, 0.5}, {-0.5, 0.5, -0.001, 0.5, 1.5, 0.001}, {-0.001, 0.5, -0.5, 0.001, 1.5, 0.5}}},
-				drop = mod_name..':'..plant.name,
-				tiles = { 'default_sand.png', 'mapgen_'..plant.name..'.png',},
-				--tiles = { 'default_dirt.png', 'mapgen_'..plant.name..'.png',},
-				sunlight_propagates = plant.light,
-				--light_source = 14,
-				paramtype = 'light',
-				light_source = plant.light_source,
-				walkable = true,
-				groups = groups,
-				selection_box = {
-					type = 'fixed',
-					fixed = {-0.5, 0.5, -0.5, 0.5, 11/16, 0.5},
-				},
-				sounds = plant.sounds or default.node_sound_leaves_defaults(),
-				after_dig_node = function(pos, oldnode, oldmetadata, digger)
-					if not (pos and oldnode) then
-						return
-					end
-
-					local replacement = oldnode.name:gsub('.*_water_(.*)', 'default:%1')
-					if replacement:find('cloud$') then
-						replacement = replacement:gsub('^default', 'fun_caves')
-					end
-					minetest.set_node(pos, {name = replacement})
-				end,
-			}
-			minetest.register_node(mod_name..':'..plant.name..'_water_sand', def)
-			def2 = table.copy(def)
-			def2.tiles = { 'default_dirt.png', 'mapgen_'..plant.name..'.png',}
-			minetest.register_node(mod_name..':'..plant.name..'_water_dirt', def2)
-			def2 = table.copy(def)
-			def2.tiles = { 'mapgen_cloud.png', 'mapgen_'..plant.name..'.png',}
-			minetest.register_node(mod_name..':'..plant.name..'_water_cloud', def2)
-			def2 = table.copy(def)
-			def2.tiles = { 'mapgen_storm_cloud.png', 'mapgen_'..plant.name..'.png',}
-			minetest.register_node(mod_name..':'..plant.name..'_water_storm_cloud', def2)
-		end
+		def.place_on = { mod_name..':cloud', }
+		def.biomes = { 'cloud_sunny', }
+		minetest.register_decoration(def)
 	end
 
+	for _, v in ipairs(grasses) do
+		local def = table.copy(minetest.registered_nodes[v.decoration])
+		local num = def.name:gsub('.*([0-9]).*', '%1')
+		num = tonumber(num)
+		local new_name = mod_name..':rainbow_grass_'..num
+		local tile_name = 'mapgen_gray_grass_'..num..'.png^[brighten'
+		def.description = 'Rainbow Grass'
+		def.drop = nil
+		def.palette = 'mapgen_palette_rainbow_1.png'
+		def.tiles = { tile_name }
+		minetest.register_node(new_name, def)
+		layer_mod.grass_nodes[new_name] = true
 
-	do
-		-- Water Plant
-		local water_plant_1_def_sand = {
-			fill_ratio = 0.05,
-			place_on = {'group:sand'},
-			decoration = {mod_name..':water_plant_1_water_sand'},
-			--biomes = {'sandstone_grassland', 'stone_grassland', 'coniferous_forest', 'deciduous_forest', 'desert', 'savanna', 'rainforest', 'rainforest_swamp', },
-			biomes = {'sandstone_grassland', 'stone_grassland', 'coniferous_forest', 'deciduous_forest', 'savanna', 'rainforest', 'rainforest_swamp','sandstone_grassland_ocean', 'stone_grassland_ocean', 'coniferous_forest_ocean', 'deciduous_forest_ocean', 'desert_ocean', 'savanna_ocean', 'desertstone_grassland', },
-			y_max = 60,
-		}
-		if not mod.use_bi_hi then
-			water_plant_1_def_sand.biomes = nil
-		end
-
-		local water_plant_1_def_dirt = table.copy(water_plant_1_def_sand)
-		water_plant_1_def_dirt.place_on = {'group:soil'}
-		water_plant_1_def_dirt.decoration = {mod_name..':water_plant_1_water_dirt',}
-		local water_plant_1_def_cloud = table.copy(water_plant_1_def_sand)
-		water_plant_1_def_cloud.place_on = {'group:cloud'}
-		water_plant_1_def_cloud.decoration = {mod_name..':water_plant_1_water_cloud',}
-		local water_plant_1_def_storm_cloud = table.copy(water_plant_1_def_sand)
-		water_plant_1_def_storm_cloud.place_on = {'group:cloud'}
-		water_plant_1_def_storm_cloud.decoration = {mod_name..':water_plant_1_water_storm_cloud',}
-
-		register_water_plant(water_plant_1_def_sand)
-		register_water_plant(water_plant_1_def_dirt)
-		register_water_plant(water_plant_1_def_cloud)
-		register_water_plant(water_plant_1_def_storm_cloud)
+		def = table.copy(v)
+		def.place_on = { mod_name..':cloud', mod_name..':storm_cloud', }
+		def.biomes = { 'cloud_sunny', mod_name..':storm_cloud', }
+		def.decoration = new_name
+		minetest.register_decoration(def)
 	end
-
-
-	-- Get the content ids for all registered water plants.
-	for _, desc in pairs(mod.water_plants) do
-		if type(desc.decoration) == 'string' then
-			desc.content_id = minetest.get_content_id(desc.decoration)
-		elseif type(desc.decoration) == 'table' then
-			desc.content_id = minetest.get_content_id(desc.decoration[1])
-		end
-	end
+		print(dump(layer_mod.grass_nodes))
 end
-
-
---[[
-do
-	minetest.register_biome({
-		name = 'cloud_sunny',
-		heat_point = 60,
-		humidity_point = 50,
-		node_stone = mod_name..':cloud',
-		source = 'cloudscape',
-	})
-
-	minetest.register_biome({
-		name = 'cloud_storm',
-		heat_point = 30,
-		humidity_point = 50,
-		node_stone = mod_name..':storm_cloud',
-		source = 'cloudscape',
-	})
-end
---]]
 
 
 -----------------------------------------------
@@ -341,8 +268,12 @@ function Cloudscape_Mapgen:map_height()
 
 			height = math_floor(height + 0.5)
 			depth = math_floor(depth + 0.5)
-			heightmap[index] = height
 			reverse_heightmap[index] = depth
+			if depth >= base_level then
+				height = minp.y - 2
+			end
+			heightmap[index] = height
+
 			height_max = math_max(ground_1, height_max)
 			height_min = math_min(ground_1, height_min)
 
@@ -379,6 +310,8 @@ function Cloudscape_Mapgen:place_terrain()
 	local water_level = self.water_level
 	local base_level = self.cloud_level
 	local wisp_map = self.noise['cloudscape_2'].map
+	local rainbow_map = self.noise['cloudscape_rainbow'].map
+	local ps = self.gpr
 
 	local stone_layers = self.stone_layers
 
@@ -393,7 +326,7 @@ function Cloudscape_Mapgen:place_terrain()
 		for x = minp.x, maxp.x do
 			local height = heightmap[index] or minp.y - 2
 			local wisps = height + 10
-			if reverse_heightmap[index] < base_level then
+			do
 				local biome = self.biome or self.share.biome or biomemap[index]
 
 				local depth_filler = biome.depth_filler or 0
@@ -415,10 +348,10 @@ function Cloudscape_Mapgen:place_terrain()
 				local top = biome.node_top or 'air'
 				top = node[top]
 				local grass_p2 = 0
-				if biome.node_top == 'default:dirt_with_dry_grass'
-				or biome.node_top == 'default:dirt_with_grass' then
-					grass_p2 = grassmap[index] or 0
-				end
+				grass_p2 = rainbow_map[index] or 0
+				grass_p2 = (math_floor(math_abs(grass_p2) + 0.5) % 8) * 32
+
+				local riverbed = node[biome.node_riverbed]
 
 				local ww = biome.water or 'default:river_water_source'
 				local wt = biome.node_water_top
@@ -439,7 +372,7 @@ function Cloudscape_Mapgen:place_terrain()
 
 				local t_y_loop = os_clock()
 
-				if math_abs(height - base_level) == math_abs(reverse_heightmap[index] - base_level) then
+				if height < minp.y or math_abs(height - base_level) == math_abs(reverse_heightmap[index] - base_level) then
 					water_level = self.water_level
 				else
 					water_level = base_level + 14
@@ -458,6 +391,9 @@ function Cloudscape_Mapgen:place_terrain()
 							data[ivm] = ww
 						end
 						p2data[ivm] = 0
+					elseif y == height and y <= water_level then
+						data[ivm] = riverbed
+						p2data[ivm] = 0
 					elseif y <= height and y > fill_1 then
 						data[ivm] = top
 						p2data[ivm] = 0 + grass_p2
@@ -467,15 +403,18 @@ function Cloudscape_Mapgen:place_terrain()
 					elseif y <= height then
 						data[ivm] = stone
 						p2data[ivm] = 0
+					--[[
 					elseif y <= wisps then
 						data[ivm] = node[mod_name..':wispy_cloud']
 						p2data[ivm] = 0
+					--]]
 					end
 
 					ivm = ivm + ystride
 				end
 				mod.time_y_loop = mod.time_y_loop + os_clock() - t_y_loop
-	else
+			--else
+				--[[
 				local min_y = reverse_heightmap[index]
 				local min_y_chunk = math_max(minp.y, min_y)
 				local ivm = area:index(x, min_y_chunk, z)
@@ -487,6 +426,7 @@ function Cloudscape_Mapgen:place_terrain()
 
 					ivm = ivm + ystride
 				end
+				--]]
 			end
 
 			index = index + 1
@@ -535,6 +475,9 @@ do
 			heat_point = 60,
 			humidity_point = 50,
 			node_stone = mod_name..':cloud',
+			node_top = mod_name..':cloud',
+			depth_top = 1,
+			node_riverbed = mod_name..':wet_cloud',
 			source = 'cloudscape',
 		},
 		{
@@ -542,6 +485,9 @@ do
 			heat_point = 30,
 			humidity_point = 50,
 			node_stone = mod_name..':storm_cloud',
+			node_top = mod_name..':storm_cloud',
+			depth_top = 1,
+			node_riverbed = mod_name..':wet_cloud',
 			source = 'cloudscape',
 		},
 	}
@@ -549,6 +495,7 @@ do
 	local noises = {
 		cloudscape_1 = { def = {offset = 10, scale = 10, seed = 4877, spread = {x = 120, y = 120, z = 120}, octaves = 3, persist = 1, lacunarity = 2}, },
 		cloudscape_2 = { def = {offset = 0, scale = 1, seed = 5748, spread = {x = 40, y = 10, z = 40}, octaves = 3, persist = 1, lacunarity = 2}, },
+		cloudscape_rainbow = { def = {offset = 0, scale = 7, seed = 4877, spread = {x = 100, y = 100, z = 100}, octaves = 2, persist = 0.4, lacunarity = 2}, },
 	}
 
 

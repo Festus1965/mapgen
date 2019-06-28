@@ -78,7 +78,8 @@ for n, v in pairs(minetest.registered_nodes) do
 	end
 end
 
-local grass_nodes = {}
+mod.grass_nodes = {}
+local grass_nodes = mod.grass_nodes
 for n in pairs(minetest.registered_nodes) do
 	if n:find('grass_') then
 		grass_nodes[n] = true
