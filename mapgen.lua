@@ -1479,7 +1479,7 @@ function mod.spawnplayer(player)
 
 		local mg_map
 		for _, map in pairs(mod.world_map) do
-			if vector.contains(map.minp, map.maxp, chunk) then
+			if vector.contains(map.map_minp, map.map_maxp, chunk) then
 				mg_map = map
 				break
 			end
