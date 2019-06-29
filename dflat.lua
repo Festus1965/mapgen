@@ -125,7 +125,7 @@ function DFlat_Mapgen:prepare()
 	self.share.base_level = base_level
 
 	local base_heat = 20 + math_abs(70 - ((((minp.z + chunk_offset + 1000) / 6000) * 140) % 140))
-	self.share.base_heat = base_heat
+	self.base_heat = base_heat
 end
 
 
