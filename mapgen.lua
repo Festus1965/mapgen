@@ -264,6 +264,7 @@ function Mapgen:_init(minp, maxp, seed)
 	self.p2data = vm:get_param2_data(m_p2data)
 	self.seed = seed
 	self.vm = vm
+	self.share = {}  -- Don't carry this between chunks.
 
 	if #buildable_to < 1 then
 		for n, v in pairs(minetest.registered_nodes) do

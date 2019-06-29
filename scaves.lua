@@ -400,6 +400,7 @@ function SCaves_Mapgen:get_spawn_level(map, x, z)
 end
 
 
+-- This is only called for one point, so don't map it.
 local scaves_heat = { def = { offset = 50, scale = 50, seed = 1578, spread = {x = 200, y = 200, z = 200}, octaves = 3, persist = 0.5, lacunarity = 2 }, }
 function SCaves_Mapgen:generate()
 	local minp, maxp = self.minp, self.maxp

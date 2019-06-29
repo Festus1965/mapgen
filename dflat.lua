@@ -22,7 +22,6 @@ local water_diff = 8
 local altitude_cutoff_high = 30
 local altitude_cutoff_low = -10
 local altitude_cutoff_low_2 = 63
-local cave_underground = 5
 
 
 dofile(mod.path..'/dflat_biomes.lua')
@@ -75,6 +74,7 @@ function DFlat_Mapgen:map_height()
 	local minp, maxp = self.minp, self.maxp
 	local ground_noise_map = self.noises['dflat_ground'].map
 	local heightmap = self.heightmap
+	local water_level = self.water_level
 	local base_level = self.share.base_level
 	local div = self.div
 
@@ -90,8 +90,8 @@ function DFlat_Mapgen:map_height()
 
 			height = math_floor(height + 0.5)
 			heightmap[index] = height
-			height_max = math_max(ground_1, height_max)
-			height_min = math_min(ground_1, height_min)
+			height_max = math_max(height, height_max)
+			height_min = math_min(height, height_min)
 
 			index = index + 1
 		end
@@ -100,9 +100,7 @@ function DFlat_Mapgen:map_height()
 	self.share.height_min = height_min
 	self.share.height_max = height_max
 
-	local f1 = math_max(altitude_cutoff_high, height_max - minp.y)
-	local f2 = math_min(altitude_cutoff_low, height_min - minp.y)
-	if (f1 - altitude_cutoff_high) - (f2 - altitude_cutoff_low) < 3 then
+	if height_max - height_min < 3 and height_max > water_level then
 		self.share.flattened = true
 	end
 end
@@ -150,7 +148,6 @@ function DFlat_Mapgen:simple_ruin()
 	end
 
 	local csize = self.csize
-	local heightmap = self.heightmap
 	local chunk_offset = self.chunk_offset
 	local base_level = self.share.base_level + chunk_offset  -- Figure from height?
 	local boxes = {}
@@ -185,14 +182,6 @@ function DFlat_Mapgen:simple_ruin()
 	for _, box in pairs(boxes) do
 		local pos = table.copy(box.pos)
 		local size = table.copy(box.size)
-
-		for z = pos.z, pos.z + size.z do
-			local index = z * csize.x + pos.x + 1
-			for _ = pos.x, pos.x + size.x do
-				heightmap[index] = base_level
-				index = index + 1
-			end
-		end
 
 		-- foundation
 		pos.y = pos.y - 8
@@ -336,8 +325,8 @@ do
 		dflat_ground = { def = { offset = 0, scale = terrain_scale, seed = 4382, spread = {x = 320, y = 320, z = 320}, octaves = 6, persist = 0.5, lacunarity = 2.0}, },
 		heat_blend = { def = { offset = 0, scale = 4, seed = 5349, spread = {x = 10, y = 10, z = 10}, octaves = 3, persist = 0.5, lacunarity = 2, flags = 'eased' }, },
 		erosion = { def = { offset = 0, scale = 1.5, seed = -47383, spread = {x = 8, y = 8, z = 8}, octaves = 2, persist = 1.0, lacunarity = 2 }, },
-		flat_cave_1 = { def = { offset = 0, scale = 10, seed = 6386, spread = {x = 23, y = 23, z = 23}, octaves = 3, persist = 0.7, lacunarity = 1.8 }, },
-		cave_heat = { def = { offset = 50, scale = 50, seed = 1578, spread = {x = 200, y = 200, z = 200}, octaves = 3, persist = 0.5, lacunarity = 2 }, },
+		--flat_cave_1 = { def = { offset = 0, scale = 10, seed = 6386, spread = {x = 23, y = 23, z = 23}, octaves = 3, persist = 0.7, lacunarity = 1.8 }, },
+		--cave_heat = { def = { offset = 50, scale = 50, seed = 1578, spread = {x = 200, y = 200, z = 200}, octaves = 3, persist = 0.5, lacunarity = 2 }, },
 	}
 
 	local e_noises = { dflat_ground = table.copy(noises.dflat_ground) }
