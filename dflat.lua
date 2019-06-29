@@ -73,7 +73,7 @@ end
 
 function DFlat_Mapgen:map_height()
 	local minp, maxp = self.minp, self.maxp
-	local ground_noise_map = self.noise['dflat_ground'].map
+	local ground_noise_map = self.noises['dflat_ground'].map
 	local heightmap = self.heightmap
 	local base_level = self.share.base_level
 	local div = self.div
@@ -351,10 +351,9 @@ do
 		heat = 'base_heat',
 		mapgen = DFlat_Mapgen,
 		mapgen_name = 'dflat',
-		minp = VN(-max_chunks, -20, -max_chunks),
-		maxp = VN(0, 15, max_chunks),
+		map_minp = VN(-max_chunks, -20, -max_chunks),
+		map_maxp = VN(0, 15, max_chunks),
 		noises = noises,
-		params = {},
 		water_level = 1,
 	})
 	--]]
@@ -365,24 +364,23 @@ do
 		heat = 'base_heat',
 		mapgen = DFlat_Mapgen,
 		mapgen_name = 'dflat',
-		minp = VN(-max_chunks, -20, -max_chunks),
-		maxp = VN(max_chunks, 15, max_chunks),
+		map_minp = VN(-max_chunks, -20, -max_chunks),
+		map_maxp = VN(max_chunks, 15, max_chunks),
 		noises = noises,
-		params = {},
 		water_level = 1,
 	})
 
 	layer_mod.register_map({
 		name = 'ether',
 		biomes = 'dflat_ether',
+		div = ether_div,
 		heat = 50,
 		humidity = 50,
 		mapgen = DFlat_Mapgen,
 		mapgen_name = 'dflat_ether',
-		minp = VN(-max_chunks_ether, -360, -max_chunks_ether),
-		maxp = VN(max_chunks_ether, -350, max_chunks_ether),
+		map_minp = VN(-max_chunks_ether, -360, -max_chunks_ether),
+		map_maxp = VN(max_chunks_ether, -350, max_chunks_ether),
 		noises = e_noises,
-		params = { div = ether_div },
 		water_level = -28400,
 	})
 end

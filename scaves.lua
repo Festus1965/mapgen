@@ -605,9 +605,8 @@ do
 		biomes = biomes,
 		mapgen = SCaves_Mapgen,
 		mapgen_name = 'scaves',
-		minp = VN(-max_chunks, -20, -max_chunks),
-		maxp = VN(max_chunks, 3, max_chunks),
-		params = {},
+		map_minp = VN(-max_chunks, -20, -max_chunks),
+		map_maxp = VN(max_chunks, 3, max_chunks),
 		water_level = water_level,
 	})
 
@@ -618,9 +617,8 @@ do
 		biomes = biomes,
 		mapgen = SCaves_Mapgen,
 		mapgen_name = 'scaves',
-		minp = VN(-max_chunks, 17, -max_chunks),
-		maxp = VN(max_chunks, 30, max_chunks),
-		params = {},
+		map_minp = VN(-max_chunks, 17, -max_chunks),
+		map_maxp = VN(max_chunks, 30, max_chunks),
 		water_level = water_level,
 	})
 
@@ -629,9 +627,8 @@ do
 		biomes = biomes,
 		mapgen = SCaves_Mapgen,
 		mapgen_name = 'scaves',
-		minp = VN(-max_chunks, 47, -max_chunks),
-		maxp = VN(max_chunks, 57, max_chunks),
-		params = {},
+		map_minp = VN(-max_chunks, 47, -max_chunks),
+		map_maxp = VN(max_chunks, 57, max_chunks),
 		water_level = 4640,
 	})
 end

@@ -261,7 +261,7 @@ end
 
 function Cloudscape_Mapgen:map_height()
 	local minp, maxp = self.minp, self.maxp
-	local ground_noise_map = self.noise['cloudscape_1'].map
+	local ground_noise_map = self.noises['cloudscape_1'].map
 	local heightmap = self.heightmap
 	self.reverse_heightmap = {}
 	local reverse_heightmap = self.reverse_heightmap
@@ -321,8 +321,9 @@ function Cloudscape_Mapgen:place_terrain()
 	local p2data = self.p2data
 	local water_level = self.water_level
 	local base_level = self.cloud_level
-	local wisp_map = self.noise['cloudscape_2'].map
-	local rainbow_map = self.noise['cloudscape_rainbow'].map
+	local wisp_level = base_level + 30
+	local wisp_map = self.noises['cloudscape_2'].map
+	local rainbow_map = self.noises['cloudscape_rainbow'].map
 	local ps = self.gpr
 
 	local stone_layers = self.stone_layers
@@ -337,7 +338,7 @@ function Cloudscape_Mapgen:place_terrain()
 	for z = minp.z, maxp.z do
 		for x = minp.x, maxp.x do
 			local height = heightmap[index] or minp.y - 2
-			local wisps = height + 10
+			local wisps = wisp_map[index]
 			do
 				local biome = self.biome or self.share.biome or biomemap[index]
 
@@ -415,11 +416,9 @@ function Cloudscape_Mapgen:place_terrain()
 					elseif y <= height then
 						data[ivm] = stone
 						p2data[ivm] = 0
-					--[[
-					elseif y <= wisps then
+					elseif y <= wisp_level + wisps and y >= wisp_level - wisps then
 						data[ivm] = node[mod_name..':wispy_cloud']
 						p2data[ivm] = 0
-					--]]
 					end
 
 					ivm = ivm + ystride
@@ -514,12 +513,12 @@ do
 	layer_mod.register_map({
 		name = 'cloudscape',
 		biomes = biomes,
+		cloud_level = 168,
 		mapgen = Cloudscape_Mapgen,
 		mapgen_name = 'cloudscape',
-		minp = VN(-max_chunks, 2, -max_chunks),
-		maxp = VN(max_chunks, 3, max_chunks),
+		map_minp = VN(-max_chunks, 2, -max_chunks),
+		map_maxp = VN(max_chunks, 3, max_chunks),
 		noises = noises,
-		params = { cloud_level = 168 },
 		water_level = 1,
 	})
 end

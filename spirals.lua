@@ -171,9 +171,8 @@ do
 		name = 'spirals',
 		mapgen = Spirals_Mapgen,
 		mapgen_name = 'spirals',
-		minp = VN(0, -300, 0),
-		maxp = VN(0, max_chunks, 0),
-		params = {},
+		map_minp = VN(0, -300, 0),
+		map_maxp = VN(0, max_chunks, 0),
 		water_level = 1,
 	})
 end

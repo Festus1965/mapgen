@@ -71,27 +71,12 @@ for _, n in pairs({'match_three:top', 'default:chest'}) do
 end
 
 
-local buildable_to = {}
-for n, v in pairs(minetest.registered_nodes) do
-	if v.buildable_to then
-		buildable_to[node[n]] = true
-	end
-end
-
+mod.buildable_to = {}
 mod.grass_nodes = {}
+mod.liquids = {}
+local buildable_to = mod.buildable_to
 local grass_nodes = mod.grass_nodes
-for n in pairs(minetest.registered_nodes) do
-	if n:find('grass_') then
-		grass_nodes[n] = true
-	end
-end
-
-local liquids = {}
-for _, d in pairs(minetest.registered_nodes) do
-	if d.groups and d.drawtype == 'liquid' then
-		liquids[node[d.name] ] = true
-	end
-end
+local liquids = mod.liquids
 
 
 -- tables of rotation values for rotating schematics
@@ -152,7 +137,6 @@ local default_noises = {
 
 
 
---[[
 -- generic subclass
 function mod.subclass(...)
 	-- "cls" is the new class
@@ -189,23 +173,21 @@ function mod.subclass(...)
 	-- return the new class table, that's ready to fill with methods
 	return cls
 end
---]]
 
 
-
+-- specialized for mapgens
 function mod.subclass_mapgen()
-	-- "cls" is the new class
 	local cls, bases = {}, { mod.Mapgen }
 
-	-- copy base class contents into the new class
 	for i, base in ipairs(bases) do
 		for k, v in pairs(base) do
-			cls[k] = v
+			-- In this case, we don't want to inherit _init.
+			if k ~= '_init' then
+				cls[k] = v
+			end
 		end
 	end
 
-	-- set the class's __index, and start filling an "is_a" table that contains this class and all of its bases
-	-- so you can do an "instance of" check using my_instance.is_a[MyClass]
 	cls.__index, cls.is_a = cls, {[cls] = true}
 	for i, base in ipairs(bases) do
 		for c in pairs(base.is_a or {}) do
@@ -216,12 +198,9 @@ function mod.subclass_mapgen()
 
 	cls.super = bases[1]
 
-	-- the class's __call metamethod
 	setmetatable(cls, {__call = function (c, mg, params, ...)
 		local instance = setmetatable({}, c)
 
-		-- These are specific to a Mapgen subclass.
-		-- Should they run after _init?
 		for k, v in pairs(mg or {}) do
 			instance[k] = v
 		end
@@ -229,14 +208,12 @@ function mod.subclass_mapgen()
 			instance[k] = v
 		end
 
-		-- run the init method if it's there
 		local init = instance._init
 		if init then init(instance, ...) end
 
 		return instance
 	end})
 
-	-- return the new class table, that's ready to fill with methods
 	return cls
 end
 
@@ -246,46 +223,71 @@ end
 -- Mapgen class
 -----------------------------------------------
 
-mod.Mapgen = {}
+mod.Mapgen = mod.subclass({
+	csize = { x=chunksize * 16, y=chunksize * 16, z=chunksize * 16 },
+	biomemap = {}, -- use global?
+	biomes_here = {},
+	biomemap_cave = {},
+	buildable_to = buildable_to,
+	chunksize = chunksize,
+	chunk_offset = chunk_offset,
+	default_noises = default_noises,
+	grassmap = {},
+	heatmap = {},
+	heightmap = {}, -- use global?
+	humiditymap = {},
+	meta_data = {},
+	noises = table.copy(default_noises),  -- This copy isn't necessary...
+	node = mod.node,
+	ore_intersect = ore_intersect,
+	ores = ores,
+	noise = {},
+	schem = {},
+	share = {},
+})
 local Mapgen = mod.Mapgen
-local Mapgen_mt = { __index = Mapgen, }
-function Mapgen:new(minp, maxp, seed)
+
+function Mapgen:_init(minp, maxp, seed)
+	if not (minp and maxp and seed) then
+		return
+	end
+
 	local vm, emin, emax = minetest.get_mapgen_object("voxelmanip")
 	if not (vm and emin and emax) then
 		return
 	end
 
-	local inst = {}
-	setmetatable(inst, Mapgen_mt)
+	self.area = VoxelArea:new({MinEdge = emin, MaxEdge = emax})
+	self.data = vm:get_data(m_data)
+	self.minp = minp
+	self.maxp = maxp
+	self.p2data = vm:get_param2_data(m_p2data)
+	self.seed = seed
+	self.vm = vm
 
-	inst.area = VoxelArea:new({MinEdge = emin, MaxEdge = emax})
-	inst.csize = { x=chunksize * 16, y=chunksize * 16, z=chunksize * 16 }
-	inst.biomemap = {} -- use global?
-	inst.biomes_here = {}
-	inst.biomemap_cave = {}
-	inst.buildable_to = buildable_to
-	inst.data = vm:get_data(m_data)
-	inst.grassmap = {}
-	inst.heatmap = {}
-	inst.heightmap = {} -- use global?
-	inst.humiditymap = {}
-	inst.meta_data = {}
-	inst.minp = minp
-	inst.maxp = maxp
-	inst.node = mod.node
-	inst.ore_intersect = ore_intersect
-	inst.ores = ores
-	inst.p2data = vm:get_param2_data(m_p2data)
-	inst.noise = {}
-	inst.noises = table.copy(default_noises)
-	inst.schem = {}
-	inst.share = {}
-	inst.seed = seed
-	inst.vm = vm
+	if #buildable_to < 1 then
+		for n, v in pairs(minetest.registered_nodes) do
+			if v.buildable_to then
+				buildable_to[node[n] ] = true
+			end
+		end
+	end
 
-	assert(inst.p2data == m_p2data)
+	if #grass_nodes < 1 then
+		for n in pairs(minetest.registered_nodes) do
+			if n:find('grass_') then
+				grass_nodes[n] = true
+			end
+		end
+	end
 
-	return inst
+	if #liquids < 1 then
+		for _, d in pairs(minetest.registered_nodes) do
+			if d.groups and d.drawtype == 'liquid' then
+				liquids[node[d.name] ] = true
+			end
+		end
+	end
 end
 
 
@@ -371,11 +373,11 @@ end
 
 -- check
 function Mapgen:erosion(height, index, depth, factor)
-	if not self.noise['erosion'] then
+	if not self.noises['erosion'] then
 		return depth
 	end
 
-	local e = self.noise['erosion'].map[index]
+	local e = self.noises['erosion'].map[index]
 	if e <= 0 then
 		return depth
 	end
@@ -476,25 +478,21 @@ function Mapgen:generate_all(timed)
 
 	local mapgens = { }
 	for _, map in pairs(mod.world_map) do
-		if vector.contains(map.minp, map.maxp, chunk) then
-			local mapgen = map.mapgen(self, map.params)
-			------------------------------------------
-			-- Better way to do this?
-			------------------------------------------
-			mapgen.water_level = map.water_level
-			mapgen.biomes = map.biomes
-			mapgen.name = map.name
-			------------------------------------------
-
-			for k, v in pairs(map.noises or {}) do
-				self.noises[k] = v
-			end
-
+		if vector.contains(map.map_minp, map.map_maxp, chunk) then
+			local mapgen = map.mapgen(self, map)
 			table.insert(mapgens, mapgen)
+			--[[
+			if map.name == 'cloudscape' then
+				--print(dump(mapgen.biomes))
+				assert(mapgen.biomes[1].name == 'cloud_sunny')
+			end
+			--]]
+
+			mapgen:make_noises(mapgen.noises)
 		end
 	end
 
-	self:make_noises(self.noises)
+	--self:make_noises(self.noises)
 
 	for _, mapgen in pairs(mapgens) do
 		-------------------------------------------
@@ -541,10 +539,16 @@ function Mapgen:geomorph(box_type)
 end
 
 
-function Mapgen:get_noise(n, v)
+function Mapgen:get_noise(v)
+	if not v then
+		print(mod_name..': get_noise was called without an argument')
+		return
+	end
+
 	local minp, csize = self.minp, self.csize
 	local size = v.size or table.copy(csize)
 
+	--[[
 	-------------------------------------------
 	-- Move this stuff.
 	-------------------------------------------
@@ -552,6 +556,7 @@ function Mapgen:get_noise(n, v)
 		v.def.seed = 6386 + math_floor(minp.y / csize.y)
 	end
 	-------------------------------------------
+	--]]
 
 	if not v.noise then
 		if v.is3d then
@@ -567,27 +572,15 @@ function Mapgen:get_noise(n, v)
 		end
 	end
 
-	if not self.noise[n] then
-		-- Keep pointers to global noise info
-		self.noise[n] = {
-			def = v.def,
-			map = nil,
-			noise = v.noise,
-		}
+	if not (v.map and v.minp == minp) then
+		if v.is3d then
+			v.map = v.noise:get3dMap_flat(minp, v.map)
+		else
+			v.map = v.noise:get2dMap_flat({x=minp.x, y=minp.z}, v.map)
+		end
+		-- Store minp so I know when this is a new chunk.
+		v.minp = minp
 	end
-
-	-------------------------------------------
-	-- Fix this.
-	-------------------------------------------
-	-- This stays with the mapgen object. ????????
-	if v.is3d then
-		v.map = v.noise:get3dMap_flat(minp, v.map)
-		self.noise[n] = v
-	else
-		v.map = v.noise:get2dMap_flat({x=minp.x, y=minp.z}, v.map)
-		self.noise[n] = v
-	end
-	-------------------------------------------
 
 	return v
 end
@@ -606,8 +599,8 @@ end
 
 
 function Mapgen:make_noises(noises)
-	for n, v in pairs(noises or {}) do
-		self:get_noise(n, v)
+	for _, v in pairs(noises or {}) do
+		self:get_noise(v)
 	end
 end
 
@@ -666,8 +659,8 @@ function Mapgen:map_biomes(force_height)
 	end
 
 	local index = 1
-	for _ = minp.z, maxp.z do
-		for _ = minp.x, maxp.x do
+	for z = minp.z, maxp.z do
+		for x = minp.x, maxp.x do
 			local height = force_height or heightmap[index] or ((minp.y + maxp.y) / 2)
 			local heat = heatmap[index]
 			local humidity = humiditymap[index]
@@ -694,14 +687,13 @@ function Mapgen:map_heat_humidity()
 	local water_level = self.water_level
 	local offset = (self.height_offset or 1) - 1
 
-	local heat_noise = map.heat or 'heat'
-	local heat_noise_map = self.noise[heat_noise] or self[heat_noise] or heat_noise
-	local heat_blend_noise = map.heat_blend or 'heat_blend'
-	local heat_blend_noise_map = self.noise[heat_blend_noise] or self[heat_blend_noise] or heat_blend_noise
-	local humidity_noise = map.humidity or 'humidity'
-	local humidity_noise_map = self.noise[humidity_noise] or self[humidity_noise] or humidity_noise
-	local humidity_blend_noise = map.humidity_blend or 'humidity_blend'
-	local humidity_blend_noise_map = self.noise[humidity_blend_noise] or self[humidity_blend_noise] or humidity_blend_noise
+	---------------------------------------
+	-- This fails to get the dflat value!
+	---------------------------------------
+	local heat_noise_map = self.noises[self.heat] or self[self.heat] or (type(self.heat) == 'number' and self.heat) or self:get_noise(default_noises['heat'])
+	local heat_blend_noise_map = self.noises[self.heat_blend] or self[self.heat_blend] or (type(self.heat_blend) == 'number' and self.heat_blend) or self:get_noise(default_noises['heat_blend'])
+	local humidity_noise_map = self.noises[self.humidity] or self[self.humidity] or (type(self.humidity) == 'number' and self.humidity) or self:get_noise(default_noises['humidity'])
+	local humidity_blend_noise_map = self.noises[self.humidity_blend] or self[self.humidity_blend] or (type(self.humidity_blend) == 'number' and self.humidity_blend) or self:get_noise(default_noises['humidity_blend'])
 
 	if type(heat_noise_map) == 'table' and heat_noise_map.map then
 		heat_noise_map = heat_noise_map.map
@@ -1155,9 +1147,7 @@ function Mapgen:place_schematic(schem, pos, flags, ps, rot, rot_z)
 					end
 
 					if prob >= ps:next(1, 126)
-					and (
-						force or buildable_to[data[ivm]]
-					) then
+					and (force or buildable_to[data[ivm]]) then
 						data[ivm] = node[rotated_schem_2.data[isch].name]
 
 						local param2 = rotated_schem_2.data[isch].param2
@@ -1417,12 +1407,11 @@ local function generate(minp, maxp, seed)
 		return
 	end
 
-	local mg = Mapgen:new(minp, maxp, seed)
+	local mg = Mapgen(minp, maxp, seed)
 	if not mg then
 		return
 	end
-
-	mg.chunk_offset = chunk_offset
+	mg.name = 'Mapgen'
 
 	mg:generate_all(true)
 	local mem = math_floor(collectgarbage('count')/1024)

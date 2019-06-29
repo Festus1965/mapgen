@@ -394,10 +394,9 @@ do
 		heat = 'base_heat',
 		mapgen = Valleys_Mapgen,
 		mapgen_name = 'dflat',
-		minp = VN(1, -20, -max_chunks),
-		maxp = VN(max_chunks, 15, max_chunks),
+		map_minp = VN(1, -20, -max_chunks),
+		map_maxp = VN(max_chunks, 15, max_chunks),
 		noises = noises,
-		params = {},
 		water_level = 1,
 	})
 	--]]
@@ -408,10 +407,9 @@ do
 		heat = 'base_heat',
 		mapgen = Valleys_Mapgen,
 		mapgen_name = 'valleys',
-		minp = VN(-max_chunks, 17, -max_chunks),
-		maxp = VN(max_chunks, 30, max_chunks),
+		map_minp = VN(-max_chunks, 17, -max_chunks),
+		map_maxp = VN(max_chunks, 30, max_chunks),
 		noises = noises,
-		params = {},
 		water_level = 2000,
 	})
 end

@@ -261,9 +261,9 @@ function Roads_Mapgen:map_roads()
 	local road_ws = road_w * road_w
 	for x = -road_w, csize.x + road_w - 1 do
 		index = x + road_w + 1
-		local l_road = self.noise['road_1'].map[index]
+		local l_road = self.noises['road_1'].map[index]
 		for z = -road_w, csize.z + road_w - 1 do
-			local road_1 = self.noise['road_1'].map[index]
+			local road_1 = self.noises['road_1'].map[index]
 			if (l_road < 0) ~= (road_1 < 0) then
 				local index2 = z * csize.x + x + 1
 				if make_tracks then
@@ -290,9 +290,9 @@ function Roads_Mapgen:map_roads()
 	-- Mark the road locations.
 	index = 1
 	for z = -road_w, csize.z + road_w - 1 do
-		local l_road = self.noise['road_1'].map[index]
+		local l_road = self.noises['road_1'].map[index]
 		for x = -road_w, csize.x + road_w - 1 do
-			local road_1 = self.noise['road_1'].map[index]
+			local road_1 = self.noises['road_1'].map[index]
 			if (l_road < 0) ~= (road_1 < 0) then
 				local index2 = z * csize.x + x + 1
 				if make_tracks then
@@ -473,7 +473,7 @@ function Roads_Mapgen:place_terrain()
 			-----------------------------------------
 			do
 				local humiditymap = self.humiditymap
-				local humidity_noise_blend_map = self.noise['humidity_blend'].map
+				local humidity_noise_blend_map = self.default_noises['humidity_blend'].map
 				local hu2 = humidity_noise_blend_map[index]
 				local humidity = humiditymap[index]
 				if humidity and hu2 then
@@ -535,10 +535,9 @@ do
 		name = 'roads',
 		mapgen = Roads_Mapgen,
 		mapgen_name = 'roads',
-		minp = VN(-max_chunks, 0, -max_chunks),
-		maxp = VN(max_chunks, 0, max_chunks),
+		map_minp = VN(-max_chunks, 0, -max_chunks),
+		map_maxp = VN(max_chunks, 0, max_chunks),
 		noises = noises,
-		params = {},
 		water_level = 1,
 	})
 end

@@ -66,7 +66,7 @@ function Pillars_Mapgen:map_height()
 
 	local minp, maxp = self.minp, self.maxp
 	local csize = self.csize
-	local ground_noise_map = self.noise['pillars_ground'].map
+	local ground_noise_map = self.noises['pillars_ground'].map
 	local heightmap = self.heightmap
 	local base_level = self.share.base_level
 	local div = self.div
@@ -82,7 +82,7 @@ function Pillars_Mapgen:map_height()
 		for z = minp.z, maxp.z do
 			for x = minp.x, maxp.x do
 				if not heightmap[index] then
-					heightmap[index] = math_max(water_level - 30, water_level + math_floor(self.noise['pillars_ground'].map[index]))
+					heightmap[index] = math_max(water_level - 30, water_level + math_floor(self.noises['pillars_ground'].map[index]))
 				end
 
 				index = index + 1
@@ -190,23 +190,19 @@ do
 		heat = 'base_heat',
 		mapgen = Pillars_Mapgen,
 		mapgen_name = 'pillars',
-		minp = VN(-max_chunks, 47, -max_chunks),
-		maxp = VN(max_chunks, 62, max_chunks),
+		map_minp = VN(-max_chunks, 47, -max_chunks),
+		map_maxp = VN(max_chunks, 62, max_chunks),
 		noises = noises,
-		params = {},
 		water_level = 4640,
 	})
 
 	layer_mod.register_map({
 		name = 'pillars',
-		--biomes = 'default',
-		--heat = 'base_heat',
 		mapgen = Pillars_Mapgen,
 		mapgen_name = 'pillars',
-		minp = VN(-max_chunks, 0, -max_chunks),
-		maxp = VN(max_chunks, 0, max_chunks),
+		map_minp = VN(-max_chunks, 0, -max_chunks),
+		map_maxp = VN(max_chunks, 0, max_chunks),
 		noises = noises,
-		params = {},
 		water_level = 1,
 	})
 
