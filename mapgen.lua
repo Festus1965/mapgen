@@ -257,6 +257,8 @@ function Mapgen:_init(minp, maxp, seed)
 		return
 	end
 
+	self.heightmap = {}
+
 	self.area = VoxelArea:new({MinEdge = emin, MaxEdge = emax})
 	self.data = vm:get_data(m_data)
 	self.minp = minp
@@ -482,18 +484,9 @@ function Mapgen:generate_all(timed)
 		if vector.contains(map.map_minp, map.map_maxp, chunk) then
 			local mapgen = map.mapgen(self, map)
 			table.insert(mapgens, mapgen)
-			--[[
-			if map.name == 'cloudscape' then
-				--print(dump(mapgen.biomes))
-				assert(mapgen.biomes[1].name == 'cloud_sunny')
-			end
-			--]]
-
 			mapgen:make_noises(mapgen.noises)
 		end
 	end
-
-	--self:make_noises(self.noises)
 
 	for _, mapgen in pairs(mapgens) do
 		-------------------------------------------
@@ -516,7 +509,7 @@ function Mapgen:generate_all(timed)
 		end
 	end
 
-	if #mapgens == 0 then
+	if #mapgens == 0 and minp.y < 0 then
 		self:bedrock()
 	end
 
@@ -670,8 +663,10 @@ function Mapgen:map_biomes(force_height)
 			local biome_height = height - offset
 			local biome = self:get_biome(biomes_i, heat, humidity, biome_height)
 
-			biomemap[index] = biome
-			self.biomes_here[biome.name] = true
+			if biome then
+				biomemap[index] = biome
+				self.biomes_here[biome.name] = true
+			end
 
 			index = index + 1
 		end
@@ -1210,7 +1205,7 @@ function Mapgen:place_terrain()
 	for z = minp.z, maxp.z do
 		for x = minp.x, maxp.x do
 			local height = heightmap[index] or minp.y - 2
-			local biome = self.biome or self.share.biome or biomemap[index]
+			local biome = self.biome or self.share.biome or biomemap[index] or {}
 
 			local depth_filler = biome.depth_filler or 0
 			local depth_top = biome.depth_top or 0
@@ -1249,16 +1244,16 @@ function Mapgen:place_terrain()
 				end
 			end
 			ww = node[ww]
+			local wtb = water_level - wtd
 
 			local fill_1 = height - depth_top
 			local fill_2 = fill_1 - math_max(0, depth_filler)
 
 			local t_y_loop = os_clock()
-
 			local ivm = area:index(x, minp.y, z)
 			for y = minp.y, maxp.y do
 				if y > height and y <= water_level then
-					if y > water_level - wtd then
+					if y > wtb then
 						data[ivm] = wt
 					else
 						data[ivm] = ww
@@ -1266,7 +1261,7 @@ function Mapgen:place_terrain()
 					p2data[ivm] = 0
 				elseif y <= height and y > fill_1 then
 					data[ivm] = top
-					p2data[ivm] = 0 + grass_p2
+					p2data[ivm] = grass_p2 --  + 0
 				elseif filler and y <= height and y > fill_2 then
 					data[ivm] = filler
 					p2data[ivm] = 0

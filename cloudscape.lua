@@ -1,4 +1,4 @@
--- Duane's mapgen mod.lua
+-- Duane's mapgen cloudscape.lua
 -- Copyright Duane Robertson (duane@duanerobertson.com), 2019
 -- Distributed under the LGPLv2.1 (https://www.gnu.org/licenses/old-licenses/lgpl-2.1.en.html)
 
@@ -454,8 +454,6 @@ function Cloudscape_Mapgen:prepare()
 
 	local base_level = self.cloud_level
 	self.base_level = base_level
-
-	self.height_offset = base_level
 end
 
 

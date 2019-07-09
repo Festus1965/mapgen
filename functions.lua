@@ -7,6 +7,8 @@ local mod = mapgen
 local mod_name = 'mapgen'
 
 local math_floor = math.floor
+local math_min = math.min
+local math_max = math.max
 
 
 -- This tables looks up nodes that aren't already stored.
@@ -157,9 +159,11 @@ function mod.register_map(def)
 				local w = table.copy(v)
 				if v.y_max then
 					w.y_max = v.y_max + def.water_level - 1
+					w.y_max = math_min(w.y_max, mod.max_height)
 				end
 				if v.y_min then
 					w.y_min = v.y_min + def.water_level - 1
+					w.y_min = math_max(w.y_min, -mod.max_height)
 				end
 
 				biomes[n] = w
