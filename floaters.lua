@@ -161,7 +161,7 @@ function Floaters_Mapgen:place_terrain()
 				filler = node[filler]
 				local top = biome.node_top or 'air'
 				top = node[top]
-				local grass_p2 = 0
+				local grass_p2 = grassmap[index]
 
 				local riverbed = node[biome.node_riverbed]
 
