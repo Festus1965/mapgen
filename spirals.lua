@@ -62,6 +62,7 @@ local Spirals_Mapgen = layer_mod.subclass_mapgen()
 function Spirals_Mapgen:generate()
 	-- Geomorph requires this.
 	self.gpr = PcgRandom(self.seed + 7201)
+	self.share.disruptive = true
 
 	self.share.no_dust = true
 	self.share.disruptive = true

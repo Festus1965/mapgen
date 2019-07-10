@@ -257,7 +257,13 @@ function Mapgen:_init(minp, maxp, seed)
 		return
 	end
 
-	self.heightmap = {}
+	local csize = self.csize
+	local max_height = mod.max_height
+	local heightmap = {}
+	for i = 1, csize.z * csize.x do
+		heightmap[i]= -max_height
+	end
+	self.heightmap = heightmap
 
 	self.area = VoxelArea:new({MinEdge = emin, MaxEdge = emax})
 	self.data = vm:get_data(m_data)
@@ -485,6 +491,7 @@ function Mapgen:generate_all(timed)
 			local mapgen = map.mapgen(self, map)
 			table.insert(mapgens, mapgen)
 			mapgen:make_noises(mapgen.noises)
+			--print(mapgen.name)
 		end
 	end
 
@@ -767,6 +774,12 @@ function Mapgen:map_heat_humidity()
 			index = index + 1
 		end
 	end
+end
+
+
+function Mapgen:map_height()
+	-- Override this.
+	print(mod_name..': You must override the map_height method.')
 end
 
 

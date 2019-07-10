@@ -403,12 +403,23 @@ end
 -- This is only called for one point, so don't map it.
 local scaves_heat = { def = { offset = 50, scale = 50, seed = 1578, spread = {x = 200, y = 200, z = 200}, octaves = 3, persist = 0.5, lacunarity = 2 }, }
 function SCaves_Mapgen:generate()
+	if self.share.disruptive then
+		--print(self.share.disruptive, ' calls disruptive')
+		return
+	end
+
 	local minp, maxp = self.minp, self.maxp
 	local height_max = self.share.height_max
 	local height_min = self.share.height_min
 
 	if not (height_max and height_min) then
 		self.stone_fill = true
+		local csize = self.csize
+		local max_height = layer_mod.max_height
+		local heightmap = self.heightmap
+		for i = 1, csize.z * csize.x do
+			heightmap[i] = max_height
+		end
 	elseif height_max < minp.y then
 		return
 	end
