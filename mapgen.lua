@@ -489,9 +489,9 @@ function Mapgen:generate_all(timed)
 	for _, map in pairs(mod.world_map) do
 		if vector.contains(map.map_minp, map.map_maxp, chunk) then
 			local mapgen = map.mapgen(self, map)
+			--print(mapgen.name)
 			table.insert(mapgens, mapgen)
 			mapgen:make_noises(mapgen.noises)
-			--print(mapgen.name)
 		end
 	end
 

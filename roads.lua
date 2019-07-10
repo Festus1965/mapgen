@@ -64,7 +64,7 @@ function Roads_Mapgen:houses()
 		for z = pos.z, pos.z + size.z do
 			for x = pos.x, pos.x + size.x do
 				local index = z * csize.x + x + 1
-				if not heightmap[index] or heightmap[index] < base_level - 1 or heightmap[index] > base_level + 1 then
+				if heightmap[index] < base_level - 1 or heightmap[index] > base_level + 1 then
 					good = false
 					break
 				end

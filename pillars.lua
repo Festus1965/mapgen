@@ -63,6 +63,7 @@ end
 
 function Pillars_Mapgen:map_height()
 	local water_level = self.water_level
+	local max_height = layer_mod.max_height
 
 	local minp, maxp = self.minp, self.maxp
 	local csize = self.csize
@@ -81,7 +82,7 @@ function Pillars_Mapgen:map_height()
 	if not self.coop then
 		for z = minp.z, maxp.z do
 			for x = minp.x, maxp.x do
-				if not heightmap[index] then
+				if heightmap[index] == -max_height then
 					heightmap[index] = math_max(water_level - 30, water_level + math_floor(self.noises['pillars_ground'].map[index]))
 				end
 

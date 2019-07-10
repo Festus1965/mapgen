@@ -53,16 +53,17 @@ function Valleys_Mapgen:map_height()
 	local area, csize = self.area, self.csize
 	local heightmap = self.heightmap
 	local water_level = self.water_level
+	local max_height = layer_mod.max_height
 
-	local n1 = self.noise['valleys_v1'].map
-	local n2 = self.noise['valleys_v2'].map
-	local n3 = self.noise['valleys_v3'].map
-	local n4 = self.noise['valleys_v4'].map
-	local n5 = self.noise['valleys_v5'].map
-	local n6 = self.noise['valleys_v6'].map
+	local n1 = self.noises['valleys_v1'].map
+	local n2 = self.noises['valleys_v2'].map
+	local n3 = self.noises['valleys_v3'].map
+	local n4 = self.noises['valleys_v4'].map
+	local n5 = self.noises['valleys_v5'].map
+	local n6 = self.noises['valleys_v6'].map
 
-	local height_max
-	local height_min
+	local height_max = -max_height
+	local height_min = max_height
 	local index = 1
 	for z = minp.z, maxp.z do
 		for x = minp.x, maxp.x do
@@ -82,12 +83,12 @@ function Valleys_Mapgen:map_height()
 				local v6 = n6[index3d]
 				local in_ground = v6 * slopes > y - mountain_ground - water_level
 				if y <= maxp.y and in_ground then
-					if not heightmap[index] then
+					if heightmap[index] == -max_height then
 						heightmap[index] = y
-						if not height_max or height_max < y then
+						if height_max < y then
 							height_max = y
 						end
-						if not height_min or height_min > y then
+						if height_min > y then
 							height_min = y
 						end
 					end
@@ -96,7 +97,7 @@ function Valleys_Mapgen:map_height()
 				index3d = index3d - csize.x
 			end
 
-			if not heightmap[index] then
+			if heightmap[index] == -max_height then
 				heightmap[index] = minp.y - 2
 			end
 			index = index + 1
@@ -207,12 +208,12 @@ function Valleys_Mapgen:terrain()
 
 	local n_stone = self.node['default:stone']
 
-	local n1 = self.noise['valleys_v1'].map
-	local n2 = self.noise['valleys_v2'].map
-	local n3 = self.noise['valleys_v3'].map
-	local n4 = self.noise['valleys_v4'].map
-	local n5 = self.noise['valleys_v5'].map
-	local n6 = self.noise['valleys_v6'].map
+	local n1 = self.noises['valleys_v1'].map
+	local n2 = self.noises['valleys_v2'].map
+	local n3 = self.noises['valleys_v3'].map
+	local n4 = self.noises['valleys_v4'].map
+	local n5 = self.noises['valleys_v5'].map
+	local n6 = self.noises['valleys_v6'].map
 
 	local index = 1
 	for z = minp.z, maxp.z do
