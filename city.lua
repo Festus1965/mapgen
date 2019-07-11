@@ -16,7 +16,9 @@ local node = layer_mod.node
 local VN = vector.new
 
 local road_w = 3
+local side_w = 3
 local water_diff = 8
+local darkening = 0
 
 
 do
@@ -53,6 +55,72 @@ do
 		groups = {cracky = 2, level = 1},
 		is_ground_content = false,
 	})
+
+
+	minetest.register_node(mod_name..':floor_ceiling', {
+		description = 'Floor/Ceiling',
+		tiles = {'mapgen_floor.png^[colorize:#000000:'..darkening, 'mapgen_ceiling.png', 'default_stone.png'},
+		paramtype2 = 'facedir',
+		groups = {cracky = 3, level=1, flammable = 3},
+		drop = 'default:cobble',
+		drop = {
+			max_items = 3,
+			items = {
+				{
+					items = {'default:cobble',},
+					rarity = 1,
+				},
+				{
+					items = {'default:steel_ingot',},
+					rarity = 6,
+				},
+			},
+		},
+		sounds = default.node_sound_stone_defaults(),
+		is_ground_content = false,
+	})
+
+	minetest.register_node(mod_name..':roof', {
+		description = 'Roof',
+		tiles = {'mapgen_tarmac.png', 'mapgen_ceiling.png', 'default_stone.png'},
+		paramtype2 = 'facedir',
+		groups = {cracky = 3, level=1, flammable = 3},
+		drop = 'default:cobble',
+		sounds = default.node_sound_stone_defaults(),
+		is_ground_content = false,
+	})
+
+	minetest.register_node(mod_name..':plate_glass', {
+		description = 'Plate Glass',
+		drawtype = 'glasslike',
+		paramtype = 'light',
+		sunlight_propagates = true,
+		tiles = {'mapgen_plate_glass.png'},
+		light_source = 1,
+		use_texture_alpha = true,
+		is_ground_content = false,
+		groups = {cracky = 3, level=2},
+		sounds = default.node_sound_stone_defaults(),
+		is_ground_content = false,
+	})
+
+	minetest.register_node(mod_name..':light_panel', {
+		description = 'Light Panel',
+		tiles = {'default_sandstone.png'},
+		light_source = 14,
+		paramtype = 'light',
+		paramtype2 = 'facedir',
+		drawtype = 'nodebox',
+		node_box = { type = 'fixed',
+		fixed = {
+			{-0.5, -0.5, -0.5, 0.5, -0.48, 0.5},
+		} },
+		groups = {cracky = 3, level=1, oddly_breakable_by_hand = 1},
+		--drop = 'squaresville:light_panel_broken',
+		on_place = minetest.rotate_and_place,
+		sounds = default.node_sound_stone_defaults(),
+		is_ground_content = false,
+	})
 end
 
 
@@ -74,7 +142,7 @@ function City_Mapgen:generate()
 	self:prepare()
 	self:map_height()
 	self:place_terrain()
-	--self:place_building()
+	self:place_building()
 end
 
 
@@ -98,27 +166,203 @@ function City_Mapgen:map_height()
 end
 
 
+function City_Mapgen:build_walls_glass(geo, pos, size)
+	geo:add({
+		action = 'cube',
+		node = mod_name .. ':plate_glass',
+		location = VN(pos.x, pos.y, pos.z),
+		size = table.copy(size),
+	})
+
+	geo:add({
+		action = 'cube',
+		node = 'air',
+		location = VN(pos.x + 1, pos.y, pos.z + 1),
+		size = VN(size.x - 2, size.y, size.z - 2),
+	})
+
+	for i = 0, size.x, 6 do
+		geo:add({
+			action = 'cube',
+			node = mod_name..':concrete',
+			location = VN(pos.x + i, pos.y, pos.z + size.z - 1),
+			size = VN(1, size.y, 1),
+		})
+
+		geo:add({
+			action = 'cube',
+			node = mod_name..':concrete',
+			location = VN(pos.x + i, pos.y, pos.z),
+			size = VN(1, size.y, 1),
+		})
+	end
+
+	for i = 0, size.z, 6 do
+		geo:add({
+			action = 'cube',
+			node = mod_name..':concrete',
+			location = VN(pos.x + size.x - 1, pos.y, pos.z + i),
+			size = VN(1, size.y, 1),
+		})
+
+		geo:add({
+			action = 'cube',
+			node = mod_name..':concrete',
+			location = VN(pos.x, pos.y, pos.z + i),
+			size = VN(1, size.y, 1),
+		})
+	end
+end
+
+
+function City_Mapgen:build_walls_simple(geo, pos, size)
+	geo:add({
+		action = 'cube',
+		node = mod_name .. ':concrete',
+		location = pos,
+		size = table.copy(size),
+	})
+
+	geo:add({
+		action = 'cube',
+		node = 'air',
+		location = VN(pos.x + 1, pos.y, pos.z + 1),
+		size = VN(size.x - 2, size.y, size.z - 2),
+	})
+
+	for k = 1, size.y, 5 do
+		for i = 2, size.x, 6 do
+			geo:add({
+				action = 'cube',
+				node = mod_name..':plate_glass',
+				location = VN(pos.x + i, pos.y + k, pos.z + size.z - 1),
+				size = VN(3, 2, 1),
+			})
+
+			geo:add({
+				action = 'cube',
+				node = mod_name..':plate_glass',
+				location = VN(pos.x + i, pos.y + k, pos.z),
+				size = VN(3, 2, 1),
+			})
+		end
+
+		for i = 2, size.z, 6 do
+			geo:add({
+				action = 'cube',
+				node = mod_name..':plate_glass',
+				location = VN(pos.x + size.z - 1, pos.y + k, pos.z + i),
+				size = VN(1, 2, 3),
+			})
+
+			geo:add({
+				action = 'cube',
+				node = mod_name..':plate_glass',
+				location = VN(pos.x, pos.y + k, pos.z + i),
+				size = VN(1, 2, 3),
+			})
+		end
+	end
+end
+
+
+function City_Mapgen:build_walls_slots(geo, pos, size)
+	geo:add({
+		action = 'cube',
+		node = mod_name .. ':concrete',
+		location = pos,
+		size = table.copy(size),
+	})
+
+	geo:add({
+		action = 'cube',
+		node = 'air',
+		location = VN(pos.x + 1, pos.y, pos.z + 1),
+		size = VN(size.x - 2, size.y, size.z - 2),
+	})
+
+	for k = 1, size.y, 5 do
+		for i = 1, size.x - 1, 2 do
+			geo:add({
+				action = 'cube',
+				node = mod_name..':plate_glass',
+				location = VN(pos.x + i, pos.y + k, pos.z + size.z - 1),
+				size = VN(1, 2, 1),
+			})
+
+			geo:add({
+				action = 'cube',
+				node = mod_name..':plate_glass',
+				location = VN(pos.x + i, pos.y + k, pos.z),
+				size = VN(1, 2, 1),
+			})
+		end
+
+		for i = 1, size.z - 1, 2 do
+			geo:add({
+				action = 'cube',
+				node = mod_name..':plate_glass',
+				location = VN(pos.x + size.z - 1, pos.y + k, pos.z + i),
+				size = VN(1, 2, 1),
+			})
+
+			geo:add({
+				action = 'cube',
+				node = mod_name..':plate_glass',
+				location = VN(pos.x, pos.y + k, pos.z + i),
+				size = VN(1, 2, 1),
+			})
+		end
+	end
+end
+
+
 function City_Mapgen:place_building()
 	local minp = self.minp
 	local ground_level = self.ground_level
 
 	local geo = Geomorph.new()
 
-	local pos = VN(5, ground_level - 1, 5)
-	local size = VN(70, 19, 70)
+	local build_offset = road_w * 2 + 1 + side_w
+	local build_width = 80 - build_offset - side_w
+
+	local sr = self.gpr:next(1, 3)
+	local stories = self.gpr:next(1, 7)
+	local pos = VN(build_offset, ground_level + 1, build_offset)
+	local size = VN(build_width, stories * 5, build_width)
+
+	if sr == 1 then
+		self:build_walls_glass(geo, pos, size)
+	elseif sr == 2 then
+		self:build_walls_simple(geo, pos, size)
+	elseif sr == 3 then
+		self:build_walls_slots(geo, pos, size)
+	end
+
+	local y = ground_level
+	for s = 1, stories do
+		geo:add({
+			action = 'cube',
+			node = mod_name .. ':floor_ceiling',
+			location = VN(pos.x + 1, pos.y + (s - 1) * 5 - 1, pos.z + 1),
+			size = VN(size.x - 2, 1, size.z - 2),
+		})
+
+		geo:add({
+			action = 'cube',
+			node = mod_name .. ':light_panel',
+			location = VN(pos.x + 1, pos.y + (s - 1) * 5 + 3, pos.z + 1),
+			size = VN(size.x - 2, 1, size.z - 2),
+			param2 = 20,
+			pattern = 1,
+		})
+	end
+
 	geo:add({
 		action = 'cube',
-		node = mod_name .. ':concrete',
-		location = pos,
-		size = size,
-	})
-	pos = vector.add(pos, 1)
-	size = vector.add(size, -2)
-	geo:add({
-		action = 'cube',
-		node = 'air',
-		location = pos,
-		size = size,
+		node = mod_name .. ':roof',
+		location = VN(pos.x + 1, pos.y + stories * 5 - 1, pos.z + 1),
+		size = VN(size.x - 2, 1, size.z - 2),
 	})
 
 	geo:write_to_map(self, 0)
@@ -173,12 +417,12 @@ function City_Mapgen:place_terrain()
 			size = VN(80 - road_width, 2, 80 - road_width),
 		})
 
-		local side_width = road_width + 2
+		local side_width = road_width + side_w
 		geo:add({
 			action = 'cube',
 			node = mod_name..':concrete',
 			location = VN(side_width, ground_level - 1, side_width),
-			size = VN(80 - side_width - 2, 2, 80 - side_width - 2),
+			size = VN(80 - side_width - side_w, 2, 80 - side_width - side_w),
 		})
 
 		geo:add({
