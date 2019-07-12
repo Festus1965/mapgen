@@ -353,7 +353,7 @@ do
 		heat = 'base_heat',
 		mapgen = DFlat_Mapgen,
 		mapgen_name = 'dflat',
-		map_minp = VN(-max_chunks, -20, -max_chunks),
+		map_minp = VN(-max_chunks, -4, -max_chunks),
 		map_maxp = VN(max_chunks, 15, max_chunks),
 		noises = noises,
 		water_level = 1,

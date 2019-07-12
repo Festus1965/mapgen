@@ -12,7 +12,7 @@ mod.path = minetest.get_modpath(minetest.get_current_modname())
 mod.world = minetest.get_worldpath()
 
 minetest.set_mapgen_setting('mg_name', 'singlenode', true)
-minetest.set_mapgen_setting('water_level', -31000, true)
+--minetest.set_mapgen_setting('water_level', -31000, true)
 
 
 mod.chunks = 0
@@ -56,6 +56,7 @@ dofile(mod.path .. '/city.lua')
 dofile(mod.path .. '/cloudscape.lua')
 dofile(mod.path .. '/floaters.lua')
 dofile(mod.path .. '/scaves.lua')
+dofile(mod.path .. '/flat_caves.lua')
 dofile(mod.path .. '/roads.lua')
 dofile(mod.path .. '/planets.lua')
 dofile(mod.path .. '/spirals.lua')

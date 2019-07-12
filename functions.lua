@@ -170,7 +170,7 @@ function mod.register_map(def)
 			end
 		end
 		def.biomes = biomes
-		print('registering mapgen: '..def.mapgen_name)
+		--print('registering mapgen: '..def.mapgen_name)
 	end
 
 	table.insert(mod.world_map, def)
