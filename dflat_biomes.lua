@@ -12,6 +12,7 @@ local clone_node = mod.clone_node
 -- DFlat environment changes
 -----------------------------------------------
 
+
 do
 	minetest.register_biome({
 		name = 'ether',
@@ -19,92 +20,6 @@ do
 		humidity_point = -99,
 		node_stone = mod_name..':etherstone',
 		source = 'dflat_ether',
-	})
-end
-
-
-do
-	local newnode
-
-	--[[
-	newnode = clone_node('default:apple')
-	newnode.tiles = { 'mapgen_orange.png' }
-	newnode.inventory_image = 'mapgen_orange.png'
-	newnode.description = 'Orange'
-	newnode.name = mod_name..':orange'
-	minetest.register_node(newnode.name, newnode)
-
-
-	newnode = clone_node('default:apple')
-	newnode.tiles = { 'mapgen_pear.png' }
-	newnode.inventory_image = 'mapgen_pear.png'
-	newnode.description = 'Pear'
-	newnode.name = mod_name..':pear'
-	minetest.register_node(newnode.name, newnode)
-	--]]
-
-
-	newnode = clone_node('default:leaves')
-	newnode.description = 'Cherry Blossoms'
-	newnode.tiles = { 'mapgen_leaves_cherry.png' }
-	newnode.special_tiles = { 'mapgen_leaves_cherry.png' }
-	newnode.groups = { snappy = 3, flammable = 2 }
-	minetest.register_node(mod_name..':leaves_cherry', newnode)
-
-	--[[
-	newnode = clone_node('default:leaves')
-	newnode.description = 'Palm Fronds'
-	newnode.tiles = { 'moretrees_palm_leaves.png' }
-	newnode.special_tiles = { 'moretrees_palm_leaves.png' }
-	minetest.register_node(mod_name..':palm_leaves', newnode)
-
-	newnode = clone_node('default:tree')
-	newnode.description = 'Palm Tree'
-	newnode.tiles = { 'moretrees_palm_trunk_top.png', 'moretrees_palm_trunk_top.png', 'moretrees_palm_trunk.png', 'moretrees_palm_trunk.png', 'moretrees_palm_trunk.png' }
-	newnode.special_tiles = { 'moretrees_palm_trunk.png' }
-	minetest.register_node(mod_name..':palm_tree', newnode)
-
-	minetest.register_craft({
-		output = 'default:wood 4',
-		recipe = {
-			{ mod_name..':palm_tree' },
-		}
-	})
-
-	--newnode = clone_node('default:apple')
-	--newnode.description = 'Coconut'
-	--newnode.tiles = { 'moretrees_coconut.png' }
-	--newnode.inventory_image = 'moretrees_coconut.png'
-	--newnode.after_place_node = nil
-	--minetest.register_node(mod_name..':coconut', newnode)
-	--]]
-
-	default.register_leafdecay({
-		trunks = {'default:tree'},
-		leaves = {
-			'default:apple',
-			--mod_name..':orange',
-			--mod_name..':pear',
-			'default:leaves',
-			mod_name..':leaves_cherry',
-		},
-		radius = 3,
-	})
-
-	default.register_leafdecay({
-		trunks = {'default:pine_tree'},
-		leaves = {
-			'default:pine_needles',
-		},
-		radius = 3,
-	})
-
-	default.register_leafdecay({
-		trunks = {'default:jungletree'},
-		leaves = {
-			'default:jungleleaves',
-		},
-		radius = 3,
 	})
 end
 
@@ -124,11 +39,29 @@ do
 			def.noise_params.seed = 385
 			def.noise_params.offset = def.noise_params.offset - 0.03
 			def.schematic = nil
-			def.name = mod_name..':cherry_tree_'
+			def.name = mod_name..':cherry_tree'
 			def.schematic_array = table.copy(apple_deco.schematic_array)
 			for _, v in pairs(def.schematic_array.data) do
 				if v.name == 'default:leaves' or v.name == 'default:apple' then
 					v.name = mod_name..':leaves_cherry'
+				elseif v.name == 'default:tree' then
+					v.name = mod_name..':tree_cherry'
+				end
+			end
+			minetest.register_decoration(def)
+
+			def = table.copy(apple_deco)
+
+			def.noise_params.seed = 567
+			def.noise_params.offset = def.noise_params.offset - 0.01
+			def.schematic = nil
+			def.name = mod_name..':oak_tree'
+			def.schematic_array = table.copy(apple_deco.schematic_array)
+			for _, v in pairs(def.schematic_array.data) do
+				if v.name == 'default:leaves' or v.name == 'default:apple' then
+					v.name = mod_name..':leaves_oak'
+				elseif v.name == 'default:tree' then
+					v.name = mod_name..':tree_oak'
 				end
 			end
 			minetest.register_decoration(def)
