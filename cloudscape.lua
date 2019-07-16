@@ -218,7 +218,18 @@ do
 		local new_name = mod_name..':rainbow_grass_'..num
 		local tile_name = 'mapgen_gray_grass_'..num..'.png^[brighten'
 		def.description = 'Rainbow Grass'
-		def.drop = nil
+		def.drop = {
+			max_items = 1,
+			items = {
+				{
+					items = {'fun_tools:magic_bean'},
+					rarity = 10,
+				},
+				{
+					items = {mod_name..':rainbow_grass_1'},
+				}
+			}
+		}
 		def.palette = 'mapgen_palette_rainbow_1.png'
 		def.tiles = { tile_name }
 		minetest.register_node(new_name, def)
@@ -454,6 +465,8 @@ function Cloudscape_Mapgen:prepare()
 
 	local base_level = self.cloud_level
 	self.base_level = base_level
+
+	self.height_offset = 168
 end
 
 
