@@ -247,7 +247,6 @@ end
 do
 	local max_chunks = layer_mod.max_chunks
 
-	local water_level = 1
 	local biomes = level_biomes(water_level)
 	layer_mod.register_map({
 		name = 'scaves',
@@ -256,19 +255,18 @@ do
 		mapgen_name = 'scaves',
 		map_minp = VN(-max_chunks, -4, -max_chunks),
 		map_maxp = VN(max_chunks, 3, max_chunks),
-		water_level = water_level,
+		water_level = 1,
 	})
 
-	water_level = 2000
 	local biomes = level_biomes(water_level)
 	layer_mod.register_map({
 		name = 'scaves',
 		biomes = biomes,
 		mapgen = SCaves_Mapgen,
 		mapgen_name = 'scaves',
-		map_minp = VN(-max_chunks, 17, -max_chunks),
-		map_maxp = VN(max_chunks, 30, max_chunks),
-		water_level = water_level,
+		map_minp = VN(-max_chunks, 63, -max_chunks),
+		map_maxp = VN(max_chunks, 76, max_chunks),
+		water_level = 5680,
 	})
 
 	layer_mod.register_map({

@@ -20,12 +20,21 @@ local VN = vector.new
 local node = layer_mod.node
 
 
+local fraidy_cat = minetest.settings:get_bool('mapgen_fraidy_cat')
+local falling = {}
+
+
 do
 	local newnode = mod.clone_node('default:dirt')
 	newnode.description = 'Vines'
 	newnode.tiles = {'default_leaves.png'}
 	newnode.sunlight_propagates = true
 	minetest.register_node(mod_name..':vines', newnode)
+
+	local newnode = mod.clone_node('air')
+	newnode.description = 'Airy Barrier'
+	newnode.walkable = true
+	minetest.register_node(mod_name..':airy_barrier', newnode)
 end
 
 
@@ -128,6 +137,7 @@ function Floaters_Mapgen:place_terrain()
 	local ps = self.gpr
 
 	local stone_layers = self.stone_layers
+	local n_stone = node['default:stone']
 
 	self:map_height()
 	if not (self.biome or self.share.biome) then
@@ -208,10 +218,18 @@ function Floaters_Mapgen:place_terrain()
 						data[ivm] = riverbed
 						p2data[ivm] = 0
 					elseif y <= height and y > fill_1 then
-						data[ivm] = top
+						if y == min_y and falling[top] then
+							data[ivm] = n_stone
+						else
+							data[ivm] = top
+						end
 						p2data[ivm] = grass_p2 --  + 0
 					elseif filler and y <= height and y > fill_2 then
-						data[ivm] = filler
+						if y == min_y and falling[filler] then
+							data[ivm] = n_stone
+						else
+							data[ivm] = filler
+						end
 						p2data[ivm] = 0
 					elseif y <= height then
 						data[ivm] = stone
@@ -230,6 +248,15 @@ function Floaters_Mapgen:place_terrain()
 					if data[ivm] == node['air'] then
 						data[ivm] = node[mod_name..':vines']
 						p2data[ivm] = 0
+					end
+				elseif fraidy_cat and vinemap[index] <= maxp.y and vinemap[index] >= minp.y then
+					ivm = area:index(x, vinemap[index], z)
+					for i = 1, 3 do
+						if data[ivm] == node['air'] then
+							data[ivm] = node[mod_name..':airy_barrier']
+							p2data[ivm] = 0
+						end
+						ivm = ivm - ystride
 					end
 				end
 			--else
@@ -261,6 +288,14 @@ function Floaters_Mapgen:prepare()
 	self.gpr = PcgRandom(self.seed + 7712)
 	self.vinemap = {}
 	self.height_offset = 120
+
+	if not falling[node['default:sand']] then
+		for k, v in pairs(minetest.registered_nodes) do
+			if v.groups and v.groups.falling_node then
+				falling[node[v.name]] = true
+			end
+		end
+	end
 end
 
 
@@ -298,12 +333,12 @@ do
 	layer_mod.register_map({
 		name = 'floaters',
 		biomes = 'default',
-		base_level = 5128,
+		base_level = 568,
 		mapgen = Floaters_Mapgen,
 		mapgen_name = 'floaters',
-		map_minp = VN(-max_chunks, 63, -max_chunks),
-		map_maxp = VN(max_chunks, 67, max_chunks),
+		map_minp = VN(-max_chunks, 6, -max_chunks),
+		map_maxp = VN(max_chunks, 11, max_chunks),
 		noises = noises,
-		water_level = 5000,
+		water_level = 440,
 	})
 end

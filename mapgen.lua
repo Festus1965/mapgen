@@ -19,7 +19,7 @@ local os_clock = os.clock
 local VN = vector.new
 
 
-local chunksize = tonumber(minetest.settings:get("chunksize") or 5)
+local chunksize = tonumber(minetest.settings:get('chunksize') or 5)
 local chunk_offset = math.floor(chunksize / 2) * 16;
 
 local Geomorph = geomorph.Geomorph
@@ -139,7 +139,7 @@ local default_noises = {
 
 -- generic subclass
 function mod.subclass(...)
-	-- "cls" is the new class
+	-- 'cls' is the new class
 	local cls, bases = {}, {...}
 
 	-- copy base class contents into the new class
@@ -149,8 +149,8 @@ function mod.subclass(...)
 		end
 	end
 
-	-- set the class's __index, and start filling an "is_a" table that contains this class and all of its bases
-	-- so you can do an "instance of" check using my_instance.is_a[MyClass]
+	-- set the class's __index, and start filling an 'is_a' table that contains this class and all of its bases
+	-- so you can do an 'instance of' check using my_instance.is_a[MyClass]
 	cls.__index, cls.is_a = cls, {[cls] = true}
 	for i, base in ipairs(bases) do
 		for c in pairs(base.is_a or {}) do
@@ -252,7 +252,7 @@ function Mapgen:_init(minp, maxp, seed)
 		return
 	end
 
-	local vm, emin, emax = minetest.get_mapgen_object("voxelmanip")
+	local vm, emin, emax = minetest.get_mapgen_object('voxelmanip')
 	if not (vm and emin and emax) then
 		return
 	end
@@ -690,9 +690,6 @@ function Mapgen:map_heat_humidity()
 	local water_level = self.water_level
 	local offset = (self.height_offset or 1) - 1
 
-	---------------------------------------
-	-- This fails to get the dflat value!
-	---------------------------------------
 	local heat_noise_map = self.noises[self.heat] or self[self.heat] or (type(self.heat) == 'number' and self.heat) or self:get_noise(default_noises['heat'])
 	local heat_blend_noise_map = self.noises[self.heat_blend] or self[self.heat_blend] or (type(self.heat_blend) == 'number' and self.heat_blend) or self:get_noise(default_noises['heat_blend'])
 	local humidity_noise_map = self.noises[self.humidity] or self[self.humidity] or (type(self.humidity) == 'number' and self.humidity) or self:get_noise(default_noises['humidity'])
@@ -1445,7 +1442,7 @@ local function pgenerate(...)
 	if not status then
 		print(mod_name .. ': Could not generate terrain:')
 		print(dump(err))
-		collectgarbage("collect")
+		collectgarbage('collect')
 	end
 end
 
@@ -1471,7 +1468,7 @@ function mod.spawnplayer(player)
 		end
 	end
 
-	if minetest.settings:get("static_spawnpoint") then
+	if minetest.settings:get('static_spawnpoint') then
 		return
 	end
 
