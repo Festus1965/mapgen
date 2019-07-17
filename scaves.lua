@@ -273,7 +273,7 @@ do
 		mapgen = SCaves_Mapgen,
 		mapgen_name = 'scaves',
 		map_minp = VN(-max_chunks, 63, -max_chunks),
-		map_maxp = VN(max_chunks, 76, max_chunks),
+		map_maxp = VN(max_chunks, 72, max_chunks),
 		water_level = 5680,
 	})
 

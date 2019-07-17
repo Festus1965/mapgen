@@ -115,7 +115,7 @@ function Planets_Mapgen:generate()
 	local heightmap = self.heightmap
 	local biomemap = self.biomemap
 	local ystride = area.ystride
-	local biomes = layer_mod.biomes
+	local biomes = self.biomes
 	local pr = self.gpr
 	local sphere_count = pr:next(0, 1) + pr:next(0, 1)
 	if sphere_count < 1 then
@@ -126,7 +126,8 @@ function Planets_Mapgen:generate()
 
 	local biome_name = planet_biomes[self.gpr:next(1, #planet_biomes)]
 	local biome = biomes[biome_name] or {}
-	self.share.biome = biome
+	self.biomes_here[biome.name] = true
+	self.biome = biome
 	local b_stone = biome.node_stone or 'default:stone'
 
 	for _ = 1, sphere_count do
@@ -209,8 +210,6 @@ function Planets_Mapgen:generate()
 	local index = 1
 	for z = minp.z, maxp.z do
 		for x = minp.x, maxp.x do
-			biomemap[index] = biome
-			self.biomes_here[biome.name] = true
 			local ivm = area:index(x, maxp.y, z)
 			local found_top
 
@@ -243,6 +242,7 @@ do
 
 	layer_mod.register_map({
 		name = 'planets',
+		biomes = 'default',
 		mapgen = Planets_Mapgen,
 		mapgen_name = 'planets',
 		map_minp = VN(-max_chunks, 4, -max_chunks),
@@ -252,6 +252,7 @@ do
 
 	layer_mod.register_map({
 		name = 'planets',
+		biomes = 'default',
 		mapgen = Planets_Mapgen,
 		mapgen_name = 'planets',
 		map_minp = VN(-max_chunks, 11, -max_chunks),
@@ -261,6 +262,7 @@ do
 
 	layer_mod.register_map({
 		name = 'planets',
+		biomes = 'default',
 		mapgen = Planets_Mapgen,
 		mapgen_name = 'planets',
 		map_minp = VN(-max_chunks, 70, -max_chunks),
