@@ -34,6 +34,13 @@ dofile(mod.path..'/dflat_biomes.lua')
 local DFlat_Mapgen = layer_mod.subclass_mapgen()
 
 
+function DFlat_Mapgen:_init()
+	self.biomemap = {}
+	self.heatmap = {}
+	self.humiditymap = {}
+end
+
+
 function DFlat_Mapgen:after_terrain()
 	local minp, maxp = self.minp, self.maxp
 	local chunk_offset = self.chunk_offset
@@ -354,7 +361,7 @@ do
 		mapgen = DFlat_Mapgen,
 		mapgen_name = 'dflat',
 		map_minp = VN(-max_chunks, -4, -max_chunks),
-		map_maxp = VN(max_chunks, 15, max_chunks),
+		map_maxp = VN(max_chunks, 5, max_chunks),
 		noises = noises,
 		water_level = 1,
 	})

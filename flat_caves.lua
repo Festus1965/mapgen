@@ -30,6 +30,13 @@ local cave_biomes = mod.cave_biomes
 local Flat_Caves_Mapgen = layer_mod.subclass_mapgen()
 
 
+function Flat_Caves_Mapgen:_init()
+	self.biomemap = {}
+	self.heatmap = {}
+	self.humiditymap = {}
+end
+
+
 function Flat_Caves_Mapgen:get_spawn_level(map, x, z)
 	-- ?????????
 end

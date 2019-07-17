@@ -252,6 +252,13 @@ local Cloudscape_Mapgen = layer_mod.subclass_mapgen()
 
 
 function Cloudscape_Mapgen:_init()
+	self.biomemap = {}
+	self.heatmap = {}
+	self.humiditymap = {}
+end
+
+
+function Cloudscape_Mapgen:_init()
 	self.ores = {
 		{ mod_name..':silver_lining', 0, },
 	}

@@ -273,6 +273,7 @@ function Mapgen:_init(minp, maxp, seed)
 	self.seed = seed
 	self.vm = vm
 	self.share = {}  -- Don't carry this between chunks.
+	self.share.propagate_shadow = false
 
 	if #buildable_to < 1 then
 		for n, v in pairs(minetest.registered_nodes) do
@@ -339,8 +340,21 @@ function Mapgen:dust()
 		for x = minp.x, maxp.x do
 			local height = heightmap[index] or water_level or minp.y - 2
 			local ivm = area:index(x, maxp.y - 1, z)
-			if biomemap and biomemap[index] then
-				biome = biomemap[index]
+
+			local biome = self.biome or self.share.biome
+			if not biome then
+				for _, bm in pairs(self.biomemaps) do
+					if bm['only'] then
+						biome = bm['only']
+					else
+						biome = bm[index]
+					end
+
+					if biome and biome.node_dust then
+						break
+					end
+					biome = nil
+				end
 			end
 
 			local node_dust
@@ -495,6 +509,7 @@ function Mapgen:generate_all(timed)
 		end
 	end
 
+	self.biomemaps = {}
 	for _, mapgen in pairs(mapgens) do
 		-------------------------------------------
 		-- This must include height and biome mapping.
@@ -503,17 +518,18 @@ function Mapgen:generate_all(timed)
 		mapgen.generate(mapgen)
 		mod.time_terrain = mod.time_terrain + os_clock() - t_terrain
 		-------------------------------------------
+
+		local biome = mapgen.biome or mapgen.share.biome
+		if biome then
+			table.insert(self.biomemaps, { ['only'] = biome })
+		elseif mapgen.biomemap then
+			table.insert(self.biomemaps, mapgen.biomemap)
+		end
 	end
 
-	for _, mapgen in pairs(mapgens) do
-		if mapgen.biomes then
-			local t_deco = os_clock()
-			mapgen:place_all_decorations()
-			if not self.no_dust then
-				mapgen:dust()
-			end
-			mod.time_deco = mod.time_deco + os_clock() - t_deco
-		end
+	self:place_all_decorations()
+	if not self.share.no_dust then
+		self:dust()
 	end
 
 	if #mapgens == 0 and minp.y < 0 then
@@ -810,12 +826,11 @@ end
 
 
 -- check
-local cave_level = 20
 function Mapgen:place_deco(ps, deco)
     local data, p2data, vm_area = self.data, self.p2data, self.area
     local minp, maxp = self.minp, self.maxp
     local heightmap, schem = self.heightmap, self.schem
-	local biomemap = self.biomemap
+	--local biomemap = self.biomemap
 	local ystride = vm_area.ystride
 
     local csize = self.csize
@@ -827,6 +842,8 @@ function Mapgen:place_deco(ps, deco)
 
     local divlen = csize.x / sidelen
     local area = sidelen * sidelen
+
+	local cave_level = self.share.cave_level or 20
 
     for z0 = 0, divlen-1 do
         for x0 = 0, divlen-1 do
@@ -884,10 +901,24 @@ function Mapgen:place_deco(ps, deco)
                 end
 
 				if y then
-					local biome = self.biome or self.share.biome or biomemap[mapindex]
+					local biome = self.biome or self.share.biome or (not deco.biomes_i)
+					if not biome then
+						for _, bm in pairs(self.biomemaps) do
+							if bm['only'] then
+								biome = bm['only']
+							else
+								biome = bm[mapindex]
+							end
 
-					if not (biome.underground and y > heightmap[mapindex] - cave_level)
-					and ((not deco.biomes_i) or (biome and deco.biomes_i[biome.name])) then
+							if biome and not (biome.underground and y > heightmap[mapindex] - cave_level)
+							and deco.biomes_i[biome.name] then
+								break
+							end
+							biome = nil
+						end
+					end
+
+					if biome then
 						local ivm = vm_area:index(x, y, z)
 						if ((not deco.place_on_i) or deco.place_on_i[data[ivm]])
 						and (not deco.y_max or deco.y_max >= y)
@@ -1307,7 +1338,7 @@ function Mapgen:save_map(timed)
 		self.vm:set_lighting({day = 10, night = 10})
 	else
 		self.vm:set_lighting({day = 0, night = 0}, self.minp, self.maxp)
-		self.vm:calc_lighting(nil, nil, false)
+		self.vm:calc_lighting(nil, nil, self.share.propagate_shadow)
 	end
 
 	self.vm:update_liquids()

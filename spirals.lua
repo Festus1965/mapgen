@@ -58,6 +58,13 @@ end
 local Spirals_Mapgen = layer_mod.subclass_mapgen()
 
 
+function Spirals_Mapgen:_init()
+	self.biomemap = {}
+	self.heatmap = {}
+	self.humiditymap = {}
+end
+
+
 -- check
 function Spirals_Mapgen:generate()
 	-- Geomorph requires this.

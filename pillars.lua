@@ -32,6 +32,13 @@ local cave_underground = 5
 local Pillars_Mapgen = layer_mod.subclass_mapgen()
 
 
+function Pillars_Mapgen:_init()
+	self.biomemap = {}
+	self.heatmap = {}
+	self.humiditymap = {}
+end
+
+
 function Pillars_Mapgen:after_terrain()
 	local minp, maxp = self.minp, self.maxp
 

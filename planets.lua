@@ -89,6 +89,13 @@ end
 local Planets_Mapgen = layer_mod.subclass_mapgen()
 
 
+function Planets_Mapgen:_init()
+	self.biomemap = {}
+	self.heatmap = {}
+	self.humiditymap = {}
+end
+
+
 -- check
 function Planets_Mapgen:generate()
 	-- Geomorph requires this.

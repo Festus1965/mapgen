@@ -27,6 +27,13 @@ local road_w = 3
 local Roads_Mapgen = layer_mod.subclass_mapgen()
 
 
+function Roads_Mapgen:_init()
+	self.biomemap = {}
+	self.heatmap = {}
+	self.humiditymap = {}
+end
+
+
 function Roads_Mapgen:generate()
 	if self.share.disruptive then
 		return

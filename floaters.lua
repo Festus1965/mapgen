@@ -22,6 +22,11 @@ local node = layer_mod.node
 
 local fraidy_cat = minetest.settings:get_bool('mapgen_fraidy_cat')
 local falling = {}
+local shell_thick = 20
+
+
+dofile(mod.path..'/cave_biomes.lua')
+local cave_biomes = mod.cave_biomes
 
 
 do
@@ -52,6 +57,12 @@ function Floaters_Mapgen:_init()
 	end
 
 	table.insert( self.ores, 4, { 'default:water_source', 0, } )
+
+	--self.share.propagate_shadow = true
+	self.biomemap = {}
+	self.heatmap = {}
+	self.humiditymap = {}
+	self.share.floaters = {}
 end
 
 
@@ -70,9 +81,11 @@ function Floaters_Mapgen:map_height()
 	local base_noise_map = self.noises['floaters_base'].map
 	local heightmap = self.heightmap
 	local vinemap = self.vinemap
-	self.reverse_heightmap = {}
-	local reverse_heightmap = self.reverse_heightmap
+	local reverse_heightmap = {}
 	local base_level = self.base_level
+	self.reverse_heightmap = reverse_heightmap
+	self.share.floaters.heightmap = heightmap
+	self.share.floaters.reverse_heightmap = reverse_heightmap
 
 	local height_min = layer_mod.max_height
 	local height_max = -layer_mod.max_height
@@ -201,8 +214,10 @@ function Floaters_Mapgen:place_terrain()
 					water_level = -layer_mod.max_height
 				end
 
+				local pheight = math_abs(math_floor((height - minp.y + math_abs(reverse_heightmap[index] - minp.y)) / 10) - 10)
 				local min_y = reverse_heightmap[index]
 				local min_y_chunk = math_max(minp.y, min_y)
+
 				local ivm = area:index(x, min_y_chunk, z)
 				for y = min_y_chunk, maxp.y do
 					if y < min_y then
@@ -231,6 +246,8 @@ function Floaters_Mapgen:place_terrain()
 							data[ivm] = filler
 						end
 						p2data[ivm] = 0
+					elseif y <= height - shell_thick and y >= min_y + shell_thick and y >= minp.y + pheight and y <= maxp.y - pheight then
+						-- nop
 					elseif y <= height then
 						data[ivm] = stone
 						p2data[ivm] = 0
@@ -310,8 +327,124 @@ end
 
 
 -----------------------------------------------
+-- Floaters_Caves_Mapgen class
+-----------------------------------------------
+
+local Floaters_Caves_Mapgen = layer_mod.subclass_mapgen()
+
+
+function Floaters_Caves_Mapgen:_init()
+	self.biomemap = {}
+	self.heatmap = {}
+	self.humiditymap = {}
+end
+
+
+function Floaters_Caves_Mapgen:generate()
+	self:prepare()
+	self:place_terrain()
+end
+
+
+-- check
+function Floaters_Caves_Mapgen:place_terrain()
+	local area = self.area
+	local data = self.data
+	local heightmap = self.heightmap
+	local reverse_heightmap = self.reverse_heightmap
+	local biomemap = self.biomemap
+	local maxp = self.maxp
+	local minp = self.minp
+	local ystride = area.ystride
+	local p2data = self.p2data
+	local water_level = self.water_level
+	local base_level = self.base_level
+	local ps = self.gpr
+
+	local n_stone = node['default:stone']
+
+	if not (self.biome or self.share.biome) then
+		self:map_heat_humidity()
+		self:map_biomes()
+	end
+
+	local index = 1
+	for z = minp.z, maxp.z do
+		for x = minp.x, maxp.x do
+			local height = heightmap[index] or minp.y - 2
+			do
+				local biome = self.biome or self.share.biome or biomemap[index] or {}
+
+				local pheight = math_abs(math_floor((height - minp.y + math_abs(reverse_heightmap[index] - minp.y)) / 10) - 10)
+				local min_y = reverse_heightmap[index]
+				local min_y_chunk = math_max(minp.y, min_y)
+
+				local cave_high = math_min(height - shell_thick, maxp.y - pheight)
+				local cave_low = math_max(min_y + shell_thick, minp.y + pheight)
+				local lining = biome.node_lining
+				local ceiling = biome.node_ceiling
+				local floor = biome.node_floor
+				local surface_depth = biome.surface_depth or 1
+
+				local ivm = area:index(x, min_y_chunk, z)
+				for y = min_y_chunk, maxp.y do
+					if y < cave_low - surface_depth or y > cave_high + surface_depth then
+						--nop
+					elseif (lining or ceiling) and y <= maxp.y - pheight + surface_depth and y >= maxp.y - pheight then
+						data[ivm] = node[lining or ceiling]
+						p2data[ivm] = 0
+					elseif (lining or floor) and y >= minp.y + pheight - surface_depth and y <= minp.y + pheight then
+						data[ivm] = node[lining or floor]
+						p2data[ivm] = 0
+					elseif y <= cave_high and y >= cave_low then
+						--nop
+					elseif (lining or ceiling) and y <= cave_high + surface_depth and y >= cave_low then
+						data[ivm] = node[lining or ceiling]
+						p2data[ivm] = 0
+					elseif (lining or floor) and y >= cave_low - surface_depth and y <= cave_high then
+						data[ivm] = node[lining or floor]
+						p2data[ivm] = 0
+					end
+
+					ivm = ivm + ystride
+				end
+				--mod.time_y_loop = mod.time_y_loop + os_clock() - t_y_loop
+			end
+
+			index = index + 1
+		end
+	end
+end
+
+
+function Floaters_Caves_Mapgen:prepare()
+	self.gpr = PcgRandom(self.seed + 7712)
+	self.height_offset = 120
+	self.share.cave_level = math_min((self.share.cave_level or 20), 19)
+
+	self.heightmap = self.share.floaters.heightmap
+	self.reverse_heightmap = self.share.floaters.reverse_heightmap
+end
+
+
+-----------------------------------------------
 -- Register the mapgen(s)
 -----------------------------------------------
+
+local function level_biomes(water_level)
+	local biomes = {}
+	for n, v in pairs(cave_biomes) do
+		local def = table.copy(v)
+		if def.y_max then
+			def.y_max = def.y_max + water_level - 1
+		end
+		if def.y_min then
+			def.y_min = def.y_min + water_level - 1
+		end
+		biomes[n] = def
+	end
+	return biomes
+end
 
 do
 	local terrain_scale = 100
@@ -329,13 +462,25 @@ do
 		--floaters_rainbow = { def = {offset = 0, scale = 7, seed = 4877, spread = {x = 100, y = 100, z = 100}, octaves = 2, persist = 0.4, lacunarity = 2}, },
 	}
 
-
 	layer_mod.register_map({
 		name = 'floaters',
 		biomes = 'default',
 		base_level = 568,
 		mapgen = Floaters_Mapgen,
 		mapgen_name = 'floaters',
+		map_minp = VN(-max_chunks, 6, -max_chunks),
+		map_maxp = VN(max_chunks, 11, max_chunks),
+		noises = noises,
+		water_level = 440,
+	})
+
+	local biomes = level_biomes(568)
+	layer_mod.register_map({
+		name = 'floaters_caves',
+		biomes = biomes,
+		base_level = 568,
+		mapgen = Floaters_Caves_Mapgen,
+		mapgen_name = 'floaters_caves',
 		map_minp = VN(-max_chunks, 6, -max_chunks),
 		map_maxp = VN(max_chunks, 11, max_chunks),
 		noises = noises,

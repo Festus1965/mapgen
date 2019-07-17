@@ -29,6 +29,12 @@ local cave_underground = 5
 local Valleys_Mapgen = layer_mod.subclass_mapgen()
 
 
+function Valleys_Mapgen:_init()
+	self.biomemap = {}
+	self.heatmap = {}
+	self.humiditymap = {}
+end
+
 
 local river_size = 5 / 100
 local river_depth = 5

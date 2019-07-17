@@ -131,6 +131,13 @@ end
 local City_Mapgen = layer_mod.subclass_mapgen()
 
 
+function City_Mapgen:_init()
+	self.biomemap = {}
+	self.heatmap = {}
+	self.humiditymap = {}
+end
+
+
 function City_Mapgen:generate()
 	if self.share.disruptive then
 		return

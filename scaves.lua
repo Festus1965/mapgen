@@ -33,6 +33,13 @@ local cave_biomes = mod.cave_biomes
 local SCaves_Mapgen = layer_mod.subclass_mapgen()
 
 
+function SCaves_Mapgen:_init()
+	self.biomemap = {}
+	self.heatmap = {}
+	self.humiditymap = {}
+end
+
+
 function SCaves_Mapgen:get_spawn_level(map, x, z)
 	-- ?????????
 end
@@ -81,6 +88,7 @@ function SCaves_Mapgen:generate()
 		table.insert(biomes_i, b)
 	end
 	self.biome = self:get_biome(biomes_i, heat, humidity, biome_height)
+	self.biomes_here[self.biome.name] = true
 
 	local t_cave = os_clock()
 	self:simple_caves()
@@ -247,7 +255,7 @@ end
 do
 	local max_chunks = layer_mod.max_chunks
 
-	local biomes = level_biomes(water_level)
+	local biomes = level_biomes(1)
 	layer_mod.register_map({
 		name = 'scaves',
 		biomes = biomes,
@@ -258,7 +266,7 @@ do
 		water_level = 1,
 	})
 
-	local biomes = level_biomes(water_level)
+	local biomes = level_biomes(5680)
 	layer_mod.register_map({
 		name = 'scaves',
 		biomes = biomes,
@@ -269,6 +277,7 @@ do
 		water_level = 5680,
 	})
 
+	local biomes = level_biomes(4640)
 	layer_mod.register_map({
 		name = 'scaves',
 		biomes = biomes,
