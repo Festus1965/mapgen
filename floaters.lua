@@ -26,7 +26,7 @@ local shore_adjust = -15
 --local fraidy_cat = minetest.settings:get_bool('mapgen_fraidy_cat')
 local fraidy_cat = false
 local falling = {}
-local shell_thick = 20
+local shell_thick = 30
 
 
 dofile(mod.path..'/cave_biomes.lua')
