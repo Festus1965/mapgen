@@ -469,16 +469,16 @@ function Floaters_Caves_Mapgen:place_terrain()
 						p2data[ivm] = 0
 					elseif y <= cave_high and y >= cave_low then
 						--nop
-					elseif ceiling and y <= surface_high and is_stone then
+					elseif ceiling and y <= surface_high and y >= cave_high and is_stone then
 						data[ivm] = ceiling
 						p2data[ivm] = 0
-					elseif floor and y >= surface_low and is_stone then
+					elseif floor and y >= surface_low and y <= cave_low and is_stone then
 						data[ivm] = floor
 						p2data[ivm] = 0
-					elseif stone and y <= rock_high and is_stone then
+					elseif stone and y <= rock_high and y >= cave_high and is_stone then
 						data[ivm] = stone
 						p2data[ivm] = 0
-					elseif stone and y >= rock_low and is_stone then
+					elseif stone and y >= rock_low and y <= cave_low and is_stone then
 						data[ivm] = stone
 						p2data[ivm] = 0
 					end
