@@ -21,6 +21,7 @@ local VN = vector.new
 
 local chunksize = tonumber(minetest.settings:get('chunksize') or 5)
 local chunk_offset = math.floor(chunksize / 2) * 16;
+local spawn_height = tonumber(minetest.settings:get('mapgen_spawn_height') or 1)
 
 local Geomorph = geomorph.Geomorph
 local geomorphs = {}
@@ -1488,7 +1489,7 @@ end
 
 function mod.spawnplayer(player)
 	local csize = { x=chunksize * 16, y=chunksize * 16, z=chunksize * 16 }
-	local range = 1000
+	local range = 2000
 
 	local beds_here = (minetest.get_modpath('beds') and beds and beds.spawn)
 
@@ -1505,10 +1506,10 @@ function mod.spawnplayer(player)
 
 	local pos
 
-	for ct = 1, 1000 do
+	for ct = 1, 10000 do
 		pos = VN(
 			math_random(range) + math_random(range) - range,
-			0,
+			spawn_height,
 			math_random(range) + math_random(range) - range
 		)
 		local chunk = vector.floor(vector.divide(vector.add(pos, chunk_offset), csize))

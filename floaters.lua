@@ -20,7 +20,11 @@ local VN = vector.new
 local node = layer_mod.node
 
 
-local fraidy_cat = minetest.settings:get_bool('mapgen_fraidy_cat')
+local base_base_level = 563
+local base_water_level = 500
+local shore_adjust = -15
+--local fraidy_cat = minetest.settings:get_bool('mapgen_fraidy_cat')
+local fraidy_cat = false
 local falling = {}
 local shell_thick = 20
 
@@ -39,6 +43,7 @@ do
 	local newnode = mod.clone_node('air')
 	newnode.description = 'Airy Barrier'
 	newnode.walkable = true
+	newnode.floodable = false
 	minetest.register_node(mod_name..':airy_barrier', newnode)
 end
 
@@ -56,7 +61,7 @@ function Floaters_Mapgen:_init()
 		v[2] = 0
 	end
 
-	table.insert( self.ores, 4, { 'default:water_source', 0, } )
+	table.insert( self.ores, 4, { 'default:river_water_source', 0, } )
 
 	--self.share.propagate_shadow = true
 	self.biomemap = {}
@@ -151,6 +156,9 @@ function Floaters_Mapgen:place_terrain()
 
 	local stone_layers = self.stone_layers
 	local n_stone = node['default:stone']
+	local n_air = node['air']
+	local n_water = node['default:river_water_source']
+	local n_glass = node[mod_name..':airy_barrier']
 
 	self:map_height()
 	if not (self.biome or self.share.biome) then
@@ -217,6 +225,8 @@ function Floaters_Mapgen:place_terrain()
 				local pheight = math_abs(math_floor((height - minp.y + math_abs(reverse_heightmap[index] - minp.y)) / 10) - 10)
 				local min_y = reverse_heightmap[index]
 				local min_y_chunk = math_max(minp.y, min_y)
+				local cave_high = math_min(height - shell_thick, maxp.y - pheight)
+				local cave_low = math_max(min_y + shell_thick, minp.y + pheight)
 
 				local ivm = area:index(x, min_y_chunk, z)
 				for y = min_y_chunk, maxp.y do
@@ -246,7 +256,7 @@ function Floaters_Mapgen:place_terrain()
 							data[ivm] = filler
 						end
 						p2data[ivm] = 0
-					elseif y <= height - shell_thick and y >= min_y + shell_thick and y >= minp.y + pheight and y <= maxp.y - pheight then
+					elseif y <= cave_high and y >= cave_low then
 						-- nop
 					elseif y <= height then
 						data[ivm] = stone
@@ -258,18 +268,34 @@ function Floaters_Mapgen:place_terrain()
 
 					ivm = ivm + ystride
 				end
+
+				if minp.y < self.water_level then
+					local ivm = area:index(x, minp.y, z)
+					for y = minp.y, self.water_level do
+						if data[ivm] == n_air then
+							if y == minp.y then
+								data[ivm] = n_glass
+							else
+								data[ivm] = n_water
+							end
+							p2data[ivm] = 0
+						end
+
+						ivm = ivm + ystride
+					end
+				end
 				mod.time_y_loop = mod.time_y_loop + os_clock() - t_y_loop
 
 				if math_abs(vine_noise_map[index]) < 5 and vinemap[index] <= maxp.y and vinemap[index] >= minp.y then
 					ivm = area:index(x, vinemap[index], z)
-					if data[ivm] == node['air'] then
+					if data[ivm] == n_air or data[ivm] == n_water then
 						data[ivm] = node[mod_name..':vines']
 						p2data[ivm] = 0
 					end
 				elseif fraidy_cat and vinemap[index] <= maxp.y and vinemap[index] >= minp.y then
 					ivm = area:index(x, vinemap[index], z)
 					for i = 1, 3 do
-						if data[ivm] == node['air'] then
+						if data[ivm] == n_air then
 							data[ivm] = node[mod_name..':airy_barrier']
 							p2data[ivm] = 0
 						end
@@ -304,7 +330,7 @@ function Floaters_Mapgen:prepare()
 
 	self.gpr = PcgRandom(self.seed + 7712)
 	self.vinemap = {}
-	self.height_offset = 120
+	self.height_offset = base_base_level - base_water_level + shore_adjust
 
 	if not falling[node['default:sand']] then
 		for k, v in pairs(minetest.registered_nodes) do
@@ -316,12 +342,35 @@ function Floaters_Mapgen:prepare()
 end
 
 
-function Floaters_Mapgen:terrain_height(ground_1, base_level)
+function Floaters_Mapgen:get_spawn_level(map, x, z)
+	local ground_noise = minetest.get_perlin(map.noises['floaters_over'].def)
+	local base_noise = minetest.get_perlin(map.noises['floaters_base'].def)
+	local under_noise = minetest.get_perlin(map.noises['floaters_under'].def)
+	local ground = ground_noise:get_2d({x=x, y=z, z=z})
+	local base = base_noise:get_2d({x=x, y=z, z=z})
+	local under = under_noise:get_2d({x=x, y=z, z=z})
+
+	local height = math_floor(self:terrain_height(ground, base, under))
+	if height <= map.water_level then
+		return
+	end
+
+	return height
+end
+
+
+function Floaters_Mapgen:terrain_height(ground_1, base_noise, under_noise)
 	-- terrain height calculations
-	local height = base_level + ground_1
-	--if height > base_level + 15 then
-	--	height = height - 2 * (height - base_level - 15)
-	--end
+	local base_level = (self.base_level or base_base_level) + math_abs(base_noise)
+	local height = ground_1 + base_level
+	local depth = base_level - under_noise
+
+	height = math_floor(height + 0.5)
+	depth = math_floor(depth + 0.5)
+	if depth >= height then
+		height = -layer_mod.max_height
+	end
+
 	return height
 end
 
@@ -375,6 +424,8 @@ function Floaters_Caves_Mapgen:place_terrain()
 			do
 				local biome = self.biome or self.share.biome or biomemap[index] or {}
 
+				local t_y_loop = os_clock()
+
 				local pheight = math_abs(math_floor((height - minp.y + math_abs(reverse_heightmap[index] - minp.y)) / 10) - 10)
 				local min_y = reverse_heightmap[index]
 				local min_y_chunk = math_max(minp.y, min_y)
@@ -382,33 +433,59 @@ function Floaters_Caves_Mapgen:place_terrain()
 				local cave_high = math_min(height - shell_thick, maxp.y - pheight)
 				local cave_low = math_max(min_y + shell_thick, minp.y + pheight)
 				local lining = biome.node_lining
-				local ceiling = biome.node_ceiling
-				local floor = biome.node_floor
+				local ceiling = lining or biome.node_ceiling
+				local floor = lining or biome.node_floor
+				local stone = biome.node_stone
 				local surface_depth = biome.surface_depth or 1
+
+				if biome.node_cave_liquid ~= 'default:water_source' and ps:next(1, 1000) == 1 then
+					ceiling = biome.node_cave_liquid
+					surface_depth = 1
+				end
+
+				floor = node[floor]
+				ceiling = node[ceiling]
+				stone = node[stone]
+
+				local rock_high = cave_high + 5
+				local rock_low = cave_low - 5
+				local surface_high = cave_high + surface_depth
+				local surface_low = cave_low - surface_depth
+				local bound_high = maxp.y - pheight
+				local bound_low = minp.y + pheight
+				local bound_surf_high = bound_high + surface_depth
+				local bound_surf_low = bound_low - surface_depth
 
 				local ivm = area:index(x, min_y_chunk, z)
 				for y = min_y_chunk, maxp.y do
-					if y < cave_low - surface_depth or y > cave_high + surface_depth then
+					if y < rock_low or y > rock_high then
 						--nop
-					elseif (lining or ceiling) and y <= maxp.y - pheight + surface_depth and y >= maxp.y - pheight then
-						data[ivm] = node[lining or ceiling]
+					elseif ceiling and y <= bound_surf_high and y >= bound_high then
+						data[ivm] = ceiling
 						p2data[ivm] = 0
-					elseif (lining or floor) and y >= minp.y + pheight - surface_depth and y <= minp.y + pheight then
-						data[ivm] = node[lining or floor]
+					elseif floor and y >= bound_surf_low and y <= bound_low then
+						data[ivm] = floor
 						p2data[ivm] = 0
 					elseif y <= cave_high and y >= cave_low then
 						--nop
-					elseif (lining or ceiling) and y <= cave_high + surface_depth and y >= cave_low then
-						data[ivm] = node[lining or ceiling]
+					elseif ceiling and y <= surface_high then
+						data[ivm] = ceiling
 						p2data[ivm] = 0
-					elseif (lining or floor) and y >= cave_low - surface_depth and y <= cave_high then
-						data[ivm] = node[lining or floor]
+					elseif floor and y >= surface_low then
+						data[ivm] = floor
+						p2data[ivm] = 0
+					elseif stone and y <= rock_high then
+						data[ivm] = stone
+						p2data[ivm] = 0
+					elseif stone and y >= rock_low then
+						data[ivm] = stone
 						p2data[ivm] = 0
 					end
 
 					ivm = ivm + ystride
 				end
-				--mod.time_y_loop = mod.time_y_loop + os_clock() - t_y_loop
+
+				mod.time_y_loop = mod.time_y_loop + os_clock() - t_y_loop
 			end
 
 			index = index + 1
@@ -455,9 +532,9 @@ do
 
 	local noises = {
 		floaters_base = { def = {offset = 0, scale = 50, seed = 2567, spread = {x = 250, y = 250, z = 250}, octaves = 3, persist = 0.5, lacunarity = 2}, },
-		floaters_over = { def = {offset = -20, scale = 25, seed = 4877, spread = {x = 120, y = 120, z = 120}, octaves = 3, persist = 0.8, lacunarity = 2}, },
-		floaters_under = { def = {offset = 0, scale = 75, seed = 4877, spread = {x = 120, y = 120, z = 120}, octaves = 6, persist = 0.6, lacunarity = 2}, },
-		floaters_vines = { def = { offset = 0, scale = 100, seed = -6050, spread = {x = 512, y = 512, z = 512}, octaves = 5, persist = 0.6, lacunarity = 2.0} },
+		floaters_over = { def = {offset = -20, scale = 25, seed = 4877, spread = {x = 200, y = 200, z = 200}, octaves = 4, persist = 0.8, lacunarity = 2}, },
+		floaters_under = { def = {offset = 0, scale = 75, seed = 4877, spread = {x = 200, y = 200, z = 200}, octaves = 7, persist = 0.6, lacunarity = 2}, },
+		floaters_vines = { def = { offset = 0, scale = 100, seed = -6050, spread = {x = 1024, y = 1024, z = 1024}, octaves = 5, persist = 0.6, lacunarity = 2.0} },
 		floaters_wisp = { def = {offset = 0, scale = 1, seed = 5748, spread = {x = 40, y = 10, z = 40}, octaves = 3, persist = 1, lacunarity = 2}, },
 		--floaters_rainbow = { def = {offset = 0, scale = 7, seed = 4877, spread = {x = 100, y = 100, z = 100}, octaves = 2, persist = 0.4, lacunarity = 2}, },
 	}
@@ -465,25 +542,25 @@ do
 	layer_mod.register_map({
 		name = 'floaters',
 		biomes = 'default',
-		base_level = 568,
+		base_level = base_base_level,
 		mapgen = Floaters_Mapgen,
 		mapgen_name = 'floaters',
 		map_minp = VN(-max_chunks, 6, -max_chunks),
 		map_maxp = VN(max_chunks, 11, max_chunks),
 		noises = noises,
-		water_level = 440,
+		water_level = base_water_level,
 	})
 
-	local biomes = level_biomes(568)
+	local biomes = level_biomes(base_base_level)
 	layer_mod.register_map({
 		name = 'floaters_caves',
 		biomes = biomes,
-		base_level = 568,
+		base_level = base_base_level,
 		mapgen = Floaters_Caves_Mapgen,
 		mapgen_name = 'floaters_caves',
 		map_minp = VN(-max_chunks, 6, -max_chunks),
 		map_maxp = VN(max_chunks, 11, max_chunks),
 		noises = noises,
-		water_level = 440,
+		water_level = base_water_level,
 	})
 end
