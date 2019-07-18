@@ -458,26 +458,27 @@ function Floaters_Caves_Mapgen:place_terrain()
 
 				local ivm = area:index(x, min_y_chunk, z)
 				for y = min_y_chunk, maxp.y do
+					local is_stone = (data[ivm] == n_stone)
 					if y < rock_low or y > rock_high then
 						--nop
-					elseif ceiling and y <= bound_surf_high and y >= bound_high then
+					elseif ceiling and y <= bound_surf_high and y >= bound_high and is_stone then
 						data[ivm] = ceiling
 						p2data[ivm] = 0
-					elseif floor and y >= bound_surf_low and y <= bound_low then
+					elseif floor and y >= bound_surf_low and y <= bound_low and is_stone then
 						data[ivm] = floor
 						p2data[ivm] = 0
 					elseif y <= cave_high and y >= cave_low then
 						--nop
-					elseif ceiling and y <= surface_high then
+					elseif ceiling and y <= surface_high and is_stone then
 						data[ivm] = ceiling
 						p2data[ivm] = 0
-					elseif floor and y >= surface_low then
+					elseif floor and y >= surface_low and is_stone then
 						data[ivm] = floor
 						p2data[ivm] = 0
-					elseif stone and y <= rock_high then
+					elseif stone and y <= rock_high and is_stone then
 						data[ivm] = stone
 						p2data[ivm] = 0
-					elseif stone and y >= rock_low then
+					elseif stone and y >= rock_low and is_stone then
 						data[ivm] = stone
 						p2data[ivm] = 0
 					end
