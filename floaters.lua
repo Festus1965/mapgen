@@ -13,17 +13,22 @@ local math_abs = math.abs
 local math_max = math.max
 local math_min = math.min
 local math_ceil = math.ceil
+local math_random = math.random
 local os_clock = os.clock
 local VN = vector.new
 
 
 local node = layer_mod.node
+local get_spawn_level
+local floater_map
+local mapgen_ref
 
 
 local base_base_level = 563
 local base_water_level = 500
 local shore_adjust = -15
 --local fraidy_cat = minetest.settings:get_bool('mapgen_fraidy_cat')
+local make_vines = minetest.settings:get_bool('mapgen_make_floater_vines')
 local fraidy_cat = false
 local falling = {}
 local shell_thick = 30
@@ -45,6 +50,53 @@ do
 	newnode.walkable = true
 	newnode.floodable = false
 	minetest.register_node(mod_name..':airy_barrier', newnode)
+
+	local range = 10000
+	local newnode = mod.clone_node('default:diamondblock')
+	newnode.description = 'Displacer Stone'
+	newnode.drop = ''
+	newnode.tiles = { 'default_diamond_block.png^[colorize:#606000:150' }
+	newnode.on_rightclick = function(pos, node, clicker, itemstack, pointed_thing)
+		if not (clicker and node and pos) then
+			return
+		end
+
+		local meta = minetest.get_meta(pos)
+		if not (meta and meta:contains('teleport_to')) then
+			local npos
+			for ct = 1, 10000 do
+				npos = VN(
+					pos.x + math_random(range) + math_random(range) - range,
+					pos.y,
+					pos.z + math_random(range) + math_random(range) - range
+				)
+				npos.y = get_spawn_level(mapgen_ref, floater_map, npos.x, npos.z)
+
+				if npos.y and npos.y > -layer_mod.max_height
+				and math_abs(npos.x) < layer_mod.max_height
+				and math_abs(npos.z) < layer_mod.max_height then
+					break
+				end
+
+				npos = nil
+			end
+
+			if npos then
+				local npos_s = minetest.serialize(npos)
+				meta:set_string('teleport_to', npos_s)
+			end
+		end
+
+		if meta and meta:contains('teleport_to') then
+			local npos_s = meta:get_string('teleport_to')
+			local npos = minetest.deserialize(npos_s)
+			if npos and npos.x and npos.y and npos.z then
+				npos.y = npos.y + 2
+				clicker:setpos(npos)
+			end
+		end
+	end
+	minetest.register_node(mod_name..':displacer', newnode)
 end
 
 
@@ -53,6 +105,7 @@ end
 -----------------------------------------------
 
 local Floaters_Mapgen = layer_mod.subclass_mapgen()
+mapgen_ref = Floaters_Mapgen
 
 
 function Floaters_Mapgen:_init()
@@ -138,7 +191,7 @@ end
 function Floaters_Mapgen:place_terrain()
 	local area = self.area
 	local data = self.data
-	local vine_noise_map = self.noises['floaters_vines'].map
+	local vine_noise_map = {}
 	local heightmap = self.heightmap
 	local vinemap = self.vinemap
 	local reverse_heightmap = self.reverse_heightmap
@@ -159,6 +212,11 @@ function Floaters_Mapgen:place_terrain()
 	local n_air = node['air']
 	local n_water = node['default:river_water_source']
 	local n_glass = node[mod_name..':airy_barrier']
+	--n_glass = n_stone
+
+	if make_vines then
+		vine_noise_map = self.noises['floaters_vines'].map
+	end
 
 	self:map_height()
 	if not (self.biome or self.share.biome) then
@@ -191,6 +249,9 @@ function Floaters_Mapgen:place_terrain()
 				local filler = biome.node_filler or 'air'
 				filler = node[filler]
 				local top = biome.node_top or 'air'
+				if ps:next(1, 1000) == 1 then
+					top = mod_name..':displacer'
+				end
 				top = node[top]
 				local grass_p2 = grassmap[index]
 
@@ -286,7 +347,7 @@ function Floaters_Mapgen:place_terrain()
 				end
 				mod.time_y_loop = mod.time_y_loop + os_clock() - t_y_loop
 
-				if math_abs(vine_noise_map[index]) < 5 and vinemap[index] <= maxp.y and vinemap[index] >= minp.y then
+				if make_vines and math_abs(vine_noise_map[index]) < 3 and vinemap[index] <= maxp.y and vinemap[index] >= minp.y then
 					ivm = area:index(x, vinemap[index], z)
 					if data[ivm] == n_air or data[ivm] == n_water then
 						data[ivm] = node[mod_name..':vines']
@@ -357,6 +418,7 @@ function Floaters_Mapgen:get_spawn_level(map, x, z)
 
 	return height
 end
+get_spawn_level = Floaters_Mapgen.get_spawn_level
 
 
 function Floaters_Mapgen:terrain_height(ground_1, base_noise, under_noise)
@@ -540,7 +602,11 @@ do
 		--floaters_rainbow = { def = {offset = 0, scale = 7, seed = 4877, spread = {x = 100, y = 100, z = 100}, octaves = 2, persist = 0.4, lacunarity = 2}, },
 	}
 
-	layer_mod.register_map({
+	if not make_vines then
+		noises['floaters_vines'] = nil
+	end
+
+	local def = {
 		name = 'floaters',
 		biomes = 'default',
 		base_level = base_base_level,
@@ -550,7 +616,9 @@ do
 		map_maxp = VN(max_chunks, 11, max_chunks),
 		noises = noises,
 		water_level = base_water_level,
-	})
+	}
+	layer_mod.register_map(def)
+	floater_map = def
 
 	local biomes = level_biomes(base_base_level)
 	layer_mod.register_map({
