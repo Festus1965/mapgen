@@ -51,7 +51,7 @@ do
 	newnode.floodable = false
 	minetest.register_node(mod_name..':airy_barrier', newnode)
 
-	local range = 10000
+	local range = 2000
 	local newnode = mod.clone_node('default:diamondblock')
 	newnode.description = 'Displacer Stone'
 	newnode.drop = ''
@@ -114,7 +114,7 @@ function Floaters_Mapgen:_init()
 		v[2] = 0
 	end
 
-	table.insert( self.ores, 4, { 'default:river_water_source', 0, } )
+	table.insert( self.ores, 4, { 'default:water_source', 0, } )
 
 	--self.share.propagate_shadow = true
 	self.biomemap = {}
@@ -210,7 +210,7 @@ function Floaters_Mapgen:place_terrain()
 	local stone_layers = self.stone_layers
 	local n_stone = node['default:stone']
 	local n_air = node['air']
-	local n_water = node['default:river_water_source']
+	local n_water = node['default:water_source']
 	local n_glass = node[mod_name..':airy_barrier']
 	--n_glass = n_stone
 
@@ -257,7 +257,7 @@ function Floaters_Mapgen:place_terrain()
 
 				local riverbed = node[biome.node_riverbed]
 
-				local ww = biome.water or 'default:river_water_source'
+				local ww = biome.water or 'default:water_source'
 				local wt = biome.node_water_top
 				local wtd = biome.node_water_top_depth or 0
 				do
@@ -485,6 +485,10 @@ function Floaters_Caves_Mapgen:place_terrain()
 			local height = heightmap[index] or minp.y - 2
 			do
 				local biome = self.biome or self.share.biome or biomemap[index] or {}
+				--[[
+				biome = self.biomes['granite_lava']
+				biomemap[index] = biome
+				--]]
 
 				local t_y_loop = os_clock()
 
@@ -633,3 +637,15 @@ do
 		water_level = base_water_level,
 	})
 end
+
+
+minetest.register_lbm({
+	label = 'change river water back',
+	name = mod_name..':replace_river',
+	nodenames = { 'default:river_water_source' },
+	action = function(pos, node)
+		if pos.y >= 448 and pos.y <= 927 then
+			minetest.set_node(pos, { name = 'default:water_source' })
+		end
+	end,
+})

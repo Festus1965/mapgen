@@ -1381,7 +1381,7 @@ function Mapgen:simple_ore(num_deposits)
 
 	local pr = self.gpr
 	if not num_deposits then
-		num_deposits = 25
+		num_deposits = 100
 	end
 
 	local geo = Geomorph.new()
@@ -1389,9 +1389,9 @@ function Mapgen:simple_ore(num_deposits)
 		local ore = self:get_ore(f_alt)
 
 		local size = VN(
-			pr:next(1, 10) + pr:next(1, 10),
-			pr:next(1, 10) + pr:next(1, 10),
-			pr:next(1, 10) + pr:next(1, 10)
+			pr:next(1, 4) + pr:next(1, 4),
+			pr:next(1, 4) + pr:next(1, 4),
+			pr:next(1, 4) + pr:next(1, 4)
 		)
 		if self.placed_lava then
 			size = VN(size, 2)
