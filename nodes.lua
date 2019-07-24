@@ -8,6 +8,7 @@ local mod_name = 'mapgen'
 local clone_node = mod.clone_node
 local newnode
 local light_max = 10
+local time_factor = 100 -- 1000
 
 
 local math_random = math.random
@@ -560,6 +561,55 @@ do
 		}
 	}
 
+	local grow_into = {
+		['air'] = true,
+		['default:water_source'] = true,
+		['default:water_flowing'] = true,
+	}
+
+	local function spread_spores(pos, elapsed, mushroom)
+		local posu = {x=pos.x, y=pos.y+1, z=pos.z}
+		if (minetest.get_node_light(posu, nil) or 15) == 15 then
+			minetest.remove_node(pos)
+			return
+		end
+
+		local node_down = minetest.get_node_or_nil({x=pos.x, y=pos.y-1, z=pos.z})
+		if not node_down then
+			return true
+		end
+
+		if node_down.name == 'air' then
+			minetest.remove_node(pos)
+			return
+		end
+
+		--if math.random(5) == 1 then
+		--  local name = 'fun_caves:fungal_tree_leaves_'..math.random(4)
+		--  if minetest.registered_nodes[name] then
+		--    minetest.set_node(pos, {name = name})
+		--    return
+		--  end
+		--end
+
+		local minp = vector.subtract(pos, 8)
+		local maxp = vector.add(pos, 8)
+		local dirt = minetest.find_nodes_in_area_under_air(minp, maxp, {'group:soil'})
+		if dirt and #dirt > 0 then
+			local p = dirt[math.random(#dirt)]
+			--local crowd = minetest.find_nodes_in_area_under_air(minp, maxp, {'flowers:mushroom_red', 'flowers:mushroom_brown'})
+			if mushroom then
+				minetest.set_node({x=p.x, y=p.y+1, z=p.z}, {name=mushroom})
+			elseif math.random(2) == 1 then
+				minetest.set_node({x=p.x, y=p.y+1, z=p.z}, {name='flowers:mushroom_red'})
+			else
+				minetest.set_node({x=p.x, y=p.y+1, z=p.z}, {name='flowers:mushroom_brown'})
+			end
+		end
+
+		return true
+	end
+
 	minetest.register_node(mod_name..':giant_mushroom_cap', {
 		description = 'Giant Mushroom Cap',
 		tiles = { 'mapgen_mushroom_giant_cap.png', 'mapgen_mushroom_giant_under.png', 'mapgen_mushroom_giant_cap.png' },
@@ -569,6 +619,14 @@ do
 		node_box = giant_mushroom_cap_node_box,
 		light_source = 5,
 		groups = { fleshy=1, dig_immediate=3, flammable=2, plant=1 },
+		on_timer = spread_spores,
+		on_construct = function(pos)
+			local timer = minetest.get_node_timer(pos)
+			local max = 10 * (time_factor or 10)
+			if timer then
+				timer:set(max, max > 1 and math.random(max - 1) or 0)
+			end
+		end,
 	})
 
 
@@ -589,13 +647,128 @@ do
 		description = 'Giant Mushroom Stem',
 		tiles = { 'mapgen_mushroom_giant_stem.png', 'mapgen_mushroom_giant_stem.png', 'mapgen_mushroom_giant_stem.png' },
 		is_ground_content = false,
-		groups = { choppy=2, flammable=2,  plant=1 },
+		groups = { choppy=2, flammable=2,  plant=1, oddly_breakable_by_hand = 1 },
 		sounds = default.node_sound_wood_defaults(),
 		sunlight_propagates = true,
 		paramtype = 'light',
 		drawtype = 'nodebox',
 		node_box = giant_mushroom_stem_node_box,
+		on_timer = function(pos, elapsed)
+			local posu = {x=pos.x, y=pos.y+1, z=pos.z}
+			local dark = (minetest.get_node_light(posu, nil) or 15) <= (light_max - 4 or 10)
+			local node_down = minetest.get_node_or_nil({x=pos.x, y=pos.y-1, z=pos.z})
+			if not (node_down and dark) then
+				return true
+			end
+
+			if node_down.name == 'air' then
+				minetest.remove_node(pos)
+				return
+			end
+
+			local posu2 = {x=pos.x, y=pos.y+2, z=pos.z}
+			local node_up = minetest.get_node_or_nil(posu)
+			local node_up2 = minetest.get_node_or_nil(posu2)
+			if not (node_up and node_up2) then
+				return true
+			end
+
+			if math.random(15) == 1
+			and minetest.registered_nodes[node_down.name].groups
+			and minetest.registered_nodes[node_down.name].groups.soil
+			and (
+				node_up.name == mod_name..':huge_mushroom_cap'
+				or grow_into[node_up.name]
+			) and grow_into[node_up2.name] then
+				local n = mod_name..':giant_mushroom_stem'
+				minetest.set_node(posu, { name = n })
+				minetest.set_node(posu2, {name=mod_name..':giant_mushroom_cap'})
+				return true
+			end
+
+			if not grow_into[node_up.name] then
+				return true
+			end
+
+			if node_down.name == mod_name..':giant_mushroom_stem' then
+				minetest.set_node(posu, {name=mod_name..':giant_mushroom_cap'})
+			elseif minetest.registered_nodes[node_down.name].groups
+			and minetest.registered_nodes[node_down.name].groups.soil then
+				minetest.set_node(posu, {name=mod_name..':huge_mushroom_cap'})
+			end
+
+			return true
+		end,
+		on_construct = function(pos)
+			local timer = minetest.get_node_timer(pos)
+			local max = 50 * (time_factor or 10)
+			if timer then
+				timer:set(max, max > 1 and math.random(max - 1) or 0)
+			end
+		end,
 	})
+
+
+	for _, sh in pairs({'flowers:mushroom_red', 'flowers:mushroom_brown'}) do
+		minetest.override_item(sh, {
+			on_timer = function(pos, elapsed)
+				local posu = {x=pos.x, y=pos.y+1, z=pos.z}
+				local daylight = minetest.get_node_light(posu, 0.5) or 0
+				local light = minetest.get_node_light(posu, nil) or 0
+				local mushroom = minetest.get_node_or_nil(pos)
+				if light == 15 then
+					minetest.remove_node(pos)
+					return
+				elseif light > light_max - 4 then
+					return true
+				elseif daylight > light_max - 4 then
+					return spread_spores(pos, elapsed, mushroom.name)
+				end
+
+				local node_down = minetest.get_node_or_nil({x=pos.x, y=pos.y-1, z=pos.z})
+				if not node_down then
+					return true
+				end
+
+				if node_down.name == 'air' then
+					minetest.remove_node(pos)
+					return
+				end
+
+				if math.random(50) ~= 1 then
+					return true
+				end
+
+				local node_up = minetest.get_node_or_nil(posu)
+				if not node_up then
+					return true
+				end
+
+				if minetest.registered_nodes[node_down.name].groups
+				and minetest.registered_nodes[node_down.name].groups.soil
+				and grow_into[node_up.name] then
+					local n = mod_name..':giant_mushroom_stem'
+					minetest.set_node(pos, { name = n })
+					minetest.set_node(posu, { name = mod_name..':huge_mushroom_cap' })
+				end
+			end,
+			on_construct = function(pos)
+				local timer = minetest.get_node_timer(pos)
+				local max = 10 * (time_factor or 10)
+				if timer then
+					timer:set(max, max > 1 and math.random(max - 1) or 0)
+				end
+			end,
+		})
+
+		minetest.registered_items[sh].groups.timed = 1
+	end
+
+
+	mod.add_construct(mod_name..':giant_mushroom_cap')
+	mod.add_construct(mod_name..':giant_mushroom_stem')
+	mod.add_construct('flowers:mushroom_red')
+	mod.add_construct('flowers:mushroom_brown')
 
 
 	-- spikes, hot -- silicon-based life
@@ -800,4 +973,21 @@ do
 		drawtype = 'plantlike',
 	})
 	--]]
+end
+
+
+do
+	minetest.register_lbm({
+		name = mod_name..':mush_timers',
+		nodenames = {
+			mod_name..':giant_mushroom_cap',
+			mod_name..':giant_mushroom_stem',
+			'flowers:mushroom_red',
+			'flowers:mushroom_brown',
+		},
+		action = function(pos, node)
+			local n = node.name
+			minetest.registered_nodes[n].on_construct()
+		end,
+	})
 end

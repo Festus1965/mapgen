@@ -114,7 +114,7 @@ function Floaters_Mapgen:_init()
 		v[2] = 0
 	end
 
-	table.insert( self.ores, 4, { 'default:water_source', 0, } )
+	table.insert( self.ores, 6, { 'default:water_source', 0, } )
 
 	--self.share.propagate_shadow = true
 	self.biomemap = {}

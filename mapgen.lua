@@ -64,10 +64,9 @@ do
 end
 
 
-mod.construct_nodes = {}
 for _, n in pairs({'match_three:top', 'default:chest'}) do
 	if minetest.registered_nodes[n] then
-		mod.construct_nodes[node[n]] = true
+		mod.add_construct(n)
 	end
 end
 
