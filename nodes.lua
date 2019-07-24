@@ -987,7 +987,7 @@ do
 		},
 		action = function(pos, node)
 			local n = node.name
-			minetest.registered_nodes[n].on_construct()
+			minetest.registered_nodes[n].on_construct(pos)
 		end,
 	})
 end
