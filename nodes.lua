@@ -527,7 +527,10 @@ do
 		inventory_image = 'mapgen_glowing_fungus.png',
 		groups = { dig_immediate = 3 },
 	})
+end
 
+
+do
 	local giant_mushroom_cap_node_box = {
 		type = 'fixed',
 		fixed = {
@@ -770,7 +773,30 @@ do
 	mod.add_construct('flowers:mushroom_red')
 	mod.add_construct('flowers:mushroom_brown')
 
+	-- Caps can be cooked and eaten.
+	minetest.register_craftitem(mod_name..':mushroom_steak', {
+		description = 'Mushroom Steak',
+		inventory_image = 'mushroom_steak.png',
+		on_use = minetest.item_eat(4),
+	})
 
+	minetest.register_craft({
+		type = 'cooking',
+		output = mod_name..':mushroom_steak',
+		recipe = mod_name..':huge_mushroom_cap',
+		cooktime = 2,
+	})
+
+	minetest.register_craft({
+		type = 'cooking',
+		output = mod_name..':mushroom_steak 2',
+		recipe = mod_name..':giant_mushroom_cap',
+		cooktime = 2,
+	})
+end
+
+
+do
 	-- spikes, hot -- silicon-based life
 	local spike_size = { 1.0, 1.2, 1.4, 1.6, 1.7 }
 	local nodename
