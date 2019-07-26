@@ -38,6 +38,11 @@ function DFlat_Mapgen:_init()
 	self.biomemap = {}
 	self.heatmap = {}
 	self.humiditymap = {}
+
+	-- Roads needs this data.
+	-- There really should be a better way of doing this.
+	self.share.biomemap = self.biomemap
+	self.share.humiditymap = self.humiditymap
 end
 
 
