@@ -1492,11 +1492,9 @@ function mod.spawnplayer(player)
 
 	local beds_here = (minetest.get_modpath('beds') and beds and beds.spawn)
 
-	local name = player:get_player_name()
-	if beds_here then
-		if beds.spawn[name] then
-			return
-		end
+	local player_name = player:get_player_name()
+	if beds_here and beds.spawn[player_name] then
+		return
 	end
 
 	if minetest.settings:get('static_spawnpoint') then
@@ -1540,10 +1538,10 @@ function mod.spawnplayer(player)
 	pos.y = pos.y + 2
 	player:setpos(pos)
 
-	if beds_here then
+	if beds_here and not beds.spawn[player_name] then
 		-- This doesn't work...
-		--beds.set_spawns()
-		beds.spawn[name] = pos
+		beds.spawn[player_name] = pos
+		beds.set_spawns()
 	end
 
 	return true
