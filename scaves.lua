@@ -149,6 +149,20 @@ function SCaves_Mapgen:simple_caves()
 		local index = pos.z * csize.x + pos.x + 1
 
 		if maxp.y < self.water_level or pos.y <= self.heightmap[index] then
+			do
+				local hpos = vector.add(pos, -(biome.surface_depth or 1))
+				local hsize = vector.add(size, (2 * (biome.surface_depth or 1)))
+				geo:add({
+					action = 'sphere',
+					node = 'default:dirt',
+					location = hpos,
+					intersect = { biome.node_stone or 'default:stone' },
+					random = 6,
+					underground = cave_underground,
+					size = hsize,
+				})
+			end
+
 			if biome.node_floor or biome.node_ceiling then
 				local hpos = vector.add(pos, -(biome.surface_depth or 1))
 				local hsize = vector.add(size, (2 * (biome.surface_depth or 1)))

@@ -34,7 +34,19 @@ function Roads_Mapgen:_init()
 end
 
 
+
+local house_noise = PerlinNoise({
+	offset = 0,
+	scale = 1,
+	seed = 1585,
+	spread = {x = 2, y = 2, z = 2},
+	octaves = 2,
+	persist = 0.5,
+	lacunarity = 2.0
+})
 function Roads_Mapgen:generate()
+	local minp, csize = self.minp, self.csize
+
 	if self.share.disruptive then
 		return
 	end
@@ -42,10 +54,15 @@ function Roads_Mapgen:generate()
 	self.gpr = PcgRandom(self.seed + 5245)
 	self.puzzle_boxes = {}
 
+	local x, z = math.floor(minp.x / csize.x), math.floor(minp.z / csize.z)
+	local hn = house_noise:get_2d({x=x, y=z})
+
 	self:map_roads()
 	self:mark_plots()
 	self:place_terrain()
-	self:houses()
+	if hn > 0 then
+		self:houses()
+	end
 
 	if #self.puzzle_boxes > 0 then
 		self:place_puzzles()
