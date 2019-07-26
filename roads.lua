@@ -229,7 +229,7 @@ function Roads_Mapgen:houses()
 					intersect = {walls1, roof1},
 					location = pos,
 					size = size,
-					random = 100,
+					random = 300,
 				})
 			end
 
