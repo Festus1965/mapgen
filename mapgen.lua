@@ -722,6 +722,9 @@ function Mapgen:map_biomes(force_height)
 
 			if biome then
 				biomemap[index] = biome
+				if self.biomes_here[biome.name] == true then
+					self.biomes_here[biome.name] = 1
+				end
 				self.biomes_here[biome.name] = (self.biomes_here[biome.name] or 0) + 1
 			end
 
