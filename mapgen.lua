@@ -103,8 +103,9 @@ local geo_replace = {
 local ores = {
 	{ 'default:dirt', 0, },
 	{ 'default:sand', 0, },
-	{ 'default:stone_with_coal', 0, },
 	{ 'default:gravel', 0, },
+	{ 'default:clay', 0, },
+	{ 'default:stone_with_coal', 0, },
 	{ 'default:stone_with_iron', 1, },
 	{ 'default:stone_with_gold', 1, },
 	{ 'default:stone_with_diamond', 2, },
@@ -134,6 +135,38 @@ local default_noises = {
 	--flat_cave_1 = { def = { offset = 0, scale = 10, seed = 6386, spread = {x = 23, y = 23, z = 23}, octaves = 3, persist = 0.7, lacunarity = 1.8 }, },
 	--cave_heat = { def = { offset = 50, scale = 50, seed = 1578, spread = {x = 200, y = 200, z = 200}, octaves = 3, persist = 0.5, lacunarity = 2 }, },
 }
+
+
+-- This is a simple, breadth-first search, for checking whether
+-- a depression in the ground is enclosed (for placing ponds).
+-- It is cpu-intensive, but also easy to code.
+local function heightmap_search(heightmap, csize, ri)
+	local s = {}
+	local q = {}
+	s[ri] = true
+	q[#q+1] = ri
+	while #q > 0 do
+		local ci = q[#q]
+		q[#q] = nil
+		local cx = ci % csize.x + 1
+		local cz = math_floor(ci / csize.x) + 1
+		if ((cx <= 2 or cx >= csize.x - 1) or (cz <= 2 or cz >= csize.z - 1)) then
+			return
+		end
+		for zo = -1, 1 do
+			for xo = -1, 1 do
+				if zo ~= xo then
+					local ni = ci + (zo * csize.x) + xo
+					if not s[ni] and heightmap[ni] <= heightmap[ri] then
+						s[ni] = true
+						q[#q+1] = ni
+					end
+				end
+			end
+		end
+	end
+	return heightmap[ri]
+end
 
 
 
@@ -236,6 +269,7 @@ mod.Mapgen = mod.subclass({
 	heatmap = {},
 	heightmap = {}, -- use global?
 	humiditymap = {},
+	lake_depth = 20,
 	meta_data = {},
 	noises = table.copy(default_noises),  -- This copy isn't necessary...
 	node = mod.node,
@@ -688,7 +722,7 @@ function Mapgen:map_biomes(force_height)
 
 			if biome then
 				biomemap[index] = biome
-				self.biomes_here[biome.name] = true
+				self.biomes_here[biome.name] = (self.biomes_here[biome.name] or 0) + 1
 			end
 
 			index = index + 1
@@ -1235,12 +1269,15 @@ function Mapgen:place_terrain()
 	local water_level = self.water_level
 
 	local stone_layers = self.stone_layers
+	local n_air = node['air']
+	local n_ignore = node['ignore']
 
 	self:map_height()
 	if not (self.biome or self.share.biome) then
 		self:map_heat_humidity()
 		self:map_biomes()
 	end
+	self:ponds()
 
 	local index = 1
 	for z = minp.z, maxp.z do
@@ -1250,6 +1287,7 @@ function Mapgen:place_terrain()
 
 			local depth_filler = biome.depth_filler or 0
 			local depth_top = biome.depth_top or 0
+			local o_depth_top = depth_top
 			if depth_top > 0 then
 				depth_top = self:erosion(height, index, depth_top, 100)
 			end
@@ -1287,19 +1325,24 @@ function Mapgen:place_terrain()
 			ww = node[ww]
 			local wtb = water_level - wtd
 
-			local fill_1 = height - depth_top
+			local fill_0 = height - math_max(0, (o_depth_top - depth_top))
+			local fill_1 = height - o_depth_top
 			local fill_2 = fill_1 - math_max(0, depth_filler)
 
 			local t_y_loop = os_clock()
 			local ivm = area:index(x, minp.y, z)
 			for y = minp.y, maxp.y do
-				if y > height and y <= water_level then
+				if not (data[ivm] == n_air or data[ivm] == n_ignore) then
+					-- nop
+				elseif y > height and y <= water_level then
 					if y > wtb then
 						data[ivm] = wt
 					else
 						data[ivm] = ww
 					end
 					p2data[ivm] = 0
+				elseif y <= height and y > fill_0 then
+					data[ivm] = n_air
 				elseif y <= height and y > fill_1 then
 					data[ivm] = top
 					p2data[ivm] = grass_p2 --  + 0
@@ -1320,6 +1363,106 @@ function Mapgen:place_terrain()
 			mod.time_y_loop = mod.time_y_loop + os_clock() - t_y_loop
 
 			index = index + 1
+		end
+	end
+end
+
+
+function Mapgen:ponds()
+	if self.lake_depth < 1 then
+		return
+	end
+
+	local csize = self.csize
+	local humiditymap = self.humiditymap
+	local ahu = 0
+	for index = 1, csize.z * csize.x do
+		ahu = ahu + humiditymap[index]
+	end
+	ahu = ahu / (csize.z * csize.x)
+	if ahu < 30 then
+		return
+	end
+
+	local n_air = node['air']
+	local n_water = node['default:water_source']
+	local n_ice = node['default:ice']
+	local n_clay = node['default:clay']
+
+	local area = self.area
+	local biomemap = self.biomemap
+	local heatmap = self.heatmap
+	local checked = {}
+	local data = self.data
+	local heightmap = self.heightmap
+	local lilies = {
+		['deciduous_forest'] = true,
+		['savanna'] = true,
+		['rainforest'] = true,
+	}
+	local maxp = self.maxp
+	local minp = self.minp
+	local pond_min = self.water_level + 12
+	local ps = PcgRandom(self.seed + 93)
+
+	-- Check for depressions every eight meters.
+	for z = 5, csize.z - 4, 8 do
+		for x = 5, csize.x - 4, 8 do
+			local p = {x=x+minp.x-1, z=z+minp.z-1}
+			local index = (z - 1) * csize.x + x
+			local height = heightmap[index] + 1
+			if height > pond_min and height >= minp.y - 1 and height <= maxp.y + 1 then
+				local search = {}
+				local highest = 0
+				local h1 = heightmap_search(heightmap, csize, index)
+				-- If a depression is there, look at all the adjacent squares.
+				if h1 then
+					for zo = -6, 6 do
+						for xo = -6, 6 do
+							local subindex = index + zo * csize.x + xo
+							if not checked[subindex] then
+								h1 = heightmap_search(heightmap, csize, subindex)
+								-- Mark this as already searched.
+								checked[subindex] = true
+								if h1 then
+									if h1 > highest then
+										highest = h1
+									end
+									-- Store depressed positions.
+									search[#search+1] = {x=x+xo, z=z+zo, h=h1}
+								end
+							end
+						end
+					end
+
+					for _, p2 in ipairs(search) do
+						local index = (p2.z - 1) * csize.x + p2.x
+
+						p2.x = p2.x + minp.x - 1
+						p2.z = p2.z + minp.z - 1
+
+						local biome = biomemap[index] or {}
+						local heat = heatmap[index] or 60
+
+						-- Place water and lilies.
+						local ivm = area:index(p2.x, p2.h-1, p2.z)
+						data[ivm] = n_clay
+						for h = p2.h, highest do
+							ivm = ivm + area.ystride
+							data[ivm] = node[biome.node_water_top] or n_water
+							if data[ivm] == n_water and heat < 30 and highest - h < 3 then
+							data[ivm] = n_ice
+							end
+						end
+						ivm = ivm + area.ystride
+						if lilies[biome.name] and ps:next(1, 10) == 1 then
+							data[ivm] = node['flowers:waterlily']
+						else
+							data[ivm] = n_air
+						end
+					end
+				end
+			end
 		end
 	end
 end
