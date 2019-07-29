@@ -523,11 +523,16 @@ minetest.register_on_shutdown(function()
 end)
 
 
-local math_floor = math.floor
+minetest.register_privilege('mapgen', {
+	description = 'allowed to alter the landscape',
+	give_to_singleplayer = true,
+	give_to_admin = true,
+})
+
 minetest.register_chatcommand('ether', {
 	params = '',
 	description = 'Teleport to ether',
-	privs = {},
+	privs = { mapgen = true },
 	func = function(player_name, param)
 		if type(player_name) ~= 'string' or player_name == '' then
 			return
@@ -554,5 +559,73 @@ minetest.register_chatcommand('ether', {
 			npos.z = math_floor(npos.z / 8 + 0.5)
 			player:set_pos(npos)
 		end
+	end,
+})
+
+
+minetest.register_chatcommand('genesis', {
+	params = '',
+	description = 'Regenerate a chunk, destroying all existing nodes.',
+	privs = { mapgen = true },
+	func = function(player_name, param)
+		if not player_name then
+			return
+		end
+
+		local player = minetest.get_player_by_name(player_name)
+		if not player then
+			return
+		end
+
+		local pos = player:get_pos()
+		if not pos then
+			return
+		end
+
+		local chunksize = tonumber(minetest.settings:get('chunksize') or 5)
+		local chunk_offset = math.floor(chunksize / 2) * 16;
+		local csize = { x=chunksize * 16, y=chunksize * 16, z=chunksize * 16 }
+
+		local chunk = vector.floor(vector.divide(vector.add(pos, chunk_offset), csize.z))
+		local minp = vector.add(vector.multiply(chunk, csize.z), -chunk_offset)
+		local maxp = vector.add(vector.add(minp, -1), csize.z)
+		local vm = minetest.get_voxel_manip()
+		if not vm then
+			return
+		end
+		local emin, emax = vm:read_from_map(minp, maxp)
+
+		if not (emin and emax) then
+			return
+		end
+
+		local area = VoxelArea:new({MinEdge = emin, MaxEdge = emax})
+		local data = vm:get_data()
+		local p2data = vm:get_param2_data()
+		local n_air = minetest.get_content_id('air')
+
+		for z = minp.z, maxp.z do
+			for y = minp.y, maxp.y do
+				local ivm = area:index(minp.x, y, z)
+				for x = minp.x, maxp.x do
+					data[ivm] = n_air
+					p2data[ivm] = 0
+					ivm = ivm + 1
+				end
+			end
+		end
+
+		vm:set_data(data)
+		vm:set_param2_data(p2data)
+		vm:write_to_map()
+		vm = nil
+
+		local mg = mod.Mapgen(minp, maxp, nil)
+		if not mg then
+			return
+		end
+		mg.name = 'Mapgen'
+
+		mg:generate_all(true)
 	end,
 })

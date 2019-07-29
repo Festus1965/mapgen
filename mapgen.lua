@@ -281,12 +281,92 @@ mod.Mapgen = mod.subclass({
 })
 local Mapgen = mod.Mapgen
 
+
+local function xor(a, b)
+	local r = 0
+	for i = 0, 31 do
+		local x = a / 2 + b / 2
+		if x ~= math.floor(x) then
+			r = r + 2^i
+		end
+		a = math.floor(a / 2)
+		b = math.floor(b / 2)
+	end
+	return r
+end
+assert(xor(60, 13) == 49)
+
+
+local function limit32(n)
+	if n >= 2^32 then
+		n = n % (math.floor(n / (2 ^ 32)) * (2 ^ 32))
+	end
+
+	return n
+end
+
+
+function mod.get_block_seed2(minp, mapseed)
+	local n = 1619 * minp.x + 31337 * minp.y + 52591 * minp.z + 1013 * mapseed
+	n = limit32(n)
+	n = xor(math.floor(n / (2 ^ 13)), n)
+	local o = limit32(n * 60493)
+	o = limit32(o * n)
+	o = limit32(o + 19990303)
+	o = limit32(n * o)
+	o = limit32(o + 1376312589)
+	return o
+end
+
+
+--[[    The original function from C:
+u32 Mapgen::getBlockSeed2(v3s16 p, s32 seed)
+{
+	u32 n = 1619 * p.X + 31337 * p.Y + 52591 * p.Z + 1013 * seed;
+	n = (n >> 13) ^ n;
+	return (n * (n * n * 60493 + 19990303) + 1376312589);
+}
+--]]
+
+
 function Mapgen:_init(minp, maxp, seed)
-	if not (minp and maxp and seed) then
+	if not (minp and maxp) then
 		return
 	end
 
-	local vm, emin, emax = minetest.get_mapgen_object('voxelmanip')
+	if not mod.mapseed then
+		mod.mapseed = minetest.get_mapgen_setting('seed')
+
+		-- This is not the correct mapseed if a text value is used
+		--  as the world's seed. Mintest gives the wrong seed to lua
+		--  for some reason. It's not a big deal, just annoying.
+		mod.mapseed = limit32(tonumber(mod.mapseed))
+
+		--print(mod_name..': starting with mapseed = ' .. string.format('%x', mod.mapseed))
+	end
+	local mapseed = mod.mapseed
+
+	-- This is not the same blockseed minetest provides. It uses
+	--  some extremely suspicious arithmetic that deliberately
+	--  overflows an integer repeatedly, for a mathematically
+	--  incorrect result. Lua doesn't want to give incorrect
+	--  results, so it's very hard to duplicate.
+	-- Instead, I just make my own seed.
+	local blockseed = mod.get_block_seed2(minp, mapseed)
+
+	local vm, emin, emax
+	if seed then
+		self.ongen = true
+		vm, emin, emax = minetest.get_mapgen_object('voxelmanip')
+	else
+		self.ongen = false
+		vm = minetest.get_voxel_manip()
+		if not vm then
+			return
+		end
+		emin, emax = vm:read_from_map(minp, maxp)
+	end
+
 	if not (vm and emin and emax) then
 		return
 	end
@@ -304,7 +384,7 @@ function Mapgen:_init(minp, maxp, seed)
 	self.minp = minp
 	self.maxp = maxp
 	self.p2data = vm:get_param2_data(m_p2data)
-	self.seed = seed
+	self.seed = blockseed
 	self.vm = vm
 	self.share = {}  -- Don't carry this between chunks.
 	self.share.propagate_shadow = false
@@ -530,7 +610,7 @@ end
 function Mapgen:generate_all(timed)
 	local minp, maxp = self.minp, self.maxp
 
-	local chunk = vector.divide(vector.add(minp, chunk_offset), 80)
+	local chunk = vector.floor(vector.divide(vector.add(minp, chunk_offset), 80))
 	self:make_stone_layer_noise()  -- This isn't always needed.
 
 	local mapgens = { }
@@ -1378,6 +1458,10 @@ function Mapgen:ponds()
 
 	local csize = self.csize
 	local humiditymap = self.humiditymap
+	if not (humiditymap and #humiditymap == csize.z * csize.x) then
+		return
+	end
+
 	local ahu = 0
 	for index = 1, csize.z * csize.x do
 		ahu = ahu + humiditymap[index]
@@ -1480,11 +1564,13 @@ function Mapgen:save_map(timed)
 	self.vm:set_data(self.data)
 	self.vm:set_param2_data(self.p2data)
 
-	if DEBUG then
-		self.vm:set_lighting({day = 10, night = 10})
-	else
-		self.vm:set_lighting({day = 0, night = 0}, self.minp, self.maxp)
-		self.vm:calc_lighting(nil, nil, self.share.propagate_shadow)
+	if self.ongen then
+		if DEBUG then
+			self.vm:set_lighting({day = 10, night = 10})
+		else
+			self.vm:set_lighting({day = 0, night = 0}, self.minp, self.maxp)
+			self.vm:calc_lighting(nil, nil, self.share.propagate_shadow)
+		end
 	end
 
 	self.vm:update_liquids()

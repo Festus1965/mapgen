@@ -543,7 +543,7 @@ do
 		mapgen = City_Mapgen,
 		mapgen_name = 'city',
 		map_minp = VN(-2, 0, -2),
-		map_maxp = VN(2, 15, 2),
+		map_maxp = VN(2, 2, 2),
 		--map_minp = VN(-max_chunks, 70, -max_chunks),
 		--map_maxp = VN(max_chunks, 72, max_chunks),
 		noises = noises,

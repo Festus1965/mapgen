@@ -403,7 +403,7 @@ function Floaters_Mapgen:prepare()
 end
 
 
-function Floaters_Mapgen:get_spawn_level(map, x, z)
+function Floaters_Mapgen:get_spawn_level(map, x, z, force)
 	local ground_noise = minetest.get_perlin(map.noises['floaters_over'].def)
 	local base_noise = minetest.get_perlin(map.noises['floaters_base'].def)
 	local under_noise = minetest.get_perlin(map.noises['floaters_under'].def)
@@ -412,7 +412,7 @@ function Floaters_Mapgen:get_spawn_level(map, x, z)
 	local under = under_noise:get_2d({x=x, y=z, z=z})
 
 	local height = math_floor(self:terrain_height(ground, base, under))
-	if height <= map.water_level then
+	if not force and height <= map.water_level then
 		return
 	end
 
@@ -619,6 +619,7 @@ do
 		map_minp = VN(-max_chunks, 6, -max_chunks),
 		map_maxp = VN(max_chunks, 11, max_chunks),
 		noises = noises,
+		random_teleportable = true,
 		water_level = base_water_level,
 	}
 	layer_mod.register_map(def)

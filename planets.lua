@@ -245,7 +245,7 @@ do
 		biomes = 'default',
 		mapgen = Planets_Mapgen,
 		mapgen_name = 'planets',
-		map_minp = VN(-max_chunks, 4, -max_chunks),
+		map_minp = VN(-max_chunks, 2, -max_chunks),
 		map_maxp = VN(max_chunks, 5, max_chunks),
 		water_level = 1,
 	})

@@ -201,6 +201,7 @@ do
 		map_minp = VN(-max_chunks, 47, -max_chunks),
 		map_maxp = VN(max_chunks, 62, max_chunks),
 		noises = noises,
+		random_teleportable = true,
 		water_level = 4640,
 	})
 

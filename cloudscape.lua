@@ -528,6 +528,7 @@ do
 	}
 
 
+	--[[
 	layer_mod.register_map({
 		name = 'cloudscape',
 		biomes = biomes,
@@ -537,6 +538,39 @@ do
 		map_minp = VN(-max_chunks, 2, -max_chunks),
 		map_maxp = VN(max_chunks, 3, max_chunks),
 		noises = noises,
+		random_teleportable = true,
 		water_level = 1,
 	})
+	--]]
+
+	--[[
+	local cloud_min = 2 * 80 - 32
+	local cloud_max = 4 * 80 - 33
+	minetest.register_lbm({
+		name = mod_name..':cloud_killer',
+		nodenames = {
+			mod_name..':cloud',
+			mod_name..':wet_cloud',
+			mod_name..':storm_cloud',
+			mod_name..':wispy_cloud',
+			mod_name..':moon_weed',
+			mod_name..':leaves_lumin',
+			mod_name..':lumin_tree',
+			mod_name..':silver_lining',
+			mod_name..':rainbow_grass_1',
+			mod_name..':rainbow_grass_2',
+			mod_name..':rainbow_grass_3',
+			mod_name..':rainbow_grass_4',
+			mod_name..':rainbow_grass_5',
+			'default:river_water_source',
+			'default:ice',
+		},
+        action = function(pos, node)
+			if pos.y >= cloud_min and pos.y <= cloud_max then
+				minetest.remove_node(pos)
+			end
+		end,
+		run_at_every_load = true,
+	})
+	--]]
 end

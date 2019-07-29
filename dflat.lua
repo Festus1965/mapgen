@@ -139,13 +139,13 @@ function DFlat_Mapgen:prepare()
 end
 
 
-function DFlat_Mapgen:get_spawn_level(map, x, z)
+function DFlat_Mapgen:get_spawn_level(map, x, z, force)
 	local ground_noise = minetest.get_perlin(map.noises['dflat_ground'].def)
 	local ground_1 = ground_noise:get_2d({x=x, y=z, z=z})
 	local base_level = map.water_level + water_diff
 
 	local height = math_floor(self:terrain_height(ground_1, base_level))
-	if height <= map.water_level then
+	if not force and height <= map.water_level then
 		return
 	end
 
@@ -368,6 +368,7 @@ do
 		map_minp = VN(-max_chunks, -4, -max_chunks),
 		map_maxp = VN(max_chunks, 5, max_chunks),
 		noises = noises,
+		random_teleportable = true,
 		water_level = 1,
 	})
 
