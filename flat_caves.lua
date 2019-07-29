@@ -59,7 +59,7 @@ function Flat_Caves_Mapgen:generate()
 		return
 	end
 
-	--self.gpr = PcgRandom(self.seed + 5107)
+	self.gpr = PcgRandom(self.seed + 6428)
 	self.no_dust = true
 
 	local t_cave = os_clock()
@@ -67,6 +67,7 @@ function Flat_Caves_Mapgen:generate()
 	self:map_heat_humidity()
 	self:map_biomes()
 	self:flat_cave()
+	self:simple_ore()
 	layer_mod.time_caves = layer_mod.time_caves + os_clock() - t_cave
 end
 

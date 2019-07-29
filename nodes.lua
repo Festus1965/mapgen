@@ -564,6 +564,13 @@ do
 		}
 	}
 
+	minetest.register_craft({
+		output = 'default:wood',
+		recipe = {
+			{mod_name..':giant_mushroom_stem'}
+		}
+	})
+
 	local grow_into = {
 		['air'] = true,
 		['default:water_source'] = true,

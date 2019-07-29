@@ -563,6 +563,35 @@ minetest.register_chatcommand('ether', {
 })
 
 
+minetest.register_chatcommand('chunk', {
+	params = '',
+	description = 'What chunk is this?',
+	privs = { },
+	func = function(player_name, param)
+		if not player_name then
+			return
+		end
+
+		local player = minetest.get_player_by_name(player_name)
+		if not player then
+			return
+		end
+
+		local pos = player:get_pos()
+		if not pos then
+			return
+		end
+
+		local chunksize = tonumber(minetest.settings:get('chunksize') or 5)
+		local chunk_offset = math.floor(chunksize / 2) * 16;
+		local csize = { x=chunksize * 16, y=chunksize * 16, z=chunksize * 16 }
+
+		local chunk = vector.floor(vector.divide(vector.add(pos, chunk_offset), csize.z))
+		minetest.chat_send_player(player_name, 'Chunk: ' .. chunk.x .. ',' .. chunk.y .. ',' .. chunk.z)
+	end,
+})
+
+
 minetest.register_chatcommand('genesis', {
 	params = '',
 	description = 'Regenerate a chunk, destroying all existing nodes.',
