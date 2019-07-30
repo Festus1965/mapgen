@@ -207,7 +207,7 @@ do
 		mapgen = Flat_Caves_Mapgen,
 		mapgen_name = 'flat_caves',
 		map_minp = VN(-max_chunks, -30, -max_chunks),
-		map_maxp = VN(max_chunks, -5, max_chunks),
+		map_maxp = VN(max_chunks, -6, max_chunks),
 		random_teleportable = true,
 		water_level = water_level,
 	})

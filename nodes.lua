@@ -1009,7 +1009,7 @@ do
 end
 
 
-do
+if false then
 	minetest.register_lbm({
 		name = mod_name..':mush_timers',
 		nodenames = {

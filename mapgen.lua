@@ -1609,6 +1609,7 @@ end
 function Mapgen:simple_ore(num_deposits)
 	local minp, maxp = self.minp, self.maxp
 	local f_alt = math_max(0, - math_floor((minp.y + self.chunk_offset) / self.csize.y))
+	f_alt = math_max(f_alt, math_max(math_abs(minp.x), math_abs(minp.z)) / 3000)
 
 	local pr = self.gpr
 	if not num_deposits then
