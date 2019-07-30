@@ -133,9 +133,14 @@ function Flat_Caves_Mapgen:flat_cave()
 			local biome = biomemap[index]
 			local n_b_stone = node[biome.node_stone] or n_stone
 			local n_ceiling = node[biome.node_ceiling] or node[biome.node_lining]
-			local n_floor = node[biome.node_floor] or node[biome.node_lining]
+			local floor = biome.node_floor or biome.node_lining
+			local n_floor = node[floor]
 			local n_fluid = node[biome.node_cave_liquid]
 			local surface_depth = biome.surface_depth or 1
+
+			if (not floor or floor:find('stone')) and self.gpr:next(1, 8) == 1 then
+				n_floor = node['default:dirt']
+			end
 
 			local ivm = area:index(x, minp.y, z)
 			for y = minp.y, maxp.y do
