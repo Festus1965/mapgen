@@ -104,12 +104,12 @@ local ores = {
 	{ 'default:dirt', 0, },
 	{ 'default:sand', 0, },
 	{ 'default:gravel', 0, },
-	{ 'default:clay', 0, },
-	{ 'default:stone_with_coal', 0, },
-	{ 'default:stone_with_iron', 1, },
-	{ 'default:stone_with_gold', 1, },
-	{ 'default:stone_with_diamond', 2, },
-	{ 'default:stone_with_mese', 2, },
+	{ 'default:clay', 1, },
+	{ 'default:stone_with_coal', 1, },
+	{ 'default:stone_with_iron', 2, },
+	{ 'default:stone_with_gold', 3, },
+	{ 'default:stone_with_diamond', 4, },
+	{ 'default:stone_with_mese', 5, },
 }
 
 local ore_intersect = {
