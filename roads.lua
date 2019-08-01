@@ -218,7 +218,7 @@ function Roads_Mapgen:houses()
 			end
 
 			do
-				local ff_alt = math_max(0, pr:next(1, 4) + pr:next(1, 4) - 5)
+				local ff_alt = math_max(0, pr:next(1, 6) + pr:next(1, 6) - 7)
 				local ore = self:get_ore(ff_alt)
 				pos = table.copy(box.pos)
 				size = table.copy(box.size)

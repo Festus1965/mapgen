@@ -135,14 +135,12 @@ function SCaves_Mapgen:simple_caves()
 		if big == 1 then
 			size.x = pr:next(9, 78)
 		elseif big == 2 then
-			size.y = pr:next(9, 78)
-		elseif big == 3 then
 			size.z = pr:next(9, 78)
 		end
 
 		local pos = VN(
 			pr:next(1, 79 - size.x),
-			pr:next(1, 79 - size.y),
+			pr:next(1, 75 - size.y),
 			pr:next(1, 79 - size.z)
 		)
 
