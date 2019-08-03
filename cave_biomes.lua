@@ -1047,6 +1047,51 @@ do
 end
 
 
+do
+	newnode = clone_node('default:dirt')
+	newnode.description = 'Mushroom Soil'
+	newnode.tiles = { newnode.tiles[1]..'^[colorize:#000000:100' }
+	newnode.on_timer = function(pos, elapsed)
+		local posu = {x=pos.x, y=pos.y+1, z=pos.z}
+		local daylight = minetest.get_node_light(posu, 0.5) or 0
+		local light = minetest.get_node_light(posu, nil) or 0
+		if light > light_max then
+			return true
+		end
+
+		local node_up = minetest.get_node_or_nil(posu)
+		if not node_up then
+			return true
+		end
+
+		if node_up.name == 'air' then
+			minetest.set_node(posu, { name = 'flowers:mushroom_brown' })
+			return true
+		end
+	end
+	newnode.on_construct = function(pos)
+		local timer = minetest.get_node_timer(pos)
+		local max = 1200
+		if timer then
+			timer:set(max, max > 1 and math.random(max - 1) or 0)
+		end
+	end
+	minetest.register_node(mod_name..':mushroom_soil', newnode)
+
+	for _, n in pairs({
+		'group:wood',
+		'farming:straw',
+		'group:flora',
+	}) do
+		minetest.register_craft({
+			output = mod_name..':mushroom_soil',
+			type = 'shapeless',
+			recipe = { 'default:dirt', 'flowers:mushroom_brown', n, },
+		})
+	end
+end
+
+
 if false then
 	minetest.register_lbm({
 		name = mod_name..':mush_timers',

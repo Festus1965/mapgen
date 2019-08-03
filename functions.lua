@@ -2,6 +2,9 @@
 -- Copyright Duane Robertson (duane@duanerobertson.com), 2019
 -- Distributed under the LGPLv2.1 (https://www.gnu.org/licenses/old-licenses/lgpl-2.1.en.html)
 
+-- Some of this code was inspired by Donald Hines' Realms mod,
+-- Distributed under the MIT license (see LICENSE.txt)
+
 
 local mod = mapgen
 local mod_name = 'mapgen'
@@ -9,6 +12,12 @@ local mod_name = 'mapgen'
 local math_floor = math.floor
 local math_min = math.min
 local math_max = math.max
+
+
+mod.biomes = {}
+mod.cave_biomes = {}
+mod.max_chunks = 387
+mod.registered_mapgens = {}
 
 
 -- This tables looks up nodes that aren't already stored.
@@ -62,14 +71,16 @@ function mod.add_group(node_name, groups)
 	if not (node_name and def and groups and type(groups) == 'table') then
 		return false
 	end
+
 	local def_groups = def.groups or {}
 	for group, value in pairs(groups) do
-		if value ~= 0 then
-			def_groups[group] = value
-		else
+		if value == 0 then
 			def_groups[group] = nil
+		else
+			def_groups[group] = value
 		end
 	end
+
 	minetest.override_item(node_name, {groups = def_groups})
 	return true
 end
@@ -144,8 +155,73 @@ function mod.schematic_array(width, height, depth)
 end
 
 
-mod.max_chunks = 387
-mod.world_map = {}
+function mod.register_mapgen(name, func)
+	if not (name and func and type(name) == 'string' and type(func) == 'function') then
+		return
+	end
+
+	if mod.registered_mapgens[name] then
+		minetest.log(mod_name .. ': * Overriding existing mapgen: ' .. name)
+	end
+
+	mod.registered_mapgens[name] = func
+end
+
+
+function mod.register_noise(name, def)
+	if not (name and def and type(name) == 'string' and type(def) == 'table') then
+		return
+	end
+
+	if mod.registered_noises[name] then
+		minetest.log(mod_name .. ': * Overriding existing noise: ' .. name)
+	end
+
+	mod.registered_noises[name] = def
+end
+
+
+function mod.get_noise2d(name, pos, size)
+	if not (name and pos and size and type(name) == 'string'
+	and type(pos) == 'table' and type(size) == 'table'
+	and registered_noises[name]) then
+		return
+	end
+
+	if size.z then
+		size.y = size.z
+	end
+
+	if pos.z then
+		pos.y = pos.z
+	end
+
+	local noise = minetest.get_perlin_map(registered_noises[name], pos)
+	if not noise then
+		return
+	end
+
+	return noise:get_2d_map_flat(size)
+end
+
+
+function mod.get_noise3d(name, pos, size)
+	if not (name and pos and size and type(name) == 'string'
+	and type(pos) == 'table' and type(size) == 'table'
+	and registered_noises[name]) then
+		return
+	end
+
+	local noise = minetest.get_perlin_map(registered_noises[name], pos)
+	if not noise then
+		return
+	end
+
+	return noise:get_3d_map_flat(size)
+end
+
+
+--[[
 function mod.register_map(def)
 	-------------------------------------------
 	-- Check parameters.
@@ -175,10 +251,7 @@ function mod.register_map(def)
 
 	table.insert(mod.world_map, def)
 end
-
-
-mod.biomes = {}
-mod.cave_biomes = {}
+--]]
 
 
 function mod.register_biome(def, source)
