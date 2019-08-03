@@ -7,11 +7,11 @@ mapgen = {}
 local mod = mapgen
 local mod_name = 'mapgen'
 
-mod.version = '20190602'
+mod.version = '20190802'
 mod.path = minetest.get_modpath(minetest.get_current_modname())
 mod.world = minetest.get_worldpath()
 
-minetest.set_mapgen_setting('mg_name', 'singlenode', true)
+--minetest.set_mapgen_setting('mg_name', 'singlenode', true)
 --minetest.set_mapgen_setting('water_level', -31000, true)
 
 
@@ -48,13 +48,13 @@ mod.time_y_loop = 0
 dofile(mod.path .. '/functions.lua')
 --dofile(mod.path .. '/nodes.lua')
 --dofile(mod.path .. '/plans.lua')
---dofile(mod.path .. '/mapgen.lua')
+dofile(mod.path .. '/mapgen.lua')
 --dofile(mod.path .. '/dflat.lua')
 --dofile(mod.path .. '/valleys.lua')
 --dofile(mod.path .. '/pillars.lua')
 --dofile(mod.path .. '/city.lua')
 --dofile(mod.path .. '/cloudscape.lua')
---dofile(mod.path .. '/floaters.lua')
+--dofile(mod.path .. '/tg_floaters.lua')
 --dofile(mod.path .. '/scaves.lua')
 --dofile(mod.path .. '/flat_caves.lua')
 --dofile(mod.path .. '/roads.lua')

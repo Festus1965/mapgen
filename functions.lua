@@ -2,22 +2,22 @@
 -- Copyright Duane Robertson (duane@duanerobertson.com), 2019
 -- Distributed under the LGPLv2.1 (https://www.gnu.org/licenses/old-licenses/lgpl-2.1.en.html)
 
--- Some of this code was inspired by Donald Hines' Realms mod,
--- Distributed under the MIT license (see LICENSE.txt)
+-- Some of this code was inspired by, and hopefully is compatible
+--  with, Donald Hines' Realms mod.
 
 
 local mod = mapgen
 local mod_name = 'mapgen'
-
-local math_floor = math.floor
-local math_min = math.min
-local math_max = math.max
 
 
 mod.biomes = {}
 mod.cave_biomes = {}
 mod.max_chunks = 387
 mod.registered_mapgens = {}
+mod.registered_noises = {}
+
+
+local axes = { 'x', 'y', 'z' }
 
 
 -- This tables looks up nodes that aren't already stored.
@@ -36,7 +36,7 @@ local node = mod.node
 
 function vector.mod(v, m)
 	local w = table.copy(v)
-	for _, d in ipairs({'x', 'y', 'z'}) do
+	for _, d in ipairs(axes) do
 		if w[d] then
 			w[d] = w[d] % m
 		end
@@ -45,7 +45,6 @@ function vector.mod(v, m)
 end
 
 
-local axes = { 'x', 'y', 'z' }
 function vector.contains(minp, maxp, q)
 	for _, a in pairs(axes) do
 		if minp[a] > q[a] or maxp[a] < q[a] then
@@ -54,6 +53,32 @@ function vector.contains(minp, maxp, q)
 	end
 
 	return true
+end
+
+
+function vector.intersect_min(a, b)
+	local out = {}
+	for _, axis in pairs(axes) do
+		if a[axis] < b[axis] then
+			out[axis] = a[axis]
+		else
+			out[axis] = b[axis]
+		end
+	end
+	return out
+end
+
+
+function vector.intersect_max(a, b)
+	local out = {}
+	for _, axis in pairs(axes) do
+		if a[axis] > b[axis] then
+			out[axis] = a[axis]
+		else
+			out[axis] = b[axis]
+		end
+	end
+	return out
 end
 
 
@@ -184,7 +209,7 @@ end
 function mod.get_noise2d(name, pos, size)
 	if not (name and pos and size and type(name) == 'string'
 	and type(pos) == 'table' and type(size) == 'table'
-	and registered_noises[name]) then
+	and mod.registered_noises[name]) then
 		return
 	end
 
@@ -196,7 +221,7 @@ function mod.get_noise2d(name, pos, size)
 		pos.y = pos.z
 	end
 
-	local noise = minetest.get_perlin_map(registered_noises[name], pos)
+	local noise = minetest.get_perlin_map(mod.registered_noises[name], pos)
 	if not noise then
 		return
 	end
@@ -208,11 +233,11 @@ end
 function mod.get_noise3d(name, pos, size)
 	if not (name and pos and size and type(name) == 'string'
 	and type(pos) == 'table' and type(size) == 'table'
-	and registered_noises[name]) then
+	and mod.registered_noises[name]) then
 		return
 	end
 
-	local noise = minetest.get_perlin_map(registered_noises[name], pos)
+	local noise = minetest.get_perlin_map(mod.registered_noises[name], pos)
 	if not noise then
 		return
 	end
@@ -235,11 +260,11 @@ function mod.register_map(def)
 				local w = table.copy(v)
 				if v.y_max then
 					w.y_max = v.y_max + def.water_level - 1
-					w.y_max = math_min(w.y_max, mod.max_height)
+					w.y_max = math.min(w.y_max, mod.max_height)
 				end
 				if v.y_min then
 					w.y_min = v.y_min + def.water_level - 1
-					w.y_min = math_max(w.y_min, -mod.max_height)
+					w.y_min = math.max(w.y_min, -mod.max_height)
 				end
 
 				biomes[n] = w
@@ -620,16 +645,16 @@ minetest.register_chatcommand('ether', {
 		local npos = table.copy(pos)
 
 		if pos.y < -27000 then
-			npos.x = math_floor(npos.x * 8 + 0.5)
+			npos.x = math.floor(npos.x * 8 + 0.5)
 			--npos.y = npos.y + 28800
-			npos.y = math_floor((npos.y + 28400) * 8 + 0.5)
-			npos.z = math_floor(npos.z * 8 + 0.5)
+			npos.y = math.floor((npos.y + 28400) * 8 + 0.5)
+			npos.z = math.floor(npos.z * 8 + 0.5)
 			player:set_pos(npos)
 		else
-			npos.x = math_floor(npos.x / 8 + 0.5)
+			npos.x = math.floor(npos.x / 8 + 0.5)
 			--npos.y = npos.y - 28800
-			npos.y = math_floor((npos.y) / 8 + 0.5) - 28400 + 2
-			npos.z = math_floor(npos.z / 8 + 0.5)
+			npos.y = math.floor((npos.y) / 8 + 0.5) - 28400 + 2
+			npos.z = math.floor(npos.z / 8 + 0.5)
 			player:set_pos(npos)
 		end
 	end,
