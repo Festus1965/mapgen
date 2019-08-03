@@ -5,7 +5,8 @@
 
 mapgen = {}
 local mod = mapgen
-local mod_name = 'mapgen'
+mod.mod_name = 'mapgen'
+local mod_name = mod.mod_name
 
 mod.version = '20190802'
 mod.path = minetest.get_modpath(minetest.get_current_modname())

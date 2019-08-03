@@ -206,7 +206,7 @@ function mod.register_noise(name, def)
 end
 
 
-function mod.get_noise2d(name, pos, size)
+function mod.get_noise2d(name, default, seed, default_seed, size, pos)
 	if not (name and pos and size and type(name) == 'string'
 	and type(pos) == 'table' and type(size) == 'table'
 	and mod.registered_noises[name]) then
@@ -221,28 +221,28 @@ function mod.get_noise2d(name, pos, size)
 		pos.y = pos.z
 	end
 
-	local noise = minetest.get_perlin_map(mod.registered_noises[name], pos)
+	local noise = minetest.get_perlin_map(mod.registered_noises[name], size)
 	if not noise then
 		return
 	end
 
-	return noise:get_2d_map_flat(size)
+	return noise:get_2d_map_flat(pos)
 end
 
 
-function mod.get_noise3d(name, pos, size)
+function mod.get_noise3d(name, default, seed, default_seed, size, pos)
 	if not (name and pos and size and type(name) == 'string'
 	and type(pos) == 'table' and type(size) == 'table'
 	and mod.registered_noises[name]) then
 		return
 	end
 
-	local noise = minetest.get_perlin_map(mod.registered_noises[name], pos)
+	local noise = minetest.get_perlin_map(mod.registered_noises[name], size)
 	if not noise then
 		return
 	end
 
-	return noise:get_3d_map_flat(size)
+	return noise:get_3d_map_flat(pos)
 end
 
 

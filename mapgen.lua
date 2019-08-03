@@ -187,6 +187,7 @@ function mod.generate_all(params)
 	params.area = VoxelArea:new({MinEdge = emin, MaxEdge = emax})
 	params.data = vm:get_data(m_data)
 	params.p2data = vm:get_param2_data(m_p2data)
+	params.vmparam2 = params.p2data
 	--params.seed = blockseed
 	params.vm = vm
 	params.metadata = {}
