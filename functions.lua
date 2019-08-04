@@ -10,17 +10,18 @@ local mod = mapgen
 local mod_name = 'mapgen'
 
 
-mod.biomes = {}
-mod.cave_biomes = {}
-mod.max_chunks = 387
+mod.registered_biomes = {}
+mod.registered_cave_biomes = {}
+mod.registered_mapfuncs = {}
 mod.registered_mapgens = {}
 mod.registered_noises = {}
+mod.rmf = mod.registered_mapfuncs
 
 
 local axes = { 'x', 'y', 'z' }
 
 
--- This tables looks up nodes that aren't already stored.
+-- This table looks up nodes that aren't already stored.
 mod.node = setmetatable({}, {
 	__index = function(t, k)
 		if not (t and k and type(t) == 'table') then
@@ -193,6 +194,19 @@ function mod.register_mapgen(name, func)
 end
 
 
+function mod.register_mapfunc(name, func)
+	if not (name and func and type(name) == 'string' and type(func) == 'function') then
+		return
+	end
+
+	if mod.registered_mapgens[name] then
+		minetest.log(mod_name .. ': * Overriding existing map function: ' .. name)
+	end
+
+	mod.registered_mapfuncs[name] = func
+end
+
+
 function mod.register_noise(name, def)
 	if not (name and def and type(name) == 'string' and type(def) == 'table') then
 		return
@@ -246,48 +260,24 @@ function mod.get_noise3d(name, default, seed, default_seed, size, pos)
 end
 
 
---[[
-function mod.register_map(def)
-	-------------------------------------------
-	-- Check parameters.
-	-------------------------------------------
-
-	local biomes = def.biomes
-	if biomes and biomes == 'default' then
-		biomes = {}
-		for n, v in pairs(mod.biomes) do
-			if v.source == 'default' then
-				local w = table.copy(v)
-				if v.y_max then
-					w.y_max = v.y_max + def.water_level - 1
-					w.y_max = math.min(w.y_max, mod.max_height)
-				end
-				if v.y_min then
-					w.y_min = v.y_min + def.water_level - 1
-					w.y_min = math.max(w.y_min, -mod.max_height)
-				end
-
-				biomes[n] = w
-			end
-		end
-		def.biomes = biomes
-		--print('registering mapgen: '..def.mapgen_name)
-	end
-
-	table.insert(mod.world_map, def)
-end
---]]
-
-
 function mod.register_biome(def, source)
 	if not def.name then
-		print('No-name biome', dump(def))
+		minetest.log(mod_name .. ': No-name biome: ' .. dump(def))
 		return
 	end
 
 	local w = table.copy(def)
+
+	w.node_top = node[w.node_top]
+	w.node_filler = node[w.node_filler]
+	w.node_riverbed = node[w.node_riverbed]
+	w.node_stone = node[w.node_stone]
+	w.node_water = node[w.node_water]
+	w.node_water_top = node[w.node_water_top]
+	w.node_dust = node[w.node_dust]
+
 	w.source = source
-	mod.biomes[w.name] = w
+	mod.registered_biomes[w.name] = w
 end
 
 
@@ -295,66 +285,35 @@ do
 	-- This tries to determine which biomes are default.
 	local default_biome_names = {
 		['cold_desert_ocean'] = true,
-		['cold_desert_ocean'] = true,
-		['cold_desert'] = true,
 		['cold_desert'] = true,
 		['coniferous_forest_dunes'] = true,
-		['coniferous_forest_dunes'] = true,
-		['coniferous_forest_ocean'] = true,
 		['coniferous_forest_ocean'] = true,
 		['coniferous_forest'] = true,
-		['coniferous_forest'] = true,
-		['deciduous_forest_ocean'] = true,
 		['deciduous_forest_ocean'] = true,
 		['deciduous_forest_shore'] = true,
-		['deciduous_forest_shore'] = true,
-		['deciduous_forest'] = true,
 		['deciduous_forest'] = true,
 		['desert_ocean'] = true,
-		['desert_ocean'] = true,
-		['desert'] = true,
 		['desert'] = true,
 		['grassland_dunes'] = true,
-		['grassland_dunes'] = true,
-		['grassland_ocean'] = true,
 		['grassland_ocean'] = true,
 		['grassland'] = true,
-		['grassland'] = true,
-		['icesheet_ocean'] = true,
 		['icesheet_ocean'] = true,
 		['icesheet'] = true,
-		['icesheet'] = true,
-		['rainforest_ocean'] = true,
 		['rainforest_ocean'] = true,
 		['rainforest_swamp'] = true,
-		['rainforest_swamp'] = true,
-		['rainforest'] = true,
 		['rainforest'] = true,
 		['sandstone_desert_ocean'] = true,
-		['sandstone_desert_ocean'] = true,
-		['sandstone_desert'] = true,
 		['sandstone_desert'] = true,
 		['savanna_ocean'] = true,
-		['savanna_ocean'] = true,
-		['savanna_shore'] = true,
 		['savanna_shore'] = true,
 		['savanna'] = true,
-		['savanna'] = true,
-		['snowy_grassland_ocean'] = true,
 		['snowy_grassland_ocean'] = true,
 		['snowy_grassland'] = true,
-		['snowy_grassland'] = true,
-		['taiga_ocean'] = true,
 		['taiga_ocean'] = true,
 		['taiga'] = true,
-		['taiga'] = true,
-		['tundra_beach'] = true,
 		['tundra_beach'] = true,
 		['tundra_highland'] = true,
-		['tundra_highland'] = true,
 		['tundra_ocean'] = true,
-		['tundra_ocean'] = true,
-		['tundra'] = true,
 		['tundra'] = true,
 		['underground'] = true,
 	}

@@ -120,7 +120,7 @@ function mod.generate_floaters(params)
 	-- Let realms do the biomes.
 	params.share.surface=surface
 	if params.biomefunc then
-		realms.rmf[params.biomefunc](params)
+		layers_mod.rmf[params.biomefunc](params)
 	end
 
 	-- Loop through every horizontal space.
@@ -133,12 +133,12 @@ function mod.generate_floaters(params)
 			local biome = surface.biome or {}
 
 			-- depths
-			local depth_top = surface.top_depth or 0  -- 1?
-			local depth_filler = surface.filler_depth or 0  -- 6?!
+			local depth_top = surface.top_depth or biome.depth_top or 0  -- 1?
+			local depth_filler = surface.filler_depth or biome.depth_filler or 0  -- 6?!
 			--local depth_top = biome.top_depth or 0  -- 1?
 			--local depth_filler = biome.filler_depth or 0  -- 6?!
 			local wtd = biome.node_water_top_depth or 0
-			--local grass_p2 = grassmap[index] or 0
+			local grass_p2 = surface.grass_p2 or 0
 
 			local fill_1 = height - depth_top
 			local fill_2 = fill_1 - math.max(0, depth_filler)
@@ -148,8 +148,8 @@ function mod.generate_floaters(params)
 			local filler = biome.node_filler or n_air
 			local top = biome.node_top or n_air
 			local riverbed = biome.node_riverbed
-			local ww = biome.water or node['default:water_source']
-			local wt = node[biome.node_water_top]
+			local ww = biome.node_water or node['default:water_source']
+			local wt = biome.node_water_top
 
 			-- Figure out the tops and bottoms.
 			local pheight = math.abs(math.floor((height - minp.y + math.abs(depth - minp.y)) / 10) - 10)
@@ -234,6 +234,10 @@ function mod.generate_floaters(params)
 
 			index = index +	1
 		end
+	end
+
+	if layers_mod.place_all_decorations then
+		layers_mod.place_all_decorations(params)
 	end
 end
 
