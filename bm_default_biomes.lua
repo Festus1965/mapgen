@@ -60,7 +60,7 @@ function mod.bm_default_biomes(params)
 		end
 		for x = minp.x, maxp.x do
 			local surface = params.share.surface[z][x]
-			local height = (surface.top or minp.y - 2) - water_level - offset
+			local height = (surface.top or minp.y - 2) - water_level - offset + 1
 			local heat, heat_blend, humidity, humidity_blend
 
 			if params.geographic_heat then

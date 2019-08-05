@@ -209,6 +209,7 @@ function mod.generate_dflat(params)
 	local n_air = node['air']
 	local n_water = node['default:water_source']
 	local n_ice = node['default:ice']
+	local n_ignore = node['ignore']
 
 	local ps = PcgRandom(params.chunk_seed + 7712)
 
@@ -284,10 +285,19 @@ function mod.generate_dflat(params)
 			-- depths
 			local depth_top = surface.top_depth or biome.depth_top or 0  -- 1?
 			local depth_filler = surface.filler_depth or biome.depth_filler or 0  -- 6?!
+			local o_depth_top = depth_top
+			if depth_top > 0 then
+				--depth_top = self:erosion(height, index, depth_top, 100)
+			end
+			if depth_filler > 0 then
+				--depth_filler = self:erosion(height, index, depth_filler, 20)
+			end
 			local wtd = biome.node_water_top_depth or 0
 			local grass_p2 = surface.grass_p2 or 0
 
+			local fill_0 = height - math.max(0, (o_depth_top - depth_top))
 			local fill_1 = height - depth_top
+			local fill_1 = height - o_depth_top
 			local fill_2 = fill_1 - math.max(0, depth_filler)
 
 			-- biome-determined nodes
@@ -310,18 +320,17 @@ function mod.generate_dflat(params)
 			-- Start at the bottom and fill up.
 			local ivm = area:index(x, minp.y, z)
 			for y = minp.y, maxp.y do
-				if y > height and y <= water_level then
-					-- rivers or lakes
+				if not (data[ivm] == n_air or data[ivm] == n_ignore) then
+					-- nop
+				elseif y > height and y <= water_level then
 					if y > water_level - wtd then
 						data[ivm] = wt
 					else
 						data[ivm] = ww
 					end
 					p2data[ivm] = 0
-				elseif y == height and y <= water_level then
-					-- river/lakebeds
-					data[ivm] = riverbed
-					p2data[ivm] = 0
+				elseif y <= height and y > fill_0 then
+					data[ivm] = n_air
 				elseif y <= height and y > fill_1 then
 					-- topping up
 					data[ivm] = top
@@ -341,7 +350,13 @@ function mod.generate_dflat(params)
 				elseif y <= height then
 					-- Otherwise, it's stoned.
 					data[ivm] = stone
-					p2data[ivm] = 0
+					--[[
+					if stone == n_stone then
+						p2data[ivm] = stone_layers[y - minp.y]
+					else
+					--]]
+						p2data[ivm] = 0
+					--end
 				end
 
 				ivm = ivm + ystride
