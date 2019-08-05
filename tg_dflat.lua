@@ -7,6 +7,7 @@ local altitude_cutoff_high = 30
 local altitude_cutoff_low = -10
 local altitude_cutoff_low_2 = 63
 local water_diff = 8
+local VN = vector.new
 
 
 local mod, layers_mod
@@ -31,6 +32,149 @@ else
 	dofile(mod.path .. '/functions.lua')
 	node = mod.node
 	clone_node = mod.clone_node
+end
+
+
+-- This is a simple, breadth-first search, for checking whether
+-- a depression in the ground is enclosed (for placing ponds).
+-- It is cpu-intensive, but also easy to code.
+local function height_search(params, ri)
+	local csize = params.csize
+	local minp, maxp = params.isect_minp, params.isect_maxp
+
+	if ri < 1 or ri > csize.z * csize.x then
+		return
+	end
+
+	local rx = ri % csize.x
+	local rz = math.floor(ri / csize.x)
+	local height_ri = params.share.surface[rz + minp.z][rx + minp.x].top
+
+	local s = {}
+	local q = {}
+	s[ri] = true
+	q[#q+1] = ri
+
+	while #q > 0 do
+		local ci = q[#q]
+		q[#q] = nil
+		local cx = ci % csize.x
+		local cz = math.floor(ci / csize.x)
+		if ((cx <= 1 or cx >= csize.x - 2) or (cz <= 1 or cz >= csize.z - 2)) then
+			return
+		end
+		for zo = -1, 1 do
+			for xo = -1, 1 do
+				if zo ~= xo then
+					local ni = ci + (zo * csize.x) + xo
+					local height_ni = params.share.surface[cz + zo + minp.z][cx + xo + minp.x].top
+					if not s[ni] and height_ni <= height_ri then
+						s[ni] = true
+						q[#q+1] = ni
+					end
+				end
+			end
+		end
+	end
+	return height_ri
+end
+
+
+function mod.ponds(params)
+	local csize = params.csize
+	--[[
+	local humiditymap = params.humiditymap
+	if not (humiditymap and #humiditymap == csize.z * csize.x) then
+		return
+	end
+
+	local ahu = 0
+	for index = 1, csize.z * csize.x do
+		ahu = ahu + humiditymap[index]
+	end
+	ahu = ahu / (csize.z * csize.x)
+	if ahu < 30 then
+		return
+	end
+	--]]
+
+	local n_air = node['air']
+	local n_water = node['default:water_source']
+	local n_ice = node['default:ice']
+	local n_clay = node['default:clay']
+
+	local area = params.area
+	local checked = {}
+	local data = params.data
+	local lilies = {
+		['deciduous_forest'] = true,
+		['savanna'] = true,
+		['rainforest'] = true,
+	}
+	local minp, maxp = params.isect_minp, params.isect_maxp
+	local pond_min = params.sealevel + 12
+	local ps = PcgRandom(params.chunk_seed + 93)
+
+	-- Check for depressions every eight meters.
+	for z = 4, csize.z - 5, 8 do
+		for x = 4, csize.x - 5, 8 do
+			local p = {x=x+minp.x, z=z+minp.z}
+			local index = z * csize.x + x + 1
+			local height = params.share.surface[p.z][p.x].top + 1
+			if height > pond_min and height >= minp.y - 1 and height <= maxp.y + 1 then
+				local search = {}
+				local highest = 0
+				local h1 = height_search(params, index)
+				-- If a depression is there, look at all the adjacent squares.
+				if h1 then
+					for zo = -6, 6 do
+						for xo = -6, 6 do
+							local subindex = index + zo * csize.x + xo
+							if not checked[subindex] then
+								h1 = height_search(params, subindex)
+								-- Mark this as already searched.
+								checked[subindex] = true
+								if h1 then
+									if h1 > highest then
+										highest = h1
+									end
+									-- Store depressed positions.
+									search[#search+1] = {x=x+xo, z=z+zo, h=h1}
+								end
+							end
+						end
+					end
+
+					for _, p2 in ipairs(search) do
+						local index = p2.z * csize.x + p2.x + 1
+
+						p2.x = p2.x + minp.x
+						p2.z = p2.z + minp.z
+
+						local biome = params.share.surface[p2.z][p2.x].biome or {}
+						local heat = params.share.surface[p2.z][p2.x].heat or 60
+
+						-- Place water and lilies.
+						local ivm = area:index(p2.x, p2.h-1, p2.z)
+						data[ivm] = n_clay
+						for h = p2.h, highest do
+							ivm = ivm + area.ystride
+							data[ivm] = node[biome.node_water_top] or n_water
+							if data[ivm] == n_water and heat < 30 and highest - h < 3 then
+								data[ivm] = n_ice
+							end
+						end
+						ivm = ivm + area.ystride
+						if lilies[biome.name] and ps:next(1, 13) == 1 then
+							data[ivm] = node['flowers:waterlily']
+						else
+							data[ivm] = n_air
+						end
+					end
+				end
+			end
+		end
+	end
 end
 
 
@@ -59,6 +203,7 @@ function mod.generate_dflat(params)
 
 	local csize = vector.add(vector.subtract(maxp, minp), 1)
 	local ystride = area.ystride
+	params.csize = csize
 
 	local n_stone = node['default:stone']
 	local n_air = node['air']
@@ -206,6 +351,8 @@ function mod.generate_dflat(params)
 		end
 	end
 
+	mod.ponds(params)
+
 
 	if layers_mod.place_all_decorations then
 		layers_mod.place_all_decorations(params)
@@ -242,22 +389,7 @@ end
 
 
 --[[
-local layer_mod = mapgen
-local mod = mapgen
-local mod_name = 'mapgen'
-
 local Geomorph = geomorph.Geomorph
-
-local math.abs = math.abs
-local math.floor = math.floor
-local math.max = math.max
-local math.min = math.min
-local node = layer_mod.node
-local os_clock = os.clock
-local VN = vector.new
-
-local water_diff = 8
-
 
 dofile(mod.path..'/dflat_biomes.lua')
 
@@ -267,18 +399,6 @@ dofile(mod.path..'/dflat_biomes.lua')
 -----------------------------------------------
 
 local DFlat_Mapgen = layer_mod.subclass_mapgen()
-
-
-function DFlat_Mapgen:_init()
-	params.biomemap = {}
-	params.heatmap = {}
-	params.humiditymap = {}
-
-	-- Roads needs this data.
-	-- There really should be a better way of doing this.
-	params.share.biomemap = params.biomemap
-	params.share.humiditymap = params.humiditymap
-end
 
 
 function DFlat_Mapgen:after_terrain()
@@ -306,14 +426,6 @@ function DFlat_Mapgen:after_terrain()
 		mod.simple_ore()
 		layer_mod.time_ore = layer_mod.time_ore + os_clock() - t_ore
 	end
-end
-
-
-function DFlat_Mapgen:generate()
-	mod.prepare()
-	mod.map_height()
-	mod.place_terrain()
-	mod.after_terrain()
 end
 
 
@@ -465,57 +577,5 @@ function DFlat_Mapgen:simple_ruin()
 	geo:write_to_map(self)
 
 	return true
-end
-
-
------------------------------------------------
--- Register the mapgen(s)
------------------------------------------------
-
-do
-	local terrain_scale = 100
-
-	local ether_div = 8
-	local max_chunks = layer_mod.max_chunks
-	local max_chunks_ether = math.floor(layer_mod.max_chunks / ether_div)
-
-	local noises = {
-		dflat_ground = { def = { offset = 0, scale = terrain_scale, seed = 4382, spread = {x = 320, y = 320, z = 320}, octaves = 6, persist = 0.5, lacunarity = 2.0}, },
-		heat_blend = { def = { offset = 0, scale = 4, seed = 5349, spread = {x = 10, y = 10, z = 10}, octaves = 3, persist = 0.5, lacunarity = 2, flags = 'eased' }, },
-		erosion = { def = { offset = 0, scale = 1.5, seed = -47383, spread = {x = 8, y = 8, z = 8}, octaves = 2, persist = 1.0, lacunarity = 2 }, },
-		--flat_cave_1 = { def = { offset = 0, scale = 10, seed = 6386, spread = {x = 23, y = 23, z = 23}, octaves = 3, persist = 0.7, lacunarity = 1.8 }, },
-		--cave_heat = { def = { offset = 50, scale = 50, seed = 1578, spread = {x = 200, y = 200, z = 200}, octaves = 3, persist = 0.5, lacunarity = 2 }, },
-	}
-
-	local e_noises = { dflat_ground = table.copy(noises.dflat_ground) }
-	e_noises.dflat_ground.def.spread = vector.divide(e_noises.dflat_ground.def.spread, ether_div)
-
-
-	layer_mod.register_map({
-		name = 'dflat',
-		biomes = 'default',
-		heat = 'base_heat',
-		mapgen = DFlat_Mapgen,
-		mapgen_name = 'dflat',
-		map_minp = VN(-max_chunks, -4, -max_chunks),
-		map_maxp = VN(max_chunks, 5, max_chunks),
-		noises = noises,
-		random_teleportable = true,
-		water_level = 1,
-	})
-
-	layer_mod.register_map({
-		name = 'ether',
-		biomes = 'dflat_ether',
-		div = ether_div,
-		heat = 50,
-		humidity = 50,
-		mapgen = DFlat_Mapgen,
-		mapgen_name = 'dflat_ether',
-		map_minp = VN(-max_chunks_ether, -360, -max_chunks_ether),
-		map_maxp = VN(max_chunks_ether, -350, max_chunks_ether),
-		noises = e_noises,
-		water_level = -28400,
-	})
 end
 --]]
