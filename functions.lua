@@ -16,6 +16,7 @@ mod.registered_decorations = {}
 mod.registered_mapfuncs = {}
 mod.registered_mapgens = {}
 mod.registered_noises = {}
+mod.registered_spawns = {}
 mod.rmf = mod.registered_mapfuncs
 
 
@@ -152,6 +153,25 @@ function mod.clone_node(name)
 	local nod = minetest.registered_nodes[name]
 	local node2 = table.copy(nod)
 	return node2
+end
+
+
+function mod.cube_intersect(r1, r2)
+	if not (
+		vector.contains(r1.minp, r1.maxp, r2.minp)
+		or vector.contains(r1.minp, r1.maxp, r2.maxp)
+		or vector.contains(r2.minp, r2.maxp, r1.minp)
+		or vector.contains(r2.minp, r2.maxp, r1.maxp)
+	) then
+		return
+	end
+
+	local minp, maxp = {}, {}
+	for _, axis in pairs(axes) do
+		minp[axis] = math.max(r1.minp[axis], r2.minp[axis])
+		maxp[axis] = math.min(r1.maxp[axis], r2.maxp[axis])
+	end
+	return minp, maxp
 end
 
 
@@ -442,7 +462,7 @@ function mod.register_mapfunc(name, func)
 		return
 	end
 
-	if mod.registered_mapgens[name] then
+	if mod.registered_mapfuncs[name] then
 		minetest.log(mod_name .. ': * Overriding existing map function: ' .. name)
 	end
 
@@ -473,6 +493,19 @@ function mod.register_noise(name, def)
 	end
 
 	mod.registered_noises[name] = def
+end
+
+
+function mod.register_spawn(name, func)
+	if not (name and func and type(name) == 'string' and type(func) == 'function') then
+		return
+	end
+
+	if mod.registered_spawns[name] then
+		minetest.log(mod_name .. ': * Overriding existing spawn: ' .. name)
+	end
+
+	mod.registered_spawns[name] = func
 end
 
 

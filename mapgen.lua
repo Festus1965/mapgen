@@ -105,8 +105,11 @@ function mod.generate_all(params)
 		local minp, maxp = realm.realm_minp, realm.realm_maxp
 
 		-- This won't necessarily find realms smaller than a chunk.
-		if vector.contains(minp, maxp, params.chunk_minp)
-		or vector.contains(minp, maxp, params.chunk_maxp) then
+		local intersect = mod.cube_intersect(
+			{minp = params.chunk_minp, maxp = params.chunk_maxp},
+			{minp = realm.realm_minp, maxp = realm.realm_maxp}
+		)
+		if intersect then
 			--minetest.log('running mapgen ' .. realm.mapgen)
 			table.insert(realms, realm)
 		end
@@ -124,13 +127,13 @@ function mod.generate_all(params)
 
 	params.area = VoxelArea:new({MinEdge = emin, MaxEdge = emax})
 	params.data = vm:get_data(m_data)
-	params.p2data = vm:get_param2_data(m_p2data)
-	params.vmparam2 = params.p2data
-	--params.seed = blockseed
-	params.vm = vm
 	params.metadata = {}
+	params.p2data = vm:get_param2_data(m_p2data)
+	params.schematics = {}
 	params.share = {}
 	params.share.propagate_shadow = false
+	params.vmparam2 = params.p2data
+	params.vm = vm
 
 	-- This has to be done after the game starts.
 	mod.populate_node_arrays()
@@ -138,8 +141,13 @@ function mod.generate_all(params)
 	--params.biomemaps = {}
 	for _, realm in pairs(realms) do
 		local t_terrain = os.clock()
-		params.isect_minp = vector.intersect_max(params.chunk_minp, realm.realm_minp)
-		params.isect_maxp = vector.intersect_min(params.chunk_maxp, realm.realm_maxp)
+		local r_params = table.copy(realm)
+
+		r_params.isect_minp, r_params.isect_maxp = mod.cube_intersect(
+			{minp = params.chunk_minp, maxp = params.chunk_maxp},
+			{minp = realm.realm_minp, maxp = realm.realm_maxp}
+		)
+
 		----------------------------------------------------
 		-- This fixes the mapgenv7 ridges bug, but it
 		--  could cause serious problems.
@@ -148,27 +156,24 @@ function mod.generate_all(params)
 		--  mapseed = jeffries
 		--  static_spawnpoint = -1242,447,3677
 		----------------------------------------------------
-		if vector.equals(params.isect_minp, params.chunk_minp) then
-			params.isect_minp.y = params.isect_minp.y - 1
+		if vector.equals(r_params.isect_minp, params.chunk_minp) then
+			r_params.isect_minp.y = r_params.isect_minp.y - 1
 		end
-		if vector.equals(params.isect_maxp, params.chunk_maxp) then
-			params.isect_maxp.y = params.isect_maxp.y + 1
+		if vector.equals(r_params.isect_maxp, params.chunk_maxp) then
+			r_params.isect_maxp.y = r_params.isect_maxp.y + 1
 		end
 		----------------------------------------------------
 
-		params.csize = vector.add(vector.subtract(params.isect_maxp, params.isect_minp), 1)
-		params.schematics = {}
+		r_params.csize = vector.add(vector.subtract(r_params.isect_maxp, r_params.isect_minp), 1)
 
-		for k, v in pairs(realm) do
-			if not params[k] then
-				params[k] = v
-			end
+		for k, v in pairs(params) do
+			r_params[k] = v
 		end
 
 		-------------------------------------------
 		-- This must include height and biome mapping.
 		-------------------------------------------
-		mod.registered_mapgens[realm.mapgen](params)
+		mod.registered_mapgens[realm.mapgen](r_params)
 		mod.time_terrain = mod.time_terrain + os.clock() - t_terrain
 	end
 
@@ -227,7 +232,7 @@ function mod.generate_block_seed(minp)
 	local hash = math.fnv1a(data)
 
 	if hash_check[hash] then
-		minetest.log(mod_name..': * hash collision: ' .. string.format('%16x', blockseed))
+		minetest.log(mod_name..': * hash collision: ' .. string.format('%16x', hash))
 	end
 	hash_check[hash] = true
 
@@ -849,6 +854,11 @@ function mod.read_configuration_file()
 				end
 			end
 			table.insert(mod.registered_realms, realm)
+
+			if realm.spawn and not mod.spawn_realm and mod.registered_spawns[realm.mapgen] then
+				mod.spawn_realm = realm
+			end
+
 			good = true
 		end
 	end
@@ -856,6 +866,59 @@ function mod.read_configuration_file()
 	file:close()
 
 	return good
+end
+
+
+function mod.spawnplayer(player)
+	local realm = mod.spawn_realm
+	if not realm then
+		return
+	end
+
+	local chunksize = tonumber(minetest.settings:get('chunksize') or 5)
+	local csize = { x=chunksize * 16, y=chunksize * 16, z=chunksize * 16 }
+	local range = realm.spawn_range or 2000
+
+	local beds_here = (minetest.get_modpath('beds') and beds and beds.spawn)
+
+	local player_name = player:get_player_name()
+	if beds_here and beds.spawn[player_name] then
+		return
+	end
+
+	if minetest.settings:get('static_spawnpoint') then
+		return
+	end
+
+	local pos
+	local center = vector.divide(vector.add(realm.realm_minp, realm.realm_maxp), 2)
+
+	for ct = 1, 10000 do
+		pos = table.copy(center)
+		pos.x = pos.x + math.random(range) + math.random(range) - range
+		pos.z = pos.z + math.random(range) + math.random(range) - range
+
+		pos.y = mod.registered_spawns[realm.mapgen](realm, pos.x, pos.z)
+
+		if pos.y then
+			--print(ct..' spawns attempted')
+			break
+		end
+	end
+
+	if not pos.y then
+		return
+	end
+
+	pos.y = pos.y + 2
+	player:setpos(pos)
+
+	if beds_here and not beds.spawn[player_name] then
+		beds.spawn[player_name] = pos
+		beds.set_spawns()
+	end
+
+	return true
 end
 
 
@@ -901,6 +964,10 @@ function mod.save_map(params)
 
 	mod.time_overhead = mod.time_overhead + os.clock() - t_over
 end
+
+
+minetest.register_on_newplayer(mod.spawnplayer)
+minetest.register_on_respawnplayer(mod.spawnplayer)
 
 
 mod.main()

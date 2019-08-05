@@ -223,12 +223,11 @@ function mod.generate_floaters(params)
 			end
 
 			-- Place water down to the bottom of the chunk.
-			--  Don't raise sea level above the lowest chunk or
-			--  hijinks will result.
 			if minp.y < water_level then
 				local ivm = area:index(x, minp.y, z)
-				for y = minp.y, water_level do
-					if y == minp.y then
+				local y_max = math.min(water_level, maxp.y)
+				for y = minp.y, y_max do
+					if y == params.realm_minp.y then
 						data[ivm] = n_glass
 						p2data[ivm] = 0
 					elseif data[ivm] == n_air then
