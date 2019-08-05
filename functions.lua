@@ -149,6 +149,33 @@ function mod.node_string_or_table(n)
 end
 
 
+function math.xor(a, b)
+	local r = 0
+	for i = 0, 31 do
+		local x = a / 2 + b / 2
+		if x ~= math.floor(x) then
+			r = r + 2^i
+		end
+		a = math.floor(a / 2)
+		b = math.floor(b / 2)
+	end
+	return r
+end
+assert(math.xor(60, 13) == 49)
+
+
+local fnv_offset = 2166136261
+local fnv_prime = 16777619
+function math.fnv1a(data)
+	local hash = fnv_offset
+	for _, b in pairs(data) do
+		hash = math.xor(hash, b)
+		hash = hash * fnv_prime
+	end
+	return hash
+end
+
+
 -- Create and initialize a table for a schematic.
 function mod.schematic_array(width, height, depth)
 	if not (

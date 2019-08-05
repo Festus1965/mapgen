@@ -150,48 +150,6 @@ function mod.read_configuration_file()
 end
 
 
---[[
-function mod.get_vm(minp, maxp, seed)
-	if not (minp and maxp) then
-		return
-	end
-
-	if not mod.mapseed then
-		mod.mapseed = minetest.get_mapgen_setting('seed')
-
-		-- This is not the correct mapseed if a text value is used
-		--  as the world's seed. Mintest gives the wrong seed to lua
-		--  for some reason. It's not a big deal, just annoying.
-		mod.mapseed = limit32(tonumber(mod.mapseed))
-
-		--minetest.log(mod_name..': starting with mapseed = ' .. string.format('%x', mod.mapseed))
-	end
-	local mapseed = mod.mapseed
-
-	-- This is not the same blockseed minetest provides. It uses
-	--  some extremely suspicious arithmetic that deliberately
-	--  overflows an integer repeatedly, for a mathematically
-	--  incorrect result. Lua doesn't want to give incorrect
-	--  results, so it's very hard to duplicate.
-	-- Instead, I just make my own seed.
-	local blockseed = mod.get_block_seed2(minp, mapseed)
-
-	local vm, emin, emax
-	if seed then
-		self.ongen = true
-		vm, emin, emax = minetest.get_mapgen_object('voxelmanip')
-	else
-		self.ongen = false
-		vm = minetest.get_voxel_manip()
-		if not vm then
-			return
-		end
-		emin, emax = vm:read_from_map(minp, maxp)
-	end
-end
---]]
-
-
 function mod.generate_all(params)
 	--mod.make_stone_layer_noise()  -- This isn't always needed.
 
@@ -819,16 +777,76 @@ function mod.save_map(params)
 end
 
 
+function mod.generate_map_seed()
+	-- I use the fixed_map_seed by preference, since minetest 5.0.1
+	--  gives the wrong seed to lua when a text map seed is used.
+	-- By wrong, I mean that it doesn't match the seed used in the
+	--  C code (the one displayed when you hit F5).
+
+	local mapseed = minetest.get_mapgen_setting('fixed_map_seed')
+	if mapseed == '' then
+		return minetest.get_mapgen_setting('seed')
+	else
+		-- Just convert each letter into a byte of data.
+		local bytes = {mapseed:byte(1, math.min(8, mapseed:len()))}
+		local seed = 0
+		local i = 1
+		for _, v in pairs(bytes) do
+			seed = seed + v * i
+			i = i * 256
+		end
+		return seed
+	end
+end
+
+
+local hash_check = {}
+function mod.generate_block_seed(minp)
+	local seed = mod.mapseed
+	local data = {}
+	while seed > 0 do
+		table.insert(data, seed % 256)
+		seed = math.floor(seed / 256)
+	end
+	for _, axis in pairs({'x', 'y', 'z'}) do
+		table.insert(data, math.floor(minp[axis] + mod.max_height) % 256)
+		table.insert(data, math.floor((minp[axis] + mod.max_height) / 256))
+	end
+
+	local hash = math.fnv1a(data)
+
+	if hash_check[hash] then
+		minetest.log(mod_name..': * hash collision: ' .. string.format('%16x', blockseed))
+	end
+	hash_check[hash] = true
+
+	return hash
+end
+
+
 function mod.generate(minp, maxp, seed)
 	if not (minp and maxp and seed) then
 		minetest.log(mod_name..': generate did not receive minp, maxp, and seed. Aborting.')
 		return
 	end
 
+	if not mod.mapseed then
+		-- This is not the same mapseed minetest provides.
+		-- See mod.generate_map_seed for details.
+		mod.mapseed = mod.generate_map_seed()
+		--minetest.log(mod_name..': starting with mapseed = 0x' .. string.format('%x', mod.mapseed))
+	end
+
+	-- This is not the same blockseed minetest provides. The
+	-- latter is hard to duplicate in lua, so I just make my own.
+	local blockseed = mod.generate_block_seed(minp)
+
 	local params = {
 		chunk_minp = minp,
 		chunk_maxp = maxp,
-		chunk_seed = seed,
+		chunk_seed = blockseed,
+		real_chunk_seed = seed,
+		map_seed = mod.mapseed,
 	}
 	mod.generate_all(params)
 
