@@ -12,7 +12,7 @@ local water_diff = 8
 local mod, layers_mod
 if minetest.get_modpath('realms') then
 	layers_mod = realms
-	mod = dflat
+	mod = floaters
 else
 	layers_mod = mapgen
 	mod = mapgen
@@ -57,24 +57,17 @@ function mod.generate_dflat(params)
 	local water_level = params.sealevel
 	local area, data, p2data = params.area, params.data, params.vmparam2
 
-	--local chunksize = tonumber(minetest.settings:get('chunksize') or 5)
-	--local chunk_offset = math.floor(chunksize / 2) * 16;
-
 	local csize = vector.add(vector.subtract(maxp, minp), 1)
 	local ystride = area.ystride
 
 	local n_stone = node['default:stone']
 	local n_air = node['air']
 	local n_water = node['default:water_source']
+	local n_ice = node['default:ice']
 
 	local ps = PcgRandom(params.chunk_seed + 7712)
 
 	local base_level = params.sealevel + water_diff
-
-	--[[
-	local base_heat = 20 + math.abs(70 - ((((minp.z + chunk_offset + 1000) / 6000) * 140) % 140))
-	params.base_heat = base_heat
-	--]]
 
 	-- just a few 2d noises
 	local ground_noise_map = layers_mod.get_noise2d('dflat_ground', nil, nil, nil, {x=csize.x, y=csize.z}, { x = minp.x, y = minp.z })
@@ -160,6 +153,15 @@ function mod.generate_dflat(params)
 			local ww = biome.node_water or node['default:water_source']
 			local wt = biome.node_water_top
 
+			if ww == n_water then
+				if surface.heat < 30 then
+					wt = n_ice
+					wtd = math.ceil(math.max(0, (30 - surface.heat) / 3))
+				else
+					wt = nil
+				end
+			end
+
 			-- Start at the bottom and fill up.
 			local ivm = area:index(x, minp.y, z)
 			for y = minp.y, maxp.y do
@@ -234,7 +236,9 @@ layers_mod.register_noise( 'heat_blend', { offset = 0, scale = 4, seed = 5349, s
 layers_mod.register_noise( 'erosion', { offset = 0, scale = 1.5, seed = -47383, spread = {x = 8, y = 8, z = 8}, octaves = 2, persist = 1.0, lacunarity = 2 } )
 
 layers_mod.register_mapgen('tg_dflat', mod.generate_dflat)
-layers_mod.register_spawn('tg_dflat', mod.get_spawn_level)
+if layers_mod.register_spawn then
+	layers_mod.register_spawn('tg_dflat', mod.get_spawn_level)
+end
 
 
 --[[

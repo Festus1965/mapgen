@@ -6,6 +6,8 @@
 bm_default_biomes = {}
 local mod, layers_mod = bm_default_biomes, mapgen
 local biomes = layers_mod.registered_biomes
+local chunksize = tonumber(minetest.settings:get('chunksize') or 5)
+local chunk_offset = math.floor(chunksize / 2) * 16;
 
 
 function mod.get_biome(biomes_i, heat, humidity, height)
@@ -42,27 +44,40 @@ function mod.bm_default_biomes(params)
 		table.insert(biomes_i, b)
 	end
 
-	local heat_map = layers_mod.get_noise2d('heat', nil, nil, nil, { x = csize.x, y = csize.z }, { x = minp.x, y = minp.z })
+	local heat_map
+	if not params.geographic_heat then
+		heat_map = layers_mod.get_noise2d('heat', nil, nil, nil, { x = csize.x, y = csize.z }, { x = minp.x, y = minp.z })
+	end
 	local heat_blend_map = layers_mod.get_noise2d('heat_blend', nil, nil, nil, { x = csize.x, y = csize.z }, { x = minp.x, y = minp.z })
 	local humidity_map = layers_mod.get_noise2d('humidity', nil, nil, nil, { x = csize.x, y = csize.z }, { x = minp.x, y = minp.z })
 	local humidity_blend_map = layers_mod.get_noise2d('humidity_blend', nil, nil, nil, { x = csize.x, y = csize.z }, { x = minp.x, y = minp.z })
 
 	local index = 1
 	for z = minp.z, maxp.z do
+		local heat_base
+		if params.geographic_heat then
+			heat_base = 15 + math.abs(70 - ((((z + 1000) / 6000) * 140) % 140))
+		end
 		for x = minp.x, maxp.x do
 			local surface = params.share.surface[z][x]
 			local height = (surface.top or minp.y - 2) - water_level - offset
 			local heat, heat_blend, humidity, humidity_blend
-			local heat = heat_map[index]
-			local heat_blend = heat_blend_map[index]
-			local humidity = humidity_map[index]
-			local humidity_blend = humidity_blend_map[index]
+
+			if params.geographic_heat then
+				heat = heat_base
+			else
+				heat = heat_map[index]
+			end
+			heat_blend = heat_blend_map[index]
+			humidity = humidity_map[index]
+			humidity_blend = humidity_blend_map[index]
 
 			heat = heat + heat_blend
 			humidity = humidity + humidity_blend
 
-			if height > water_level + 25 then
-				local h2 = height - water_level - 25
+			if height > 25 then
+				local t = heat
+				local h2 = height - 25
 				heat = heat - h2 * h2 * 0.005
 			end
 

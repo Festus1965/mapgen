@@ -149,7 +149,7 @@ function mod.generate_all(params)
 		)
 
 		----------------------------------------------------
-		-- This fixes the mapgenv7 ridges bug, but it
+		-- This fixes the mapgen v7 ridges bug, but it
 		--  could cause serious problems.
 		----------------------------------------------------
 		-- Example:
@@ -216,27 +216,21 @@ function mod.generate(minp, maxp, seed)
 end
 
 
-local hash_check = {}
 function mod.generate_block_seed(minp)
 	local seed = mod.mapseed
 	local data = {}
+
 	while seed > 0 do
 		table.insert(data, seed % 256)
 		seed = math.floor(seed / 256)
 	end
+
 	for _, axis in pairs({'x', 'y', 'z'}) do
 		table.insert(data, math.floor(minp[axis] + mod.max_height) % 256)
 		table.insert(data, math.floor((minp[axis] + mod.max_height) / 256))
 	end
 
-	local hash = math.fnv1a(data)
-
-	if hash_check[hash] then
-		minetest.log(mod_name..': * hash collision: ' .. string.format('%16x', hash))
-	end
-	hash_check[hash] = true
-
-	return hash
+	return math.fnv1a(data)
 end
 
 
