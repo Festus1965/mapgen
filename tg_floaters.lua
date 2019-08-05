@@ -88,6 +88,11 @@ function mod.generate_floaters(params)
 				height = -max_height
 			end
 
+			-- Figure out the tops and bottoms.
+			local pheight = math.abs(math.floor((height - minp.y + math.abs(depth - minp.y)) / 10) - 10)
+			local cave_high = math.min(height - shell_thick, maxp.y - pheight)
+			local cave_low = math.max(depth + shell_thick, minp.y + pheight)
+
 			-- Using surface instead of flat maps results in about
 			-- 128 Mb of memory used on the same chunks that take
 			-- only 92 Mb with flat maps. Memory could be an issue,
@@ -96,7 +101,13 @@ function mod.generate_floaters(params)
 			-- table makes it easier to keep track of.
 			-- The first rule of optimizing is: Don't.
 
-			surface[z][x] = { top = height, bottom = depth }
+			surface[z][x] = {
+				top = height,
+				bottom = depth,
+				cave_floor = cave_low,  -- Not cave_top; that's confusing.
+				cave_ceiling = cave_high,
+			}
+
 			if height > params.sealevel then
 				surface[z][x].biome = layers_mod.undefined_biome
 			else
@@ -151,12 +162,10 @@ function mod.generate_floaters(params)
 			local ww = biome.node_water or node['default:water_source']
 			local wt = biome.node_water_top
 
-			-- Figure out the tops and bottoms.
-			local pheight = math.abs(math.floor((height - minp.y + math.abs(depth - minp.y)) / 10) - 10)
 			local min_y = depth
 			local min_y_chunk = math.max(minp.y, min_y)
-			local cave_high = math.min(height - shell_thick, maxp.y - pheight)
-			local cave_low = math.max(min_y + shell_thick, minp.y + pheight)
+			local cave_high = surface.cave_ceiling
+			local cave_low = surface.cave_floor
 
 			-- Start at the bottom and fill up.
 			local ivm = area:index(x, min_y_chunk, z)
@@ -219,12 +228,11 @@ function mod.generate_floaters(params)
 			if minp.y < water_level then
 				local ivm = area:index(x, minp.y, z)
 				for y = minp.y, water_level do
-					if data[ivm] == n_air then
-						if y == minp.y then
-							data[ivm] = n_glass
-						else
-							data[ivm] = n_water
-						end
+					if y == minp.y then
+						data[ivm] = n_glass
+						p2data[ivm] = 0
+					elseif data[ivm] == n_air then
+						data[ivm] = n_water
 						p2data[ivm] = 0
 					end
 
@@ -236,8 +244,13 @@ function mod.generate_floaters(params)
 		end
 	end
 
+
 	if layers_mod.place_all_decorations then
 		layers_mod.place_all_decorations(params)
+
+		if not params.share.no_dust and layers_mod.dust then
+			layers_mod.dust(params)
+		end
 	end
 end
 

@@ -20,9 +20,6 @@ mod.grass_nodes = {}
 mod.liquids = {}
 mod.registered_realms = {}
 
---local buildable_to = mod.buildable_to
---local grass_nodes = mod.grass_nodes
---local liquids = mod.liquids
 local m_data = {}
 local m_p2data = {}
 
@@ -68,7 +65,7 @@ function mod.parse_configuration_file_line(line, lineno)
 	if not mod.registered_mapgens[fields[1] ] then
 		--minetest.log(error_line)
 		--minetest.log(mod_name .. ':   ' .. fields[1] .. ' is not a registered mapgen.')
-		--return
+		return
 	end
 
 	for i = 2, 8 do
@@ -94,7 +91,7 @@ function mod.parse_configuration_file_line(line, lineno)
 	if not mod.registered_mapfuncs[fields[9] ] then
 		--minetest.log(error_line)
 		--minetest.log(mod_name .. ':   ' .. fields[1] .. ' is not a registered mapfunc.')
-		--return
+		return
 	end
 
 	for i = 10, #fields do
@@ -205,7 +202,7 @@ function mod.generate_all(params)
 		-- This won't necessarily find realms smaller than a chunk.
 		if vector.contains(minp, maxp, params.chunk_minp)
 		or vector.contains(minp, maxp, params.chunk_maxp) then
-			minetest.log('running mapgen ' .. realm.mapgen)
+			--minetest.log('running mapgen ' .. realm.mapgen)
 			table.insert(realms, realm)
 		end
 	end
@@ -220,16 +217,6 @@ function mod.generate_all(params)
 		return
 	end
 
-	--[[
-	local csize = self.csize
-	local max_height = mod.max_height
-	local heightmap = {}
-	for i = 1, csize.z * csize.x do
-		heightmap[i]= -max_height
-	end
-	self.heightmap = heightmap
-	--]]
-
 	params.area = VoxelArea:new({MinEdge = emin, MaxEdge = emax})
 	params.data = vm:get_data(m_data)
 	params.p2data = vm:get_param2_data(m_p2data)
@@ -238,19 +225,29 @@ function mod.generate_all(params)
 	params.vm = vm
 	params.metadata = {}
 	params.share = {}
-	params.share.propagate_shadow = false
+	params.share.propagate_shadow = true
 
 	-- This has to be done after the game starts.
 	mod.populate_node_arrays()
 
 	--params.biomemaps = {}
 	for _, realm in pairs(realms) do
-		-------------------------------------------
-		-- This must include height and biome mapping.
-		-------------------------------------------
 		local t_terrain = os.clock()
 		params.isect_minp = vector.intersect_max(params.chunk_minp, realm.realm_minp)
 		params.isect_maxp = vector.intersect_min(params.chunk_maxp, realm.realm_maxp)
+		----------------------------------------------------
+		-- This fixes the mapgenv7 ridges bug, but it
+		--  could cause serious problems.
+		----------------------------------------------------
+		-- Example:
+		--  mapseed = jeffries
+		--  static_spawnpoint = -1242,447,3677
+		----------------------------------------------------
+		if vector.equals(params.isect_minp, params.chunk_minp) then
+			params.isect_minp.y = params.isect_minp.y - 1
+		end
+		----------------------------------------------------
+
 		params.csize = vector.add(vector.subtract(params.isect_maxp, params.isect_minp), 1)
 		params.schematics = {}
 
@@ -260,28 +257,12 @@ function mod.generate_all(params)
 			end
 		end
 
-		--assert(vector.equals(params.isect_minp, params.chunk_minp))
-		--assert(vector.equals(params.isect_maxp, params.chunk_maxp))
+		-------------------------------------------
+		-- This must include height and biome mapping.
+		-------------------------------------------
 		mod.registered_mapgens[realm.mapgen](params)
 		mod.time_terrain = mod.time_terrain + os.clock() - t_terrain
-		-------------------------------------------
-
-		--[[
-		local biome = mapgen.biome or mapgen.share.biome
-		if biome then
-			table.insert(params.biomemaps, { ['only'] = biome })
-		elseif mapgen.biomemap then
-			table.insert(params.biomemaps, mapgen.biomemap)
-		end
-		--]]
 	end
-
-	--[[
-	mod.place_all_decorations()
-	if not params.share.no_dust then
-		mod.dust()
-	end
-	--]]
 
 	mod.save_map(params)
 
@@ -296,7 +277,7 @@ end
 
 local y_s = {}
 function mod.find_break(params, x, z, flags, gpr)
-	local minp, maxp = params.minp, params.maxp
+	local minp, maxp = params.isect_minp, params.isect_maxp
 	local data, area = params.data, params.area
 	local ystride = params.area.ystride
 
@@ -800,11 +781,11 @@ function mod.save_map(params)
 	if DEBUG then
 		params.vm:set_lighting({day = 10, night = 10})
 	else
-		params.vm:set_lighting({day = 0, night = 0}, params.minp, params.maxp)
+		params.vm:set_lighting({day = 0, night = 0})
 		params.vm:calc_lighting(nil, nil, params.share.propagate_shadow)
 	end
 
-	--params.vm:update_liquids()
+	params.vm:update_liquids()
 	params.vm:write_to_map()
 
 	-- Save all meta data for chests, cabinets, etc.
@@ -849,7 +830,7 @@ function mod.generate(minp, maxp, seed)
 	mod.generate_all(params)
 
 	local mem = math.floor(collectgarbage('count')/1024)
-	if true or mem > 200 then
+	if mem > 200 then
 		minetest.log(mod_name .. ': Lua Memory: ' .. mem .. 'M')
 	end
 end
