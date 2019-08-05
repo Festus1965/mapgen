@@ -12,6 +12,7 @@ local mod_name = 'mapgen'
 
 mod.registered_biomes = {}
 mod.registered_cave_biomes = {}
+mod.registered_decorations = {}
 mod.registered_mapfuncs = {}
 mod.registered_mapgens = {}
 mod.registered_noises = {}
@@ -35,15 +36,31 @@ mod.node = setmetatable({}, {
 local node = mod.node
 
 
-function vector.mod(v, m)
-	local w = table.copy(v)
-	for _, d in ipairs(axes) do
-		if w[d] then
-			w[d] = w[d] % m
-		end
+local fnv_offset = 2166136261
+local fnv_prime = 16777619
+function math.fnv1a(data)
+	local hash = fnv_offset
+	for _, b in pairs(data) do
+		hash = math.xor(hash, b)
+		hash = hash * fnv_prime
 	end
-	return w
+	return hash
 end
+
+
+function math.xor(a, b)
+	local r = 0
+	for i = 0, 31 do
+		local x = a / 2 + b / 2
+		if x ~= math.floor(x) then
+			r = r + 2^i
+		end
+		a = math.floor(a / 2)
+		b = math.floor(b / 2)
+	end
+	return r
+end
+assert(math.xor(60, 13) == 49)
 
 
 function vector.contains(minp, maxp, q)
@@ -81,6 +98,18 @@ function vector.intersect_max(a, b)
 	end
 	return out
 end
+
+
+function vector.mod(v, m)
+	local w = table.copy(v)
+	for _, d in ipairs(axes) do
+		if w[d] then
+			w[d] = w[d] % m
+		end
+	end
+	return w
+end
+
 
 
 -- These nodes will have their on_construct method called
@@ -126,127 +155,6 @@ function mod.clone_node(name)
 end
 
 
--- memory issues?
-function mod.node_string_or_table(n)
-    if not n then
-        return {}
-    end
-
-    local o
-    if type(n) == 'string' then
-        o = { n }
-    elseif type(n) == 'table' then
-        o = table.copy(n)
-    else
-        return {}
-    end
-
-    for i, v in pairs(o) do
-        o[i] = node[v]
-    end
-
-    return o
-end
-
-
-function math.xor(a, b)
-	local r = 0
-	for i = 0, 31 do
-		local x = a / 2 + b / 2
-		if x ~= math.floor(x) then
-			r = r + 2^i
-		end
-		a = math.floor(a / 2)
-		b = math.floor(b / 2)
-	end
-	return r
-end
-assert(math.xor(60, 13) == 49)
-
-
-local fnv_offset = 2166136261
-local fnv_prime = 16777619
-function math.fnv1a(data)
-	local hash = fnv_offset
-	for _, b in pairs(data) do
-		hash = math.xor(hash, b)
-		hash = hash * fnv_prime
-	end
-	return hash
-end
-
-
--- Create and initialize a table for a schematic.
-function mod.schematic_array(width, height, depth)
-	if not (
-		width and height and depth
-		and type(width) == 'number'
-		and type(height) == 'number'
-		and type(depth) == 'number'
-	) then
-		return
-	end
-
-	-- Dimensions of data array.
-	local s = {size={x=width, y=height, z=depth}}
-	s.data = {}
-
-	for z = 0,depth-1 do
-		for y = 0,height-1 do
-			for x = 0,width-1 do
-				local i = z*width*height + y*width + x + 1
-				s.data[i] = {}
-				s.data[i].name = "air"
-				s.data[i].param1 = 000
-			end
-		end
-	end
-
-	s.yslice_prob = {}
-
-	return s
-end
-
-
-function mod.register_mapgen(name, func)
-	if not (name and func and type(name) == 'string' and type(func) == 'function') then
-		return
-	end
-
-	if mod.registered_mapgens[name] then
-		minetest.log(mod_name .. ': * Overriding existing mapgen: ' .. name)
-	end
-
-	mod.registered_mapgens[name] = func
-end
-
-
-function mod.register_mapfunc(name, func)
-	if not (name and func and type(name) == 'string' and type(func) == 'function') then
-		return
-	end
-
-	if mod.registered_mapgens[name] then
-		minetest.log(mod_name .. ': * Overriding existing map function: ' .. name)
-	end
-
-	mod.registered_mapfuncs[name] = func
-end
-
-
-function mod.register_noise(name, def)
-	if not (name and def and type(name) == 'string' and type(def) == 'table') then
-		return
-	end
-
-	if mod.registered_noises[name] then
-		minetest.log(mod_name .. ': * Overriding existing noise: ' .. name)
-	end
-
-	mod.registered_noises[name] = def
-end
-
-
 function mod.get_noise2d(name, default, seed, default_seed, size, pos)
 	if not (name and pos and size and type(name) == 'string'
 	and type(pos) == 'table' and type(size) == 'table'
@@ -285,75 +193,6 @@ function mod.get_noise3d(name, default, seed, default_seed, size, pos)
 
 	return noise:get_3d_map_flat(pos)
 end
-
-
-function mod.register_biome(def, source)
-	if not def.name then
-		minetest.log(mod_name .. ': No-name biome: ' .. dump(def))
-		return
-	end
-
-	local w = table.copy(def)
-
-	w.node_top = node[w.node_top]
-	w.node_filler = node[w.node_filler]
-	w.node_riverbed = node[w.node_riverbed]
-	w.node_stone = node[w.node_stone]
-	w.node_water = node[w.node_water]
-	w.node_water_top = node[w.node_water_top]
-	w.node_dust = node[w.node_dust]
-
-	w.source = source
-	mod.registered_biomes[w.name] = w
-end
-
-
-do
-	-- This tries to determine which biomes are default.
-	local default_biome_names = {
-		['cold_desert_ocean'] = true,
-		['cold_desert'] = true,
-		['coniferous_forest_dunes'] = true,
-		['coniferous_forest_ocean'] = true,
-		['coniferous_forest'] = true,
-		['deciduous_forest_ocean'] = true,
-		['deciduous_forest_shore'] = true,
-		['deciduous_forest'] = true,
-		['desert_ocean'] = true,
-		['desert'] = true,
-		['grassland_dunes'] = true,
-		['grassland_ocean'] = true,
-		['grassland'] = true,
-		['icesheet_ocean'] = true,
-		['icesheet'] = true,
-		['rainforest_ocean'] = true,
-		['rainforest_swamp'] = true,
-		['rainforest'] = true,
-		['sandstone_desert_ocean'] = true,
-		['sandstone_desert'] = true,
-		['savanna_ocean'] = true,
-		['savanna_shore'] = true,
-		['savanna'] = true,
-		['snowy_grassland_ocean'] = true,
-		['snowy_grassland'] = true,
-		['taiga_ocean'] = true,
-		['taiga'] = true,
-		['tundra_beach'] = true,
-		['tundra_highland'] = true,
-		['tundra_ocean'] = true,
-		['tundra'] = true,
-		['underground'] = true,
-	}
-
-	for _, v in pairs(minetest.registered_biomes) do
-		if default_biome_names[v.name] then
-			mod.register_biome(v, 'default')
-		else
-			mod.register_biome(v, v.source)
-		end
-	end
-end
-
 
 
 function mod.invert_table(t, use_node)
@@ -395,9 +234,53 @@ function mod.invert_table(t, use_node)
 end
 
 
+-- memory issues?
+function mod.node_string_or_table(n)
+    if not n then
+        return {}
+    end
+
+    local o
+    if type(n) == 'string' then
+        o = { n }
+    elseif type(n) == 'table' then
+        o = table.copy(n)
+    else
+        return {}
+    end
+
+    for i, v in pairs(o) do
+        o[i] = node[v]
+    end
+
+    return o
+end
+
+
+function mod.register_biome(def, source)
+	if not def.name then
+		minetest.log(mod_name .. ': No-name biome: ' .. dump(def))
+		return
+	end
+
+	local w = table.copy(def)
+
+	w.node_top = node[w.node_top]
+	w.node_filler = node[w.node_filler]
+	w.node_riverbed = node[w.node_riverbed]
+	w.node_stone = node[w.node_stone]
+	w.node_water = node[w.node_water]
+	w.node_water_top = node[w.node_water_top]
+	w.node_dust = node[w.node_dust]
+
+	w.source = source
+	mod.registered_biomes[w.name] = w
+end
+
+
 function mod.register_decoration(def)
 	local deco = table.copy(def)
-	table.insert(mod.decorations, deco)
+	table.insert(mod.registered_decorations, deco)
 
 	if not deco.name then
 		local nname = (deco.decoration or deco.schematic):gsub('^.*[:/]([^%.]+)', '%1')
@@ -470,45 +353,6 @@ function mod.register_decoration(def)
 	end
 
 	return deco
-end
-
-
-do
-	mod.decorations = {}
-	for _, v in pairs(minetest.registered_decorations) do
-		mod.register_decoration(v)
-	end
-end
-
-
--- Catch any registered by other mods.
-do
-	local old_register_decoration = minetest.register_decoration
-	minetest.register_decoration = function (def)
-		mod.register_decoration(def)
-		old_register_decoration(def)
-	end
-
-
-	local old_clear_registered_decorations = minetest.clear_registered_decorations
-	minetest.clear_registered_decorations = function ()
-		mod.decorations = {}
-		old_clear_registered_decorations()
-	end
-
-
-	local old_register_biome = minetest.register_biome
-	minetest.register_biome = function (def)
-		mod.register_biome(def)
-		old_register_biome(def)
-	end
-
-
-	local old_clear_registered_biomes = minetest.clear_registered_biomes
-	minetest.clear_registered_biomes = function ()
-		mod.biomes = {}
-		old_clear_registered_biomes()
-	end
 end
 
 
@@ -593,18 +437,76 @@ function mod.register_flower(name, desc, biomes, seed)
 end
 
 
-minetest.register_on_shutdown(function()
-  print('time caves: '..math.floor(1000 * mod.time_caves / mod.chunks))
-  print('time decorations: '..math.floor(1000 * mod.time_deco / mod.chunks))
-  print('time ore: '..math.floor(1000 * mod.time_ore / mod.chunks))
-  print('time overhead: '..math.floor(1000 * mod.time_overhead / mod.chunks))
-  print('time terrain: '..math.floor(1000 * mod.time_terrain / mod.chunks))
-  print('time terrain_f: '..math.floor(1000 * mod.time_terrain_f / mod.chunks))
-  print('time y loop: '..math.floor(1000 * mod.time_y_loop / mod.chunks))
+function mod.register_mapfunc(name, func)
+	if not (name and func and type(name) == 'string' and type(func) == 'function') then
+		return
+	end
 
-  print('Total Time: '..math.floor(1000 * mod.time_all / mod.chunks))
-  print('chunks: '..mod.chunks)
-end)
+	if mod.registered_mapgens[name] then
+		minetest.log(mod_name .. ': * Overriding existing map function: ' .. name)
+	end
+
+	mod.registered_mapfuncs[name] = func
+end
+
+
+function mod.register_mapgen(name, func)
+	if not (name and func and type(name) == 'string' and type(func) == 'function') then
+		return
+	end
+
+	if mod.registered_mapgens[name] then
+		minetest.log(mod_name .. ': * Overriding existing mapgen: ' .. name)
+	end
+
+	mod.registered_mapgens[name] = func
+end
+
+
+function mod.register_noise(name, def)
+	if not (name and def and type(name) == 'string' and type(def) == 'table') then
+		return
+	end
+
+	if mod.registered_noises[name] then
+		minetest.log(mod_name .. ': * Overriding existing noise: ' .. name)
+	end
+
+	mod.registered_noises[name] = def
+end
+
+
+-- Create and initialize a table for a schematic.
+function mod.schematic_array(width, height, depth)
+	if not (
+		width and height and depth
+		and type(width) == 'number'
+		and type(height) == 'number'
+		and type(depth) == 'number'
+	) then
+		return
+	end
+
+	-- Dimensions of data array.
+	local s = {size={x=width, y=height, z=depth}}
+	s.data = {}
+
+	for z = 0,depth-1 do
+		for y = 0,height-1 do
+			for x = 0,width-1 do
+				local i = z*width*height + y*width + x + 1
+				s.data[i] = {}
+				s.data[i].name = "air"
+				s.data[i].param1 = 000
+			end
+		end
+	end
+
+	s.yslice_prob = {}
+
+	return s
+end
+
 
 
 minetest.register_privilege('mapgen', {
@@ -613,6 +515,8 @@ minetest.register_privilege('mapgen', {
 	give_to_admin = true,
 })
 
+
+--[[
 minetest.register_chatcommand('ether', {
 	params = '',
 	description = 'Teleport to ether',
@@ -645,6 +549,7 @@ minetest.register_chatcommand('ether', {
 		end
 	end,
 })
+--]]
 
 
 minetest.register_chatcommand('chunk', {
@@ -676,6 +581,7 @@ minetest.register_chatcommand('chunk', {
 })
 
 
+--[[
 minetest.register_chatcommand('genesis', {
 	params = '',
 	description = 'Regenerate a chunk, destroying all existing nodes.',
@@ -742,3 +648,4 @@ minetest.register_chatcommand('genesis', {
 		mg:generate_all(true)
 	end,
 })
+--]]

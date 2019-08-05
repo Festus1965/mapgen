@@ -36,117 +36,64 @@ local default_noises = {
 }
 
 
-function mod.parse_configuration_file_line(line, lineno)
-	local fields = {}
-	for f in line:gmatch('([^|]+)%|?') do
-		local s = f:gsub('%s+', '')
-		table.insert(fields, s)
-	end
-	local error_line = mod_name .. ': * bad realms.conf, line #' .. lineno .. ': ' .. line
+-------------------------------------------------
+-- Finds a place to put decorations with the all_floors,
+--  all_ceilings, or liquid_surface flags.
+-------------------------------------------------
 
-	if #fields <= 1 then
-		return
-	elseif #fields < 8 then
-		minetest.log(error_line)
-		minetest.log(mod_name .. ':   missing items (should be 8+, separated by |)')
-		return
-	end
+local y_s = {}
+function mod.find_break(params, x, z, flags, gpr)
+	local minp, maxp = params.isect_minp, params.isect_maxp
+	local data, area = params.data, params.area
+	local ystride = params.area.ystride
 
-	if not mod.registered_mapgens[fields[1] ] then
-		fields[1] = fields[1]:gsub('[^%a%d%_]+', '')
-		local file_name = mod.path .. '/' .. fields[1] .. '.lua'
-		local f = io.open(file_name, 'r')
-		if f then
-			f:close()
-			dofile(file_name)
-		end
+	local n_air = node['air']
+
+	for k in pairs(y_s) do
+		y_s[k] = nil
 	end
 
-	if not mod.registered_mapgens[fields[1] ] then
-		--minetest.log(error_line)
-		--minetest.log(mod_name .. ':   ' .. fields[1] .. ' is not a registered mapgen.')
-		return
-	end
-
-	for i = 2, 8 do
-		local s = fields[i]
-		fields[i] = tonumber(fields[i])
-		if not fields[i] then
-			minetest.log(error_line)
-			minetest.log(mod_name .. ':   ' .. s .. ' is not a number.')
-			return
-		end
-	end
-
-	if not mod.registered_mapfuncs[fields[9] ] then
-		fields[9] = fields[9]:gsub('[^%a%d%_]+', '')
-		local file_name = mod.path .. '/' .. fields[9] .. '.lua'
-		local f = io.open(file_name, 'r')
-		if f then
-			f:close()
-			dofile(file_name)
-		end
-	end
-
-	if not mod.registered_mapfuncs[fields[9] ] then
-		--minetest.log(error_line)
-		--minetest.log(mod_name .. ':   ' .. fields[1] .. ' is not a registered mapfunc.')
-		return
-	end
-
-	for i = 10, #fields do
-		local a, b = fields[i]:match('%s*([%a%d_]+)%s*=%s*([%a%d_]+)')
-		if tonumber(b) then
-			b = tonumber(b)
-		end
-		if a and b then
-			fields[i] = { a, b }
-		else
-			local a = fields[i]:match('%s*([%a%d_]+)')
-			if a then
-				fields[i] = { a }
+	if flags.liquid_surface then
+		local ivm = area:index(x, maxp.y, z)
+		for y = maxp.y, minp.y + 1, -1 do
+			if data[ivm] ~= n_air then
+				return
 			end
+			if liquids[data[ivm - ystride]] then
+				return (y - minp.y - 1)
+			end
+			ivm = ivm - ystride
 		end
 	end
 
-	return fields
-end
-
-
-function mod.read_configuration_file()
-	local file_name = mod.path .. '/realms.conf'
-
-	local file = io.open(file_name, 'r')
-	if not file then
-		return
-	end
-
-	local good
-	local lineno = 0
-	for line in file:lines() do
-		lineno = lineno + 1
-		local fields = mod.parse_configuration_file_line(line, lineno)
-		if fields then
-			local realm = {
-				mapgen = fields[1],
-				realm_minp = { x = fields[2], y = fields[3], z = fields[4] },
-				realm_maxp = { x = fields[5], y = fields[6], z = fields[7] },
-				sealevel = fields[8],
-				biomefunc = fields[9],
-			}
-			for i = 10, #fields do
-				if type(fields[i]) == 'table' then
-					realm[fields[i][1]] = fields[i][2] or true
+	if flags.all_ceilings then
+		local ivm = area:index(x, minp.y, z)
+		for y = minp.y, maxp.y - 1 do
+			if buildable_to[data[ivm]] and not buildable_to[data[ivm + ystride]] then
+				if data[ivm] == n_air or flags.force_placement then
+					table.insert(y_s, -(y - minp.y + 1))
 				end
 			end
-			table.insert(mod.registered_realms, realm)
-			good = true
+			ivm = ivm + ystride
 		end
 	end
 
-	file:close()
+	if flags.all_floors then
+		-- Don't check heightmap. It doesn't work in bubble caves.
+		local ivm = area:index(x, maxp.y, z)
+		for y = maxp.y, minp.y + 1, -1 do
+			if buildable_to[data[ivm]] and not buildable_to[data[ivm - ystride]] then
+				if data[ivm] == n_air or flags.force_placement then
+					table.insert(y_s, y - minp.y - 1)
+				end
+			end
+			ivm = ivm - ystride
+		end
+	end
 
-	return good
+	if #y_s > 0 then
+		return y_s[gpr:next(1, #y_s)]
+	end
 end
 
 
@@ -231,63 +178,205 @@ function mod.generate_all(params)
 end
 
 
--------------------------------------------------
--- Finds a place to put decorations with the all_floors,
---  all_ceilings, or liquid_surface flags.
--------------------------------------------------
-
-local y_s = {}
-function mod.find_break(params, x, z, flags, gpr)
-	local minp, maxp = params.isect_minp, params.isect_maxp
-	local data, area = params.data, params.area
-	local ystride = params.area.ystride
-
-	local n_air = node['air']
-
-	for k in pairs(y_s) do
-		y_s[k] = nil
+function mod.generate(minp, maxp, seed)
+	if not (minp and maxp and seed) then
+		minetest.log(mod_name..': generate did not receive minp, maxp, and seed. Aborting.')
+		return
 	end
 
-	if flags.liquid_surface then
-		local ivm = area:index(x, maxp.y, z)
-		for y = maxp.y, minp.y + 1, -1 do
-			if data[ivm] ~= n_air then
-				return
-			end
-			if liquids[data[ivm - ystride]] then
-				return (y - minp.y - 1)
-			end
-			ivm = ivm - ystride
+	if not mod.mapseed then
+		-- This is not the same mapseed minetest provides.
+		-- See mod.generate_map_seed for details.
+		mod.mapseed = mod.generate_map_seed()
+		--minetest.log(mod_name..': starting with mapseed = 0x' .. string.format('%x', mod.mapseed))
+	end
+
+	-- This is not the same blockseed minetest provides. The
+	-- latter is hard to duplicate in lua, so I just make my own.
+	local blockseed = mod.generate_block_seed(minp)
+
+	local params = {
+		chunk_minp = minp,
+		chunk_maxp = maxp,
+		chunk_seed = blockseed,
+		real_chunk_seed = seed,
+		map_seed = mod.mapseed,
+	}
+	mod.generate_all(params)
+
+	local mem = math.floor(collectgarbage('count')/1024)
+	if mem > 200 then
+		minetest.log(mod_name .. ': Lua Memory: ' .. mem .. 'M')
+	end
+end
+
+
+local hash_check = {}
+function mod.generate_block_seed(minp)
+	local seed = mod.mapseed
+	local data = {}
+	while seed > 0 do
+		table.insert(data, seed % 256)
+		seed = math.floor(seed / 256)
+	end
+	for _, axis in pairs({'x', 'y', 'z'}) do
+		table.insert(data, math.floor(minp[axis] + mod.max_height) % 256)
+		table.insert(data, math.floor((minp[axis] + mod.max_height) / 256))
+	end
+
+	local hash = math.fnv1a(data)
+
+	if hash_check[hash] then
+		minetest.log(mod_name..': * hash collision: ' .. string.format('%16x', blockseed))
+	end
+	hash_check[hash] = true
+
+	return hash
+end
+
+
+function mod.generate_map_seed()
+	-- I use the fixed_map_seed by preference, since minetest 5.0.1
+	--  gives the wrong seed to lua when a text map seed is used.
+	-- By wrong, I mean that it doesn't match the seed used in the
+	--  C code (the one displayed when you hit F5).
+
+	local mapseed = minetest.get_mapgen_setting('fixed_map_seed')
+	if mapseed == '' then
+		return minetest.get_mapgen_setting('seed')
+	else
+		-- Just convert each letter into a byte of data.
+		local bytes = {mapseed:byte(1, math.min(8, mapseed:len()))}
+		local seed = 0
+		local i = 1
+		for _, v in pairs(bytes) do
+			seed = seed + v * i
+			i = i * 256
+		end
+		return seed
+	end
+end
+
+
+function mod.main()
+	-- If on my system, it's ok to crash.
+	local f = io.open(mod.path..'/duane', 'r')
+	if f then
+		minetest.log(mod_name .. ': Running without safety measures...')
+	else
+		mod.use_pcall = true
+	end
+
+
+	for name, def in pairs(default_noises) do
+		mod.register_noise(name, def)
+	end
+
+
+	if mod.read_configuration_file() then
+		if minetest.registered_on_generateds then
+			-- This is unsupported. I haven't been able to think of an alternative.
+			table.insert(minetest.registered_on_generateds, 1, mod.pgenerate)
+		else
+			minetest.register_on_generated(mod.pgenerate)
+		end
+	end
+end
+
+
+function mod.parse_configuration_file_line(line, lineno)
+	local fields = {}
+	for f in line:gmatch('([^|]+)%|?') do
+		local s = f:gsub('%s+', '')
+		table.insert(fields, s)
+	end
+	local error_line = mod_name .. ': * bad realms.conf, line #' .. lineno .. ': ' .. line
+
+	if #fields <= 1 then
+		return
+	elseif #fields < 8 then
+		minetest.log(error_line)
+		minetest.log(mod_name .. ':   missing items (should be 8+, separated by |)')
+		return
+	end
+
+	if not mod.registered_mapgens[fields[1] ] then
+		fields[1] = fields[1]:gsub('[^%a%d%_]+', '')
+		local file_name = mod.path .. '/' .. fields[1] .. '.lua'
+		local f = io.open(file_name, 'r')
+		if f then
+			f:close()
+			dofile(file_name)
 		end
 	end
 
-	if flags.all_ceilings then
-		local ivm = area:index(x, minp.y, z)
-		for y = minp.y, maxp.y - 1 do
-			if buildable_to[data[ivm]] and not buildable_to[data[ivm + ystride]] then
-				if data[ivm] == n_air or flags.force_placement then
-					table.insert(y_s, -(y - minp.y + 1))
-				end
-			end
-			ivm = ivm + ystride
+	if not mod.registered_mapgens[fields[1] ] then
+		--minetest.log(error_line)
+		--minetest.log(mod_name .. ':   ' .. fields[1] .. ' is not a registered mapgen.')
+		return
+	end
+
+	for i = 2, 8 do
+		local s = fields[i]
+		fields[i] = tonumber(fields[i])
+		if not fields[i] then
+			minetest.log(error_line)
+			minetest.log(mod_name .. ':   ' .. s .. ' is not a number.')
+			return
 		end
 	end
 
-	if flags.all_floors then
-		-- Don't check heightmap. It doesn't work in bubble caves.
-		local ivm = area:index(x, maxp.y, z)
-		for y = maxp.y, minp.y + 1, -1 do
-			if buildable_to[data[ivm]] and not buildable_to[data[ivm - ystride]] then
-				if data[ivm] == n_air or flags.force_placement then
-					table.insert(y_s, y - minp.y - 1)
-				end
-			end
-			ivm = ivm - ystride
+	if not mod.registered_mapfuncs[fields[9] ] then
+		fields[9] = fields[9]:gsub('[^%a%d%_]+', '')
+		local file_name = mod.path .. '/' .. fields[9] .. '.lua'
+		local f = io.open(file_name, 'r')
+		if f then
+			f:close()
+			dofile(file_name)
 		end
 	end
 
-	if #y_s > 0 then
-		return y_s[gpr:next(1, #y_s)]
+	if not mod.registered_mapfuncs[fields[9] ] then
+		--minetest.log(error_line)
+		--minetest.log(mod_name .. ':   ' .. fields[1] .. ' is not a registered mapfunc.')
+		return
+	end
+
+	for i = 10, #fields do
+		local a, b = fields[i]:match('%s*([%a%d_]+)%s*=%s*([%a%d_]+)')
+		if tonumber(b) then
+			b = tonumber(b)
+		end
+		if a and b then
+			fields[i] = { a, b }
+		else
+			local a = fields[i]:match('%s*([%a%d_]+)')
+			if a then
+				fields[i] = { a }
+			end
+		end
+	end
+
+	return fields
+end
+
+
+function mod.pgenerate(...)
+	local status, err
+
+	local t_all = os.clock()
+	if mod.use_pcall then
+		status, err = pcall(mod.generate, ...)
+	else
+		status = true
+		mod.generate(...)
+	end
+	mod.time_all = mod.time_all + os.clock() - t_all
+
+	if not status then
+		minetest.log(mod_name .. ': Could not generate terrain:')
+		minetest.log(dump(err))
+		collectgarbage('collect')
 	end
 end
 
@@ -297,7 +386,7 @@ function mod.place_all_decorations(params)
 	local ps = PcgRandom(params.chunk_seed + 53)
 	local biome = params.biome or params.share.biome
 
-	for _, deco in pairs(mod.decorations) do
+	for _, deco in pairs(mod.registered_decorations) do
 		local b_check
 		if deco.biomes then
 			for b in pairs(deco.biomes_i) do
@@ -733,6 +822,43 @@ function mod.populate_node_arrays()
 end
 
 
+function mod.read_configuration_file()
+	local file_name = mod.path .. '/realms.conf'
+
+	local file = io.open(file_name, 'r')
+	if not file then
+		return
+	end
+
+	local good
+	local lineno = 0
+	for line in file:lines() do
+		lineno = lineno + 1
+		local fields = mod.parse_configuration_file_line(line, lineno)
+		if fields then
+			local realm = {
+				mapgen = fields[1],
+				realm_minp = { x = fields[2], y = fields[3], z = fields[4] },
+				realm_maxp = { x = fields[5], y = fields[6], z = fields[7] },
+				sealevel = fields[8],
+				biomefunc = fields[9],
+			}
+			for i = 10, #fields do
+				if type(fields[i]) == 'table' then
+					realm[fields[i][1]] = fields[i][2] or true
+				end
+			end
+			table.insert(mod.registered_realms, realm)
+			good = true
+		end
+	end
+
+	file:close()
+
+	return good
+end
+
+
 function mod.save_map(params)
 	local t_over = os.clock()
 
@@ -774,132 +900,6 @@ function mod.save_map(params)
 	end
 
 	mod.time_overhead = mod.time_overhead + os.clock() - t_over
-end
-
-
-function mod.generate_map_seed()
-	-- I use the fixed_map_seed by preference, since minetest 5.0.1
-	--  gives the wrong seed to lua when a text map seed is used.
-	-- By wrong, I mean that it doesn't match the seed used in the
-	--  C code (the one displayed when you hit F5).
-
-	local mapseed = minetest.get_mapgen_setting('fixed_map_seed')
-	if mapseed == '' then
-		return minetest.get_mapgen_setting('seed')
-	else
-		-- Just convert each letter into a byte of data.
-		local bytes = {mapseed:byte(1, math.min(8, mapseed:len()))}
-		local seed = 0
-		local i = 1
-		for _, v in pairs(bytes) do
-			seed = seed + v * i
-			i = i * 256
-		end
-		return seed
-	end
-end
-
-
-local hash_check = {}
-function mod.generate_block_seed(minp)
-	local seed = mod.mapseed
-	local data = {}
-	while seed > 0 do
-		table.insert(data, seed % 256)
-		seed = math.floor(seed / 256)
-	end
-	for _, axis in pairs({'x', 'y', 'z'}) do
-		table.insert(data, math.floor(minp[axis] + mod.max_height) % 256)
-		table.insert(data, math.floor((minp[axis] + mod.max_height) / 256))
-	end
-
-	local hash = math.fnv1a(data)
-
-	if hash_check[hash] then
-		minetest.log(mod_name..': * hash collision: ' .. string.format('%16x', blockseed))
-	end
-	hash_check[hash] = true
-
-	return hash
-end
-
-
-function mod.generate(minp, maxp, seed)
-	if not (minp and maxp and seed) then
-		minetest.log(mod_name..': generate did not receive minp, maxp, and seed. Aborting.')
-		return
-	end
-
-	if not mod.mapseed then
-		-- This is not the same mapseed minetest provides.
-		-- See mod.generate_map_seed for details.
-		mod.mapseed = mod.generate_map_seed()
-		--minetest.log(mod_name..': starting with mapseed = 0x' .. string.format('%x', mod.mapseed))
-	end
-
-	-- This is not the same blockseed minetest provides. The
-	-- latter is hard to duplicate in lua, so I just make my own.
-	local blockseed = mod.generate_block_seed(minp)
-
-	local params = {
-		chunk_minp = minp,
-		chunk_maxp = maxp,
-		chunk_seed = blockseed,
-		real_chunk_seed = seed,
-		map_seed = mod.mapseed,
-	}
-	mod.generate_all(params)
-
-	local mem = math.floor(collectgarbage('count')/1024)
-	if mem > 200 then
-		minetest.log(mod_name .. ': Lua Memory: ' .. mem .. 'M')
-	end
-end
-
-
-function mod.pgenerate(...)
-	local status, err
-
-	local t_all = os.clock()
-	if mod.use_pcall then
-		status, err = pcall(mod.generate, ...)
-	else
-		status = true
-		mod.generate(...)
-	end
-	mod.time_all = mod.time_all + os.clock() - t_all
-
-	if not status then
-		minetest.log(mod_name .. ': Could not generate terrain:')
-		minetest.log(dump(err))
-		collectgarbage('collect')
-	end
-end
-
-
-function mod.main()
-	-- If on my system, it's ok to crash.
-	local f = io.open(mod.path..'/duane', 'r')
-	if f then
-		minetest.log(mod_name .. ': Running without safety measures...')
-	else
-		mod.use_pcall = true
-	end
-
-
-	for name, def in pairs(default_noises) do
-		mod.register_noise(name, def)
-	end
-
-
-	if mod.read_configuration_file() then
-		if minetest.registered_on_generateds then
-			-- This is unsupported. I haven't been able to think of an alternative.
-			table.insert(minetest.registered_on_generateds, 1, mod.pgenerate)
-		else
-			minetest.register_on_generated(mod.pgenerate)
-		end
-	end
 end
 
 

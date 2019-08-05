@@ -89,4 +89,87 @@ function mod.bm_default_biomes(params)
 end
 
 
+do
+	-- This tries to determine which biomes are default.
+	local default_biome_names = {
+		['cold_desert_ocean'] = true,
+		['cold_desert'] = true,
+		['coniferous_forest_dunes'] = true,
+		['coniferous_forest_ocean'] = true,
+		['coniferous_forest'] = true,
+		['deciduous_forest_ocean'] = true,
+		['deciduous_forest_shore'] = true,
+		['deciduous_forest'] = true,
+		['desert_ocean'] = true,
+		['desert'] = true,
+		['grassland_dunes'] = true,
+		['grassland_ocean'] = true,
+		['grassland'] = true,
+		['icesheet_ocean'] = true,
+		['icesheet'] = true,
+		['rainforest_ocean'] = true,
+		['rainforest_swamp'] = true,
+		['rainforest'] = true,
+		['sandstone_desert_ocean'] = true,
+		['sandstone_desert'] = true,
+		['savanna_ocean'] = true,
+		['savanna_shore'] = true,
+		['savanna'] = true,
+		['snowy_grassland_ocean'] = true,
+		['snowy_grassland'] = true,
+		['taiga_ocean'] = true,
+		['taiga'] = true,
+		['tundra_beach'] = true,
+		['tundra_highland'] = true,
+		['tundra_ocean'] = true,
+		['tundra'] = true,
+		['underground'] = true,
+	}
+
+	for _, v in pairs(minetest.registered_biomes) do
+		if default_biome_names[v.name] then
+			layers_mod.register_biome(v, 'default')
+		else
+			layers_mod.register_biome(v, v.source)
+		end
+	end
+end
+
+
+do
+	mod.decorations = {}
+	for _, v in pairs(minetest.registered_decorations) do
+		layers_mod.register_decoration(v)
+	end
+
+	-- Catch any registered by other mods.
+	local old_register_decoration = minetest.register_decoration
+	minetest.register_decoration = function (def)
+		layers_mod.register_decoration(def)
+		old_register_decoration(def)
+	end
+
+
+	local old_clear_registered_decorations = minetest.clear_registered_decorations
+	minetest.clear_registered_decorations = function ()
+		layers_mod.decorations = {}
+		old_clear_registered_decorations()
+	end
+
+
+	local old_register_biome = minetest.register_biome
+	minetest.register_biome = function (def)
+		layers_mod.register_biome(def)
+		old_register_biome(def)
+	end
+
+
+	local old_clear_registered_biomes = minetest.clear_registered_biomes
+	minetest.clear_registered_biomes = function ()
+		layers_mod.biomes = {}
+		old_clear_registered_biomes()
+	end
+end
+
+
 layers_mod.register_mapfunc('bm_default_biomes', mod.bm_default_biomes)
