@@ -225,7 +225,7 @@ function mod.generate_all(params)
 	params.vm = vm
 	params.metadata = {}
 	params.share = {}
-	params.share.propagate_shadow = true
+	params.share.propagate_shadow = false
 
 	-- This has to be done after the game starts.
 	mod.populate_node_arrays()
@@ -245,6 +245,9 @@ function mod.generate_all(params)
 		----------------------------------------------------
 		if vector.equals(params.isect_minp, params.chunk_minp) then
 			params.isect_minp.y = params.isect_minp.y - 1
+		end
+		if vector.equals(params.isect_maxp, params.chunk_maxp) then
+			params.isect_maxp.y = params.isect_maxp.y + 1
 		end
 		----------------------------------------------------
 

@@ -50,6 +50,13 @@ function mod.generate_floaters(params)
 
 	local csize = vector.add(vector.subtract(maxp, minp), 1)
 
+	local ystride = area.ystride
+
+	local n_stone = node['default:stone']
+	local n_air = node['air']
+	local n_water = node['default:water_source']
+	local n_glass = node[mod_name..':airy_barrier']
+
 	local ps = PcgRandom(params.chunk_seed + 7712)
 
 	-- Find all falling nodes.
@@ -120,13 +127,6 @@ function mod.generate_floaters(params)
 			index = index + 1
 		end
 	end
-
-	local ystride = area.ystride
-
-	local n_stone = node['default:stone']
-	local n_air = node['air']
-	local n_water = node['default:water_source']
-	local n_glass = node[mod_name..':airy_barrier']
 
 	-- Let realms do the biomes.
 	params.share.surface=surface
