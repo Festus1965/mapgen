@@ -413,7 +413,7 @@ end
 function mod.place_deco(params, ps, deco)
     local data, p2data, vm_area = params.data, params.p2data, params.area
     local minp, maxp = params.isect_minp, params.isect_maxp
-    local heightmap, schem = params.heightmap, params.schematics
+    local schem = params.schematics
 	--local biomemap = params.biomemap
 	local ystride = vm_area.ystride
 	local node = mod.node
@@ -466,9 +466,9 @@ function mod.place_deco(params, ps, deco)
                 local x = ps:next(min.x, max.x)
 				local y
                 local z = ps:next(min.z, max.z)
-                local mapindex = csize.x * (z - minp.z) + (x - minp.x) + 1
 				local upside_down
 				local surface = params.share.surface[z][x]
+				local by = -33000
 
                 if deco.liquid_surface or deco.all_floors or deco.all_ceilings then
 					y = mod.find_break(x, z, deco, ps)
@@ -483,6 +483,7 @@ function mod.place_deco(params, ps, deco)
                     local fy = surface.top
 					if fy >= minp.y and fy < maxp.y then
 						y = fy
+						by = surface.biome_height or surface.top or by
 					end
                 end
 
@@ -492,8 +493,8 @@ function mod.place_deco(params, ps, deco)
 					if biome then
 						local ivm = vm_area:index(x, y, z)
 						if ((not deco.place_on_i) or deco.place_on_i[data[ivm]])
-						and (not deco.y_max or deco.y_max >= y)
-						and (not deco.y_min or deco.y_min <= y) then
+						and (not deco.y_max or deco.y_max >= by)
+						and (not deco.y_min or deco.y_min <= by) then
 							if upside_down then
 								ivm = ivm - ystride
 							else
