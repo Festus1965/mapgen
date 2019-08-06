@@ -87,6 +87,10 @@ function mod.ponds(params)
 	local ahu = 0
 	for z = minp.z, maxp.z do
 		for x = minp.x, maxp.x do
+			if not params.share.surface[z][x].humidity then
+				ahu = 50 * csize.z * csize.x
+				break
+			end
 			ahu = ahu + params.share.surface[z][x].humidity
 		end
 	end
