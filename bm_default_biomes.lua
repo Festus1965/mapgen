@@ -33,6 +33,11 @@ function mod.get_biome(biomes_i, heat, humidity, height)
 end
 
 
+local default_sources = {
+	['default'] = true,
+	['dflat'] = true,
+}
+
 function mod.bm_default_biomes(params)
 	local offset = params.biome_height_offset or 0
 	local water_level = params.sealevel
@@ -46,14 +51,18 @@ function mod.bm_default_biomes(params)
 
 	-- Biome selection is expensive. This helps a bit.
 	for _, b in pairs(biomes) do
-		table.insert(biomes_i, b)
+		if default_sources[b.source] then
+			table.insert(biomes_i, b)
+		end
 	end
 
-	local heat_map
-	if not params.geographic_heat then
+	local heat_map, heat_blend_map
+	if params.geographic_heat then
+		heat_blend_map = layers_mod.get_noise2d('geographic_heat_blend', nil, nil, nil, { x = csize.x, y = csize.z }, { x = minp.x, y = minp.z })
+	else
 		heat_map = layers_mod.get_noise2d('heat', nil, nil, nil, { x = csize.x, y = csize.z }, { x = minp.x, y = minp.z })
+		heat_blend_map = layers_mod.get_noise2d('heat_blend', nil, nil, nil, { x = csize.x, y = csize.z }, { x = minp.x, y = minp.z })
 	end
-	local heat_blend_map = layers_mod.get_noise2d('heat_blend', nil, nil, nil, { x = csize.x, y = csize.z }, { x = minp.x, y = minp.z })
 	local humidity_map = layers_mod.get_noise2d('humidity', nil, nil, nil, { x = csize.x, y = csize.z }, { x = minp.x, y = minp.z })
 	local humidity_blend_map = layers_mod.get_noise2d('humidity_blend', nil, nil, nil, { x = csize.x, y = csize.z }, { x = minp.x, y = minp.z })
 
@@ -111,85 +120,28 @@ function mod.bm_default_biomes(params)
 end
 
 
-do
-	-- This tries to determine which biomes are default.
-	local default_biome_names = {
-		['cold_desert_ocean'] = true,
-		['cold_desert'] = true,
-		['coniferous_forest_dunes'] = true,
-		['coniferous_forest_ocean'] = true,
-		['coniferous_forest'] = true,
-		['deciduous_forest_ocean'] = true,
-		['deciduous_forest_shore'] = true,
-		['deciduous_forest'] = true,
-		['desert_ocean'] = true,
-		['desert'] = true,
-		['grassland_dunes'] = true,
-		['grassland_ocean'] = true,
-		['grassland'] = true,
-		['icesheet_ocean'] = true,
-		['icesheet'] = true,
-		['rainforest_ocean'] = true,
-		['rainforest_swamp'] = true,
-		['rainforest'] = true,
-		['sandstone_desert_ocean'] = true,
-		['sandstone_desert'] = true,
-		['savanna_ocean'] = true,
-		['savanna_shore'] = true,
-		['savanna'] = true,
-		['snowy_grassland_ocean'] = true,
-		['snowy_grassland'] = true,
-		['taiga_ocean'] = true,
-		['taiga'] = true,
-		['tundra_beach'] = true,
-		['tundra_highland'] = true,
-		['tundra_ocean'] = true,
-		['tundra'] = true,
-		['underground'] = true,
-	}
+layers_mod.register_noise( 'geographic_heat_blend', { offset = 0, scale = 4, seed = 5349, spread = {x = 10, y = 10, z = 10}, octaves = 3, persist = 0.5, lacunarity = 2, flags = 'eased' } )
 
+
+if true then
+	dofile(layers_mod.path .. '/default_biomes.lua')
+else
+	local source = 'default'
 	for _, v in pairs(minetest.registered_biomes) do
-		if default_biome_names[v.name] then
-			layers_mod.register_biome(v, 'default')
-		else
-			layers_mod.register_biome(v, v.source)
-		end
+		local w = table.copy(v)
+		w.source = source
+		print('mod.register_biome(' .. dump(w) .. ')')
+		layers_mod.register_biome(v, source)
 	end
-end
 
-
-do
-	mod.decorations = {}
 	for _, v in pairs(minetest.registered_decorations) do
+		local w = table.copy(v)
+		w.source = source
+		if w.deco_type == 'schematic' then
+			w = layers_mod.translate_schematic(w)
+		end
+		print('mod.register_decoration(' .. dump(w) .. ')')
 		layers_mod.register_decoration(v)
-	end
-
-	-- Catch any registered by other mods.
-	local old_register_decoration = minetest.register_decoration
-	minetest.register_decoration = function (def)
-		layers_mod.register_decoration(def)
-		old_register_decoration(def)
-	end
-
-
-	local old_clear_registered_decorations = minetest.clear_registered_decorations
-	minetest.clear_registered_decorations = function ()
-		layers_mod.decorations = {}
-		old_clear_registered_decorations()
-	end
-
-
-	local old_register_biome = minetest.register_biome
-	minetest.register_biome = function (def)
-		layers_mod.register_biome(def)
-		old_register_biome(def)
-	end
-
-
-	local old_clear_registered_biomes = minetest.clear_registered_biomes
-	minetest.clear_registered_biomes = function ()
-		layers_mod.biomes = {}
-		old_clear_registered_biomes()
 	end
 end
 
@@ -199,7 +151,7 @@ end
 -----------------------------------------------
 
 
-do
+if false then
 	minetest.register_biome({
 		name = 'ether',
 		heat_point = -99,
@@ -233,6 +185,7 @@ do
 				v.name = layers_mod.mod_name..':tree_cherry'
 			end
 		end
+		def.source = 'dflat'
 		minetest.register_decoration(def)
 
 		def = table.copy(apple_deco)
@@ -249,6 +202,7 @@ do
 				v.name = layers_mod.mod_name..':tree_oak'
 			end
 		end
+		def.source = 'dflat'
 		minetest.register_decoration(def)
 	end
 
@@ -306,9 +260,9 @@ do
 end
 
 
-layers_mod.register_flower('orchid', 'Orchid', { 'rainforest', 'rainforest_swamp' }, 783)
-layers_mod.register_flower('bird_of_paradise', 'Bird of Paradise', { 'rainforest' }, 798)
-layers_mod.register_flower('gerbera', 'Gerbera', { 'savanna', 'rainforest' }, 911)
+layers_mod.register_flower('orchid', 'dflat', 'Orchid', { 'rainforest', 'rainforest_swamp' }, 783)
+layers_mod.register_flower('bird_of_paradise', 'dflat', 'Bird of Paradise', { 'rainforest' }, 798)
+layers_mod.register_flower('gerbera', 'Gerbera', 'dflat', { 'savanna', 'rainforest' }, 911)
 
 
 layers_mod.register_mapfunc('bm_default_biomes', mod.bm_default_biomes)

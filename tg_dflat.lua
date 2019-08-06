@@ -160,7 +160,9 @@ function mod.ponds(params)
 						for h = p2.h, highest do
 							ivm = ivm + area.ystride
 							data[ivm] = node[biome.node_water_top] or n_water
-							if data[ivm] == n_water and heat < 30 and highest - h < 3 then
+							if not params.share.disable_icing
+							and data[ivm] == n_water
+							and heat < 30 and highest - h < 3 then
 								data[ivm] = n_ice
 							end
 						end
@@ -308,7 +310,8 @@ function mod.generate_dflat(params)
 			local ww = biome.node_water or node['default:water_source']
 			local wt = biome.node_water_top
 
-			if ww == n_water and surface.heat then
+			if ww == n_water and surface.heat
+			and not params.share.disable_icing then
 				if surface.heat < 30 then
 					wt = n_ice
 					wtd = math.ceil(math.max(0, (30 - surface.heat) / 3))
@@ -394,7 +397,6 @@ end
 
 -- Define the noises.
 layers_mod.register_noise( 'dflat_ground', { offset = 0, scale = 100, seed = 4382, spread = {x = 320, y = 320, z = 320}, octaves = 6, persist = 0.5, lacunarity = 2.0} )
-layers_mod.register_noise( 'heat_blend', { offset = 0, scale = 4, seed = 5349, spread = {x = 10, y = 10, z = 10}, octaves = 3, persist = 0.5, lacunarity = 2, flags = 'eased' } )
 layers_mod.register_noise( 'erosion', { offset = 0, scale = 1.5, seed = -47383, spread = {x = 8, y = 8, z = 8}, octaves = 2, persist = 1.0, lacunarity = 2 } )
 
 layers_mod.register_mapgen('tg_dflat', mod.generate_dflat)

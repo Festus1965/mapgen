@@ -1,4 +1,5 @@
-Realms.conf.example is distributed under the MIT license
+Realms.conf.example and ethereal_biomes.lua are distributed
+under the MIT license
 
 The MIT License
 
@@ -10,7 +11,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 
 
-All other code is distributed under the LGPL:
+All other code is distributed under the LGPL 2.1:
 
 
 

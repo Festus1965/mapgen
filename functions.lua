@@ -293,8 +293,10 @@ function mod.register_biome(def, source)
 	w.node_water_top = node[w.node_water_top]
 	w.node_dust = node[w.node_dust]
 
-	w.source = source
+	w.source = source or w.source
 	mod.registered_biomes[w.name] = w
+
+	return w
 end
 
 
@@ -341,55 +343,66 @@ function mod.register_decoration(def)
 	end
 
 	if deco.deco_type == 'schematic' then
-		if deco.schematic and type(deco.schematic) == 'string' then
-			local s = deco.schematic
-			local f = io.open(s, 'r')
-			if f then
-				f:close()
-				local sch = minetest.serialize_schematic(s, 'lua', {})
-				sch = minetest.deserialize('return {'..sch..'}')
-				sch = sch.schematic
-				deco.schematic_array = sch
-			else
-				print(mod_name .. ': ** Error opening: '..deco.schematic)
-			end
-
-			--print(dump(deco.schematic_array))
-			if not deco.schematic_array then
-				print(mod_name .. ': ** Error opening: '..deco.name)
-			end
-		end
-
-		if not deco.schematic_array and deco.schematic and type(deco.schematic) == 'table' then
-			deco.schematic_array = deco.schematic
-		end
-
-		if deco.schematic_array then
-			-- Force air placement to 0 probability.
-			-- This is usually correct.
-			for _, v in pairs(deco.schematic_array.data) do
-				if v.name == 'air' then
-					v.prob = 0
-					if v.param1 then
-						v.param1 = 0
-					end
-				elseif v.name:find('leaves') or v.name:find('needles') then
-					if v.prob and v.prob > 127 then
-						v.prob = v.prob - 128
-					end
-				end
-			end
-		else
-			print('FAILed to translate schematic: ' .. deco.name)
-			deco.bad_schem = true
-		end
+		deco = mod.translate_schematic(deco)
 	end
 
 	return deco
 end
 
 
-function mod.register_flower(name, desc, biomes, seed)
+function mod.translate_schematic(deco)
+	if deco.deco_type ~= 'schematic' then
+		return
+	end
+
+	if deco.schematic and type(deco.schematic) == 'string' then
+		local s = deco.schematic
+		local f = io.open(s, 'r')
+		if f then
+			f:close()
+			local sch = minetest.serialize_schematic(s, 'lua', {})
+			sch = minetest.deserialize('return {'..sch..'}')
+			sch = sch.schematic
+			deco.schematic_array = sch
+		else
+			print(mod_name .. ': ** Error opening: '..deco.schematic)
+		end
+
+		--print(dump(deco.schematic_array))
+		if not deco.schematic_array then
+			print(mod_name .. ': ** Error opening: '..deco.name)
+		end
+	end
+
+	if not deco.schematic_array and deco.schematic and type(deco.schematic) == 'table' then
+		deco.schematic_array = deco.schematic
+	end
+
+	if deco.schematic_array then
+		-- Force air placement to 0 probability.
+		-- This is usually correct.
+		for _, v in pairs(deco.schematic_array.data) do
+			if v.name == 'air' then
+				v.prob = 0
+				if v.param1 then
+					v.param1 = 0
+				end
+			elseif v.name:find('leaves') or v.name:find('needles') then
+				if v.prob and v.prob > 127 then
+					v.prob = v.prob - 128
+				end
+			end
+		end
+	else
+		print('FAILed to translate schematic: ' .. deco.name)
+		deco.bad_schem = true
+	end
+
+	return deco
+end
+
+
+function mod.register_flower(name, source, desc, biomes, seed)
 	local groups = { }
 	groups.snappy = 3
 	groups.flammable = 2
@@ -445,6 +458,7 @@ function mod.register_flower(name, desc, biomes, seed)
 			decoration = mod_name..':'..name,
 			name = name,
 			flower = true,
+			source = source,
 		})
 	end
 
@@ -466,6 +480,7 @@ function mod.register_flower(name, desc, biomes, seed)
 		decoration = mod_name..':'..name,
 		name = name,
 		flower = true,
+		source = source,
 	})
 end
 
@@ -695,3 +710,34 @@ minetest.register_chatcommand('genesis', {
 	end,
 })
 --]]
+
+
+do
+	-- Catch any registered by other mods.
+	local old_register_decoration = minetest.register_decoration
+	minetest.register_decoration = function (def)
+		mod.register_decoration(def)
+		old_register_decoration(def)
+	end
+
+
+	local old_clear_registered_decorations = minetest.clear_registered_decorations
+	minetest.clear_registered_decorations = function ()
+		mod.decorations = {}
+		old_clear_registered_decorations()
+	end
+
+
+	local old_register_biome = minetest.register_biome
+	minetest.register_biome = function (def)
+		mod.register_biome(def)
+		old_register_biome(def)
+	end
+
+
+	local old_clear_registered_biomes = minetest.clear_registered_biomes
+	minetest.clear_registered_biomes = function ()
+		mod.biomes = {}
+		old_clear_registered_biomes()
+	end
+end
