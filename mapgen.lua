@@ -110,7 +110,9 @@ function mod.generate_all(params)
 			{minp = realm.realm_minp, maxp = realm.realm_maxp}
 		)
 		if intersect then
-			--minetest.log('running mapgen ' .. realm.mapgen)
+			if mod.use_pcall then
+				minetest.log('running mapgen ' .. realm.mapgen)
+			end
 			table.insert(realms, realm)
 		end
 	end
@@ -311,7 +313,7 @@ function mod.parse_configuration_file_line(line, lineno)
 
 	if not mod.registered_mapgens[fields[1] ] then
 		--minetest.log(error_line)
-		--minetest.log(mod_name .. ':   ' .. fields[1] .. ' is not a registered mapgen.')
+		minetest.log(mod_name .. ':   ' .. fields[1] .. ' is not a registered mapgen.')
 		return
 	end
 
@@ -336,9 +338,7 @@ function mod.parse_configuration_file_line(line, lineno)
 	end
 
 	if not mod.registered_mapfuncs[fields[9] ] then
-		--minetest.log(error_line)
-		--minetest.log(mod_name .. ':   ' .. fields[1] .. ' is not a registered mapfunc.')
-		return
+		fields[9] = nil
 	end
 
 	for i = 10, #fields do

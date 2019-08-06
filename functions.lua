@@ -190,7 +190,11 @@ function mod.get_noise2d(name, default, seed, default_seed, size, pos)
 		pos.y = pos.z
 	end
 
-	local noise = minetest.get_perlin_map(mod.registered_noises[name], size)
+	local def = table.copy(mod.registered_noises[name])
+	if seed then
+		def.seed = def.seed + seed
+	end
+	local noise = minetest.get_perlin_map(def, size)
 	if not noise then
 		return
 	end
@@ -206,7 +210,11 @@ function mod.get_noise3d(name, default, seed, default_seed, size, pos)
 		return
 	end
 
-	local noise = minetest.get_perlin_map(mod.registered_noises[name], size)
+	local def = table.copy(mod.registered_noises[name])
+	if seed then
+		def.seed = def.seed + seed
+	end
+	local noise = minetest.get_perlin_map(def, size)
 	if not noise then
 		return
 	end
