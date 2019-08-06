@@ -298,13 +298,26 @@ function mod.register_biome(def, source)
 end
 
 
+local unknown_count = 0
 function mod.register_decoration(def)
 	local deco = table.copy(def)
 	table.insert(mod.registered_decorations, deco)
 
 	if not deco.name then
-		local nname = (deco.decoration or deco.schematic):gsub('^.*[:/]([^%.]+)', '%1')
+		local nname
+		local dec = deco.decoration or deco.schematic
+		if dec and type(dec) == 'string' then
+			nname = dec:gsub('^.*[:/]([^%.]+)', '%1')
+		else
+			unknown_count = unknown_count + 1
+			nname = 'unknown' .. unknown_count
+		end
 		deco.name = nname
+	end
+
+	if deco.place_on and type(deco.place_on) == 'table'
+	and deco.place_on[1]:find('ethereal') then
+		deco.source = 'ethereal'
 	end
 
 	if deco.flags and deco.flags ~= '' then
@@ -361,7 +374,7 @@ function mod.register_decoration(def)
 						v.param1 = 0
 					end
 				elseif v.name:find('leaves') or v.name:find('needles') then
-					if v.prob > 127 then
+					if v.prob and v.prob > 127 then
 						v.prob = v.prob - 128
 					end
 				end
