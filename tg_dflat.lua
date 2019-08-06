@@ -308,7 +308,7 @@ function mod.generate_dflat(params)
 			local ww = biome.node_water or node['default:water_source']
 			local wt = biome.node_water_top
 
-			if ww == n_water then
+			if ww == n_water and surface.heat then
 				if surface.heat < 30 then
 					wt = n_ice
 					wtd = math.ceil(math.max(0, (30 - surface.heat) / 3))
