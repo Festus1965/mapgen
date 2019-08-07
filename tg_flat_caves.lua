@@ -43,6 +43,7 @@ function mod.generate_flat_caves(params)
 	local n_lava = node['default:lava_source']
 	local n_ice = node['default:ice']
 	local n_ignore = node['ignore']
+	local n_wall = 9999
 
 	local ps = PcgRandom(params.chunk_seed + 7712)
 
@@ -58,14 +59,15 @@ function mod.generate_flat_caves(params)
 			local h = psh:next(10, 50) + psh:next(10, 50)
 			local dt = psh:next(1, 3)
 			local d
+			--local has_lava
 			if dt == 1 then
 				d = psh:next(1, h)
 			elseif dt == 2 then
 				d = psh:next(8, 16)
 			elseif dt == 3 then
 				d = 1
+				--has_lava = (psh:next(1, 4) == 1)
 			end
-			local has_lava = (psh:next(1, 4) == 1)
 
 			layer_max = layer_min
 			layer_min = layer_min - h
@@ -76,7 +78,7 @@ function mod.generate_flat_caves(params)
 						minp = VN(minp.x, layer_min + 1, minp.z),
 						maxp = VN(maxp.x, layer_max, maxp.z),
 						height = h,
-						lava = has_lava,
+						--lava = has_lava,
 						water_level = layer_min + d - 1,
 					})
 				end
@@ -144,6 +146,31 @@ function mod.generate_flat_caves(params)
 		end
 		--]]
 
+
+		local csize = params.csize
+
+		--[[
+		local x_part = math.floor(minp.x / csize.x)
+		local z_part = math.floor(minp.z / csize.z)
+		print(x_part, z_part)
+		local biome_noise_map = layers_mod.get_noise2d('flat_caves_biomes', nil, seedb, nil, {x=3, y=3}, { x = x_part, y = z_part })
+		local index = 1
+		for index = 1, 9 do
+			biome_noise_map[index] = math.floor(biome_noise_map[index] * 4 + 0.5)
+			index = index + 1
+		end
+		print(dump(biome_noise_map))
+		local stone_color = (biome_noise_map[5] + 6) * 32
+
+		local north = biome_noise_map[8] ~= biome_noise_map[5]
+		local south = biome_noise_map[2] ~= biome_noise_map[5]
+		local east = biome_noise_map[6] ~= biome_noise_map[5]
+		local west = biome_noise_map[4] ~= biome_noise_map[5]
+		--]]
+
+
+		local biome_noise_map = layers_mod.get_noise2d('flat_caves_biomes', nil, seedb, nil, {x=csize.x, y=csize.z}, { x = minp.x, y = minp.z })
+
 		-- Loop through every horizontal space.
 		local index = 1
 		for z = minp.z, maxp.z do
@@ -152,13 +179,15 @@ function mod.generate_flat_caves(params)
 				local ground = center.y - surface.top
 
 				local biome = surface.biome or {}
+				local stone_color = (math.floor(biome_noise_map[index] * 4 + 0.5) + 6) * 32
 				local n_b_stone = biome.node_stone or n_stone
 				local n_ceiling = biome.node_ceiling or biome.node_lining
 				local n_floor = biome.node_floor or biome.node_lining
 				local n_fluid = biome.node_cave_liquid
 				n_fluid = n_water
 				if cl.lava then
-					n_fluid = n_lava
+					-- place lava decos?
+					-- or just check water_level
 				end
 				local surface_depth = biome.surface_depth or 1
 				local n_gas = biome.node_air or n_air
@@ -176,13 +205,22 @@ function mod.generate_flat_caves(params)
 				local ivm = area:index(x, min_y, z)
 				for y = min_y, max_y do
 					local diff = math.abs(center.y - y)
+					--[[
+					if ((north and z == maxp.z) or (south and z == minp.z)
+					or (east and x == maxp.x) or (west and x == minp.x))
+					and y < water_level then
+						data[ivm] = n_stone
+						p2data[ivm] = 0
+						--]]
 					if diff >= ground and diff < ground + surface_depth then
 						if y < center.y then
 							data[ivm] = n_floor or n_b_stone
 							p2data[ivm] = 0
+							p2data[ivm] = stone_color
 						else
 							data[ivm] = n_ceiling or n_b_stone
 							p2data[ivm] = 0
+							p2data[ivm] = stone_color
 						end
 					elseif diff < ground then
 						if n_fluid and y <= water_level then
@@ -198,7 +236,7 @@ function mod.generate_flat_caves(params)
 						else
 							data[ivm] = n_b_stone
 						end
-						p2data[ivm] = 0
+						p2data[ivm] = stone_color
 					end
 
 					ivm = ivm + ystride
@@ -244,6 +282,7 @@ end
 
 -- Define the noises.
 layers_mod.register_noise( 'flat_caves_terrain', {offset = 0, scale = 10, seed = 6386, spread = {x = 23, y = 23, z = 23}, octaves = 3, persist = 0.7, lacunarity = 1.8} )
+layers_mod.register_noise( 'flat_caves_biomes', {offset = 0, scale = 1, seed = 5552, spread = {x = 900, y = 900, z = 900}, octaves = 2, persist = 0.7, lacunarity = 2} )
 
 layers_mod.register_mapgen('tg_flat_caves', mod.generate_flat_caves)
 --[[

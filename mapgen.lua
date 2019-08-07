@@ -923,7 +923,7 @@ function mod.save_map(params)
 	params.vm:set_data(params.data)
 	params.vm:set_param2_data(params.p2data)
 
-	if DEBUG then
+	if true or DEBUG then
 		params.vm:set_lighting({day = 10, night = 10})
 	else
 		params.vm:set_lighting({day = 0, night = 0})
