@@ -15,7 +15,7 @@ local light_max = default.light_max or 10
 
 
 local vn = vector.new
-local register_geomorph = geomorph.register_geomorph
+local register_geomorph = mod.register_geomorph
 local building_stone = 'default:stone'
 local ground = 20
 local vault_width = 7

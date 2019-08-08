@@ -9,6 +9,7 @@ local mod_name = 'mapgen'
 
 local null_vector = {x = 1, y = 1, z = 1}
 local ladder_transform = { [0] = 4, 2, 5, 3 }
+local VN = vector.new
 
 
 local action_names = {
@@ -68,6 +69,7 @@ function mod.rotate_coords(item, rot, csize)
 	local min = table.copy(null_vector)
 	local max = table.copy(null_vector)
 
+	--assert(rot == 0)
 	if rot == 0 then
 		min.x = item.location.x
 		max.x = item.location.x + item.size.x - 1
@@ -109,12 +111,20 @@ Geomorph.__index = Geomorph
 Geomorph.action_names = action_names
 
 
-function Geomorph.new(mgen, description)
+function Geomorph.new(mgen, description, bound)
 	local self = setmetatable({
 		shapes = {},
 	}, Geomorph)
 
+	if not bound then
+		bound = {
+			minp = VN(0, 0, 0),
+			maxp = VN(80, 80, 80),
+		}
+	end
+
 	self.area = mgen.area
+	self.bound = bound
 	self.csize = mgen.csize
 	self.data = mgen.data
 	self.gpr = mgen.gpr
@@ -206,10 +216,13 @@ function Geomorph:create_shape(t)
 end
 
 
-function Geomorph:add(t)
+function Geomorph:add(t, n)
 	local shape = self:create_shape(t)
+	if not n then
+		n = #self.shapes + 1
+	end
 	if shape then
-		table.insert(self.shapes, shape)
+		table.insert(self.shapes, n, shape)
 	end
 end
 
@@ -282,15 +295,15 @@ function Geomorph:write_shape(shape, rot)
 	if shape.action == 'cube' then
 		self:write_cube(shape, rot)
 	elseif shape.action == 'cylinder' then
-		self:write_cylinder(shape, rot)
+		--self:write_cylinder(shape, rot)
 	elseif shape.action == 'ladder' then
-		self:write_ladder(shape, rot)
+		--self:write_ladder(shape, rot)
 	elseif shape.action == 'sphere' then
-		self:write_sphere(shape, rot)
+		--self:write_sphere(shape, rot)
 	elseif shape.action == 'stair' then
-		self:write_stair(shape, rot)
+		--self:write_stair(shape, rot)
 	elseif shape.action == 'puzzle' then
-		self:write_puzzle(shape, rot)
+		--self:write_puzzle(shape, rot)
 	else
 		minetest.log(mod_name .. ': can\'t create a ' .. shape.action)
 	end
@@ -298,6 +311,7 @@ end
 
 
 function Geomorph:write_cube(shape, rot)
+	local bound = self.bound
 	local data = self.data
 	local gpr = self.gpr
 	local p2data = self.p2data
@@ -305,10 +319,20 @@ function Geomorph:write_cube(shape, rot)
 	local ystride = self.ystride
 
 	if shape.location.y + shape.size.y >= self.csize.y then
-		return
+		--return
 	end
 
-	local min, max = rotate_coords(shape, rot, self.csize)
+	local min, max = rotate_coords(shape, rot, VN(80, 80, 80))
+	min, max = mod.cube_intersect(bound, {
+		minp = min,
+		maxp = max,
+	})
+	if not min then
+		return
+	end
+	min.y = min.y - bound.minp.y + 80 - bound.maxp.y
+	max.y = max.y - bound.minp.y + 80 - bound.maxp.y
+
 	local node_num = self.node[shape.node]
 	local underground = shape.underground
 	local hollow = shape.hollow
@@ -348,7 +372,6 @@ function Geomorph:write_cube(shape, rot)
 			end
 
 			local hollow_x_good = (not hollow or x <= hmin.x or x >= hmax.x)
-			local ivm = self.area:index(minp.x + x, minp.y + min.y, minp.z + z)
 			local top_y = max.y
 
 			if underground then
@@ -361,6 +384,7 @@ function Geomorph:write_cube(shape, rot)
 				top_y = math.min(top_y, min.y + shape.height)
 			end
 
+			local ivm = self.area:index(minp.x + x, minp.y + min.y, minp.z + z)
 			for y = min.y, top_y do
 				local hollow_y_good = (not hollow or y <= hmin.y or y >= hmax.y)
 				local ok = (hollow_z_good or hollow_x_good or hollow_y_good)
@@ -370,6 +394,7 @@ function Geomorph:write_cube(shape, rot)
 					if not intersect
 					or (type(intersect) == 'table' and intersect[data[ivm]])
 					or (intersect == true and data[ivm] ~= n_air) then
+						local ivm = self.area:index(minp.x + x, minp.y + y, minp.z + z)
 						data[ivm] = node_num
 						p2data[ivm] = p2
 					end
@@ -389,6 +414,7 @@ end
 
 function Geomorph:write_sphere(shape, rot)
 	local area = self.area
+	local bound = self.bound
 	local data = self.data
 	local gpr = self.gpr
 	local minp = self.minp
@@ -444,7 +470,7 @@ function Geomorph:write_sphere(shape, rot)
 			local xv = (x - center.x) / proportions.x
 			local xvs = xv * xv
 
-			for y = min.y, top_y do
+			for y = min.y, math.min(bound.maxp.y, top_y) do
 				local yv = (y - center.y) / proportions.y
 				local dist = xvs + yv * yv + zvs
 				local radius_good = (dist <= radius_s)
@@ -475,6 +501,7 @@ function Geomorph:write_cylinder(shape, rot)
 	end
 
 	local area = self.area
+	local bound = self.bound
 	local data = self.data
 	local minp = self.minp
 	local ystride = self.area.ystride
@@ -537,7 +564,7 @@ function Geomorph:write_cylinder(shape, rot)
 				xvs = xv * xv
 			end
 
-			for y = min.y, top_y do
+			for y = min.y, math.min(bound.maxp.y, top_y) do
 				if do_radius.y then
 					yv = (y - center.y) / proportions.y
 				end
@@ -591,6 +618,7 @@ function Geomorph:write_stair(shape, rot)
 	end
 
 	local area = self.area
+	local bound = self.bound
 	local data = self.data
 	local minp = self.minp
 	local p2data = self.p2data
@@ -671,6 +699,7 @@ end
 
 function Geomorph:write_ladder(shape, rot)
 	local area = self.area
+	local bound = self.bound
 	local data = self.data
 	local minp = self.minp
 	local p2data = self.p2data
@@ -702,7 +731,7 @@ function Geomorph:write_ladder(shape, rot)
 				end
 			end
 
-			for y = min.y, top_y do
+			for y = min.y, math.min(bound.maxp.y, top_y) do
 				data[ivm] = node_num
 				p2data[ivm] = p2
 
@@ -772,14 +801,11 @@ end
 
 
 mod.registered_geomorphs = {}
-function mod.register_geomorph(g)
-	if not g.name then
+function mod.register_geomorph(def)
+	if not def.name then
 		minetest.log(mod_name .. ': cannot register a nameless geomorph')
 		return
 	end
 
-	local geo = Geomorph.new(g)
-	if geo then
-		mod.registered_geomorphs[g.name] = geo
-	end
+	mod.registered_geomorphs[def.name] = def
 end
