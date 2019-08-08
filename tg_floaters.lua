@@ -243,13 +243,16 @@ function mod.generate_floaters(params)
 		end
 	end
 
-
 	if layers_mod.place_all_decorations then
 		layers_mod.place_all_decorations(params)
 
 		if not params.share.no_dust and layers_mod.dust then
 			layers_mod.dust(params)
 		end
+	end
+
+	if layers_mod.simple_ore then
+		layers_mod.simple_ore(params, 9)
 	end
 end
 

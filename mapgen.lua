@@ -8,6 +8,8 @@ local mod = mapgen
 local mod_name = 'mapgen'
 
 local VN = vector.new
+local chunksize = tonumber(minetest.settings:get('chunksize') or 5)
+local chunk_offset = math.floor(chunksize / 2) * 16;
 
 
 if minetest.get_modpath('realms') then
@@ -36,6 +38,33 @@ local default_noises = {
 }
 
 
+mod.ores = {
+	{ 'default:dirt', 0, },
+	{ 'default:sand', 0, },
+	{ 'default:gravel', 0, },
+	{ 'default:clay', 1, },
+	{ 'default:stone_with_coal', 1, },
+	{ 'default:stone_with_iron', 2, },
+	{ 'default:stone_with_gold', 3, },
+	{ 'default:stone_with_diamond', 4, },
+	{ 'default:stone_with_mese', 5, },
+}
+
+mod.default_ore_intersect = {
+	'default:stone',
+	'default:sandstone',
+	'default:desert_stone',
+	mod_name .. ':basalt',
+	mod_name .. ':granite',
+	mod_name .. ':stone_with_lichen',
+	mod_name .. ':stone_with_algae',
+	mod_name .. ':stone_with_moss',
+	mod_name .. ':stone_with_salt',
+	mod_name .. ':hot_rock',
+	mod_name .. ':sunny_stone',
+}
+
+
 -------------------------------------------------
 -- Finds a place to put decorations with the all_floors,
 --  all_ceilings, or liquid_surface flags.
@@ -46,8 +75,9 @@ function mod.find_break(params, x, z, flags, gpr)
 	local minp, maxp = params.isect_minp, params.isect_maxp
 	local data, area = params.data, params.area
 	local ystride = params.area.ystride
+	local buildable_to = mod.buildable_to
 
-	local n_air = node['air']
+	local n_air = mod.node['air']
 
 	for k in pairs(y_s) do
 		y_s[k] = nil
@@ -129,11 +159,13 @@ function mod.generate_all(params)
 
 	params.area = VoxelArea:new({MinEdge = emin, MaxEdge = emax})
 	params.data = vm:get_data(m_data)
+	params.gpr = PcgRandom(params.chunk_seed + 772)
 	params.metadata = {}
+	params.node = mod.node
 	params.p2data = vm:get_param2_data(m_p2data)
 	params.schematics = {}
 	params.share = {}
-	params.share.propagate_shadow = false
+	params.share.propagate_shadow = true
 	params.vmparam2 = params.p2data
 	params.vm = vm
 
@@ -172,6 +204,12 @@ function mod.generate_all(params)
 			r_params[k] = v
 		end
 
+		-----------------------------------------
+		-- Fix this!
+		-----------------------------------------
+		r_params.realm_seed = r_params.map_seed
+		-----------------------------------------
+
 		-------------------------------------------
 		-- This must include height and biome mapping.
 		-------------------------------------------
@@ -191,11 +229,11 @@ function mod.generate(minp, maxp, seed)
 		return
 	end
 
-	if not mod.mapseed then
+	if not mod.map_seed then
 		-- This is not the same mapseed minetest provides.
 		-- See mod.generate_map_seed for details.
-		mod.mapseed = mod.generate_map_seed()
-		--minetest.log(mod_name..': starting with mapseed = 0x' .. string.format('%x', mod.mapseed))
+		mod.map_seed = mod.generate_map_seed()
+		--minetest.log(mod_name..': starting with map_seed = 0x' .. string.format('%x', mod.map_seed))
 	end
 
 	-- This is not the same blockseed minetest provides. The
@@ -207,7 +245,7 @@ function mod.generate(minp, maxp, seed)
 		chunk_maxp = maxp,
 		chunk_seed = blockseed,
 		real_chunk_seed = seed,
-		map_seed = mod.mapseed,
+		map_seed = mod.map_seed,
 	}
 	mod.generate_all(params)
 
@@ -219,7 +257,7 @@ end
 
 
 function mod.generate_block_seed(minp)
-	local seed = mod.mapseed
+	local seed = mod.map_seed
 	local data = {}
 
 	while seed > 0 do
@@ -242,12 +280,12 @@ function mod.generate_map_seed()
 	-- By wrong, I mean that it doesn't match the seed used in the
 	--  C code (the one displayed when you hit F5).
 
-	local mapseed = minetest.get_mapgen_setting('fixed_map_seed')
-	if mapseed == '' then
+	local map_seed = minetest.get_mapgen_setting('fixed_map_seed')
+	if map_seed == '' then
 		return minetest.get_mapgen_setting('seed')
 	else
 		-- Just convert each letter into a byte of data.
-		local bytes = {mapseed:byte(1, math.min(8, mapseed:len()))}
+		local bytes = {map_seed:byte(1, math.min(8, map_seed:len()))}
 		local seed = 0
 		local i = 1
 		for _, v in pairs(bytes) do
@@ -256,6 +294,19 @@ function mod.generate_map_seed()
 		end
 		return seed
 	end
+end
+
+
+function mod.get_ore(gpr, chunk_depth)
+	local oren = 0
+	for _, i in pairs(mod.ores) do
+		if chunk_depth >= (i[2] or 0) then
+			oren = oren + 1
+		end
+	end
+
+	-- This assumes that the ores table is sorted.
+	return mod.ores[gpr:next(1, oren)][1]
 end
 
 
@@ -380,7 +431,9 @@ function mod.pgenerate(...)
 end
 
 
-function mod.place_all_decorations(params)
+function mod.place_all_decorations(params, do_not_scan)
+	local t_deco = os.clock()
+
 	local minp, maxp = params.isect_minp, params.isect_maxp
 	local ps = PcgRandom(params.chunk_seed + 53)
 	local biome = params.biome or params.share.biome
@@ -403,20 +456,23 @@ function mod.place_all_decorations(params)
 			or (deco.max_y and deco.max_y < minp.y)
 			or (deco.min_y and deco.min_y > maxp.y)
 		) then
-			mod.place_deco(params, ps, deco)
+			mod.place_deco(params, ps, deco, do_not_scan)
 		end
 	end
+
+	mod.time_deco = mod.time_deco + os.clock() - t_deco
 end
 
 
 -- check
-function mod.place_deco(params, ps, deco)
+function mod.place_deco(params, ps, deco, do_not_scan)
     local data, p2data, vm_area = params.data, params.p2data, params.area
     local minp, maxp = params.isect_minp, params.isect_maxp
     local schem = params.schematics
 	--local biomemap = params.biomemap
 	local ystride = vm_area.ystride
 	local node = mod.node
+	local scan = not do_not_scan
 
     local csize = params.csize
     local sidelen = deco.sidelen or csize.x
@@ -427,8 +483,6 @@ function mod.place_deco(params, ps, deco)
 
     local divlen = csize.x / sidelen
     local area = sidelen * sidelen
-
-	local cave_level = params.share.cave_level or 20
 
     for z0 = 0, divlen-1 do
         for x0 = 0, divlen-1 do
@@ -470,14 +524,32 @@ function mod.place_deco(params, ps, deco)
 				local surface = params.share.surface[z][x]
 				local by = -33000
 
+				--------------------------------------------
+				-- FIX: check/opt this
+				--------------------------------------------
                 if deco.liquid_surface or deco.all_floors or deco.all_ceilings then
-					y = mod.find_break(x, z, deco, ps)
-					if y then
-						if y < 0 then
-							y = math.abs(y)
+					if deco.liquid_surface or scan then
+						y = mod.find_break(params, x, z, deco, ps)
+						if y then
+							if y < 0 then
+								y = math.abs(y)
+								upside_down = true
+							end
+							y = y + minp.y
+						end
+					elseif deco.all_floors and (not deco.all_ceilings or math.random(2) == 1) then
+						local fy = surface.cave_floor or -33000
+						if fy >= minp.y and fy < maxp.y then
+							y = fy
+							by = surface.biome_height or surface.cave_floor or by
+						end
+					elseif deco.all_ceilings then
+						local fy = surface.cave_ceiling or -33000
+						if fy >= minp.y and fy < maxp.y then
+							y = fy
+							by = surface.biome_height or surface.cave_ceiling or by
 							upside_down = true
 						end
-						y = y + minp.y
 					end
                 elseif surface then
                     local fy = surface.top
@@ -486,6 +558,8 @@ function mod.place_deco(params, ps, deco)
 						by = surface.biome_height or surface.top or by
 					end
                 end
+				by = by - (params.biome_height_offset or 0)
+				--------------------------------------------
 
 				if y then
 					local biome = params.biome or params.share.biome or (not deco.biomes_i) or surface.biome
@@ -493,6 +567,7 @@ function mod.place_deco(params, ps, deco)
 					if biome then
 						local ivm = vm_area:index(x, y, z)
 						if ((not deco.place_on_i) or deco.place_on_i[data[ivm]])
+						and ((not deco.biomes_i) or deco.biomes_i[biome.name])
 						and (not deco.y_max or deco.y_max >= by)
 						and (not deco.y_min or deco.y_min <= by) then
 							if upside_down then
@@ -864,6 +939,98 @@ function mod.read_configuration_file()
 end
 
 
+function mod.simple_ore(params, force_alt, num_deposits)
+	local t_ore = os.clock()
+
+	local minp, maxp = params.isect_minp, params.isect_maxp
+	local f_alt = force_alt
+
+	if not f_alt then
+		f_alt = minp.y
+		-- Correct for higher planes.
+		if params.sealevel > 0 then
+			f_alt = f_alt - params.sealevel
+		end
+
+		f_alt = math.max(0, - math.floor((f_alt + chunk_offset) / (chunksize * 16)))
+		f_alt = math.max(f_alt, math.floor(math.max(math.abs(minp.x), math.abs(minp.z)) / 3000))
+	end
+
+	local volume = params.csize.x * params.csize.y * params.csize.z
+	local pr = params.gpr
+	if not num_deposits then
+		num_deposits = math.floor(100 * volume / (80 * 80 * 80))
+	end
+
+	if not params.ore_intersect then
+		params.ore_intersect = table.copy(mod.default_ore_intersect)
+	end
+
+	local geo = Geomorph.new(params)
+	for _ = 1, num_deposits do
+		local ore = mod.get_ore(params.gpr, f_alt)
+
+		local size = VN(
+			pr:next(1, 4) + pr:next(1, 4),
+			pr:next(1, 4) + pr:next(1, 4),
+			pr:next(1, 4) + pr:next(1, 4)
+		)
+		if params.placed_lava then
+			size = VN(size, 2)
+		end
+
+		local max_range = VN(
+			params.csize.x - size.x,
+			params.csize.y - size.y - 3,
+			params.csize.z - size.z
+		)
+
+		if max_range.y > 3 then
+			local p = VN(
+				pr:next(0, max_range.x),
+				pr:next(3, max_range.y),
+				pr:next(0, max_range.z)
+			)
+
+			geo:add({
+				action = 'cube',
+				node = ore,
+				random = 4,
+				location = p,
+				size = size,
+				intersect = params.ore_intersect,
+			})
+		end
+	end
+	geo:write_to_map()
+
+	-- Change the colors of all default stone.
+	-- The time for this is negligible.
+	if params.stone_layers then
+		local area = params.area
+		local data, p2data = params.data, params.p2data
+		local stone_layers = params.stone_layers
+		local ystride = area.ystride
+		for z = minp.z, maxp.z do
+			for x = minp.x, maxp.x do
+				local ivm = area:index(x, minp.y, z)
+				for y = minp.y, maxp.y do
+					local dy = y - minp.y
+
+					if data[ivm] == n_stone then
+						p2data[ivm] = stone_layers[dy]
+					end
+
+					ivm = ivm + ystride
+				end
+			end
+		end
+	end
+
+	mod.time_ore = mod.time_ore + os.clock() - t_ore
+end
+
+
 function mod.spawnplayer(player)
 	local realm = mod.spawn_realm
 	if not realm then
@@ -896,7 +1063,7 @@ function mod.spawnplayer(player)
 		pos.y = mod.registered_spawns[realm.mapgen](realm, pos.x, pos.z)
 
 		if pos.y then
-			--print(ct..' spawns attempted')
+			--minetest.log(ct..' spawns attempted')
 			break
 		end
 	end
@@ -923,7 +1090,7 @@ function mod.save_map(params)
 	params.vm:set_data(params.data)
 	params.vm:set_param2_data(params.p2data)
 
-	if true or DEBUG then
+	if DEBUG then
 		params.vm:set_lighting({day = 10, night = 10})
 	else
 		params.vm:set_lighting({day = 0, night = 0})

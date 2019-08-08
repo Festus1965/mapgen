@@ -293,13 +293,18 @@ function mod.register_biome(def, source)
 
 	local w = table.copy(def)
 
-	w.node_top = node[w.node_top]
+	w.node_cave_liquid = node[w.node_cave_liquid]
+	w.node_ceiling = node[w.node_ceiling]
+	w.node_dust = node[w.node_dust]
 	w.node_filler = node[w.node_filler]
+	w.node_floor = node[w.node_floor]
+	w.node_gas = node[w.node_gas]
+	w.node_lining = node[w.node_lining]
 	w.node_riverbed = node[w.node_riverbed]
 	w.node_stone = node[w.node_stone]
+	w.node_top = node[w.node_top]
 	w.node_water = node[w.node_water]
 	w.node_water_top = node[w.node_water_top]
-	w.node_dust = node[w.node_dust]
 
 	w.source = source or w.source
 	mod.registered_biomes[w.name] = w

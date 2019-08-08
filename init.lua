@@ -48,6 +48,7 @@ mod.time_y_loop = 0
 
 dofile(mod.path .. '/functions.lua')
 dofile(mod.path .. '/nodes.lua')
+dofile(mod.path .. '/geomorph.lua')
 --dofile(mod.path .. '/plans.lua')
 dofile(mod.path .. '/mapgen.lua')
 
