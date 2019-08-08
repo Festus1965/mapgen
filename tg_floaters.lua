@@ -45,6 +45,8 @@ function mod.generate_floaters(params)
 	local water_level = params.sealevel
 	local area, data, p2data = params.area, params.data, params.vmparam2
 
+	params.share.propagate_shadow = false
+
 	--local chunksize = tonumber(minetest.settings:get('chunksize') or 5)
 	--local chunk_offset = math.floor(chunksize / 2) * 16;
 

@@ -42,6 +42,8 @@ local function height_search(params, ri)
 	local csize = params.csize
 	local minp, maxp = params.isect_minp, params.isect_maxp
 
+	params.share.propagate_shadow = true
+
 	if ri < 1 or ri > csize.z * csize.x then
 		return
 	end

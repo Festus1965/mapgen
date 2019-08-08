@@ -165,7 +165,7 @@ function mod.generate_all(params)
 	params.p2data = vm:get_param2_data(m_p2data)
 	params.schematics = {}
 	params.share = {}
-	params.share.propagate_shadow = true
+	params.share.propagate_shadow = false
 	params.vmparam2 = params.p2data
 	params.vm = vm
 

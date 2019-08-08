@@ -44,6 +44,8 @@ local floor_dirty_nodes = {
 function mod.generate_flat_caves(params)
 	local t_caves = os.clock()
 
+	params.share.propagate_shadow = true
+
 	if not mod.floor_dirty then
 		mod.floor_dirty = {}
 		for _, v in pairs(floor_dirty_nodes) do
