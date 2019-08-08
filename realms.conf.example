@@ -17,6 +17,15 @@ comments only and have no actual affect on anything.  Could call it Realm Timbuk
 RMG Name         :min x :min y :min z :max x : max y: max z:sealevel:biome func          :other parms
 -----------------:------:------:------:------:------:------:--------:--------------------:----------
 
+
+tg_dflat | -33000 | 200 | -33000 | 33000 | 600 | 33000 | 300 | bm_default_biomes | spawn | geographic_heat
+
+tg_flat_caves | -33000 | -2200 | -33000 | 33000 | -200 | 33000 | 300 | bm_fun_caves_biomes |
+
+tg_floaters | -33000 | 600 | -33000 | 33000 | 900 | 33000 | 630 | bm_default_biomes | biome_height_offset = 45
+
+
+
 Realm 1 surface at 0  (still using built in generator for y=0 surface, so nothing here)
 
 Realm 2 surface at 6,000          <-lines like this are just comments  
