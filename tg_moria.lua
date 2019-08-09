@@ -163,6 +163,7 @@ end
 
 -- check
 function mod.generate_moria(params)
+	--print('called at minp ', params.isect_minp.y)
 	if not box_names then
 		box_names = {}
 		for k, v in pairs(layers_mod.registered_geomorphs) do
@@ -205,59 +206,62 @@ function mod.generate_moria(params)
 	end
 	--]]
 
-	--print(params.realm_maxp.y, params.isect_maxp.y)
-	--print(((params.realm_maxp.y - params.isect_maxp.y)))
-	--print(((params.realm_maxp.y - params.isect_maxp.y) % 80))
-	--print(80 - ((params.realm_maxp.y - params.isect_maxp.y) % 80))
-
 	local box_type = box_names[params.gpr:next(1, #box_names)]
 
 	--local box = layers_mod.registered_geomorphs[box_type]
-	local box = layers_mod.registered_geomorphs['reservoir']
+	local box = layers_mod.registered_geomorphs['stair_base']
+	local top = true
+	local bottom = true
+	local center = vector.divide(vector.add(params.isect_minp, params.isect_maxp), 2)
+	local adj_maxp = vector.add(center, 39.5)
+	local adj_minp = vector.subtract(center, 39.5)
 
-	local i = (params.realm_maxp.y - params.isect_maxp.y) % 80
-	if i == 0 and params.csize.y < 80 then
-		local b = VN(0, 80 - params.csize.y, 0)
-		local c = vector.subtract(params.csize, 1)
-		c.y = 79
-		local bound1 = {
-			minp = b,
-			maxp = c,
-		}
-		--print(dump(bound1))
-		local geo = Geomorph.new(params, box, bound1)
-		if box.areas and box.areas:find('geomoria') and not nofill then
-			geo:add({
-				action = 'cube',
-				node = 'default:stone',
-				location = VN(0, 0, 0),
-				size = VN(80, 80, 80),
-			}, 1)
+	local cb = vector.floor(vector.divide(vector.add(minp, 32), 80))
+	cb = vector.subtract(vector.multiply(cb, 80), 32)
+	--print(minp.y, dump(cb))
+	cb = vector.mod(vector.subtract(cb, params.realm_maxp), 80)
+	for _, axis in pairs({'x', 'y', 'z'}) do
+		if params.realm_maxp[axis] >= 31000 then
+			cb[axis] = 0
 		end
+	end
+	--print(minp.y, dump(cb))
+
+	--print(dump(params.csize))
+	if box.areas and box.areas:find('geomoria') and not nofill then
+		local geo = Geomorph.new(params)
+		geo:add({
+			action = 'cube',
+			node = 'default:stone',
+			location = vector.subtract(VN(80, 80, 80), params.csize),
+			size = table.copy(params.csize),
+		}, 1)
 		geo:write_to_map(0)
-	else
-		local b = 80 - ((params.realm_maxp.y - params.isect_maxp.y) % 80)
-		local c = params.csize.y - b
-		local bound2 = {
-			minp = VN(0, c, 0),
-			maxp = VN(params.csize.x - 1, 79, params.csize.z - 1),
+	end
+
+	if top and minp.y - params.realm_minp.y >= cb.y then
+		local bound1 = {
+			minp = VN(0, cb.y, 0),
+			maxp = VN(79, 79, 79),
 		}
+		--print('drawing top', minp.y, cb.y, maxp.y, params.realm_minp.y)
+		--print(dump(bound1))
+
+		local geo = Geomorph.new(params, box, bound1)
+		geo:write_to_map(0)
+	end
+	if bottom and params.realm_maxp.y - minp.y >= cb.y
+	and maxp.y - params.realm_minp.y >= cb.y - 1 then
+		local bound2 = {
+			minp = VN(0, 0, 0),
+			maxp = VN(params.csize.x - 1, cb.y - 1, params.csize.z - 1),
+		}
+		--print('drawing bottom', minp.y)
+		--print(dump(bound2))
 
 		local geo = Geomorph.new(params, box, bound2)
-		if geo.areas and geo.areas:find('geomoria') and not nofill then
-			geo:add({
-				action = 'cube',
-				node = 'default:stone',
-				location = VN(0, 0, 0),
-				size = VN(80, 80, 80),
-			}, 1)
-		end
-
 		--geo:write_to_map(self, nil, geo_replace[box_type])
 		geo:write_to_map(0)
-
-		--local geo = Geomorph.new(params, box, bound2)
-		--geo:write_to_map(0)
 	end
 
 	if not nofill then

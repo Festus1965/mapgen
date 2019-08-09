@@ -3,7 +3,7 @@
 -- Distributed under the LGPLv2.1 (https://www.gnu.org/licenses/old-licenses/lgpl-2.1.en.html)
 
 
-local DEBUG = true
+local DEBUG
 local mod = mapgen
 local mod_name = 'mapgen'
 
@@ -182,6 +182,10 @@ function mod.generate_all(params)
 			{minp = realm.realm_minp, maxp = realm.realm_maxp}
 		)
 
+		for k, v in pairs(params) do
+			r_params[k] = v
+		end
+
 		----------------------------------------------------
 		-- This fixes the mapgen v7 ridges bug, but it
 		--  could cause serious problems.
@@ -190,19 +194,16 @@ function mod.generate_all(params)
 		--  mapseed = jeffries
 		--  static_spawnpoint = -1242,447,3677
 		----------------------------------------------------
+		r_params.overgen = realm.overgen or 0
 		if vector.equals(r_params.isect_minp, params.chunk_minp) then
-			r_params.isect_minp.y = r_params.isect_minp.y - 1
+			r_params.isect_minp.y = r_params.isect_minp.y - r_params.overgen
 		end
 		if vector.equals(r_params.isect_maxp, params.chunk_maxp) then
-			r_params.isect_maxp.y = r_params.isect_maxp.y + 1
+			r_params.isect_maxp.y = r_params.isect_maxp.y + r_params.overgen
 		end
 		----------------------------------------------------
 
 		r_params.csize = vector.add(vector.subtract(r_params.isect_maxp, r_params.isect_minp), 1)
-
-		for k, v in pairs(params) do
-			r_params[k] = v
-		end
 
 		-----------------------------------------
 		-- Fix this!
@@ -243,6 +244,7 @@ function mod.generate(minp, maxp, seed)
 	local params = {
 		chunk_minp = minp,
 		chunk_maxp = maxp,
+		chunk_csize = vector.add(vector.subtract(maxp, minp), 1),
 		chunk_seed = blockseed,
 		real_chunk_seed = seed,
 		map_seed = mod.map_seed,
