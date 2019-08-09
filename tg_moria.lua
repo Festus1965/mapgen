@@ -1,4 +1,4 @@
--- Duane's mapgen dflat.lua
+-- Duane's mapgen tg_moria.lua
 -- Copyright Duane Robertson (duane@duanerobertson.com), 2019
 -- Distributed under the LGPLv2.1 (https://www.gnu.org/licenses/old-licenses/lgpl-2.1.en.html)
 
