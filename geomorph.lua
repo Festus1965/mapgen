@@ -329,14 +329,14 @@ function Geomorph:minmax(shape, bound, rot)
 	end
 
 	-- Move up or down to match the bounds required.
-	assert(bound.maxp.y == 79 or bound.minp.y == 0)
+	--assert(bound.maxp.y == 79 or bound.minp.y == 0)
 	local adj = 0
 	if bound.minp.y == 0 then
 		adj = self.csize.y - bound.maxp.y - 1
 	else
 		adj = - bound.minp.y
 	end
-	assert(adj < 80)
+	--assert(adj < 80)
 	min.y = min.y + adj
 	max.y = max.y + adj
 	--bmin.y = bmin.y + adj

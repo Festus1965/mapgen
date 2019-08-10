@@ -301,12 +301,12 @@ function mod.generate_moria(params)
 	end
 
 	if not nofill then
-		--mod.dungeon_decor()
+		mod.dungeon_decor(params)
 	end
 end
 
 
-function mod.dungeon_decor()
+function mod.dungeon_decor(params)
 	local minp, maxp = params.isect_minp, params.isect_maxp
 	local area = params.area
 	local data, p2data = params.data, params.p2data
