@@ -57,6 +57,73 @@ mod.default_ore_intersect = {
 }
 
 
+-- table of node types to be dusted
+mod.dusty_types = {
+	normal = true,
+	allfaces_optional = true,
+	glasslike_framed_optional = true,
+	glasslike = true,
+	glasslike_framed = true,
+	allfaces = true,
+}
+
+
+function mod.dust(params)
+	local area, data, p2data = params.area, params.data, params.p2data
+	local minp, maxp = params.isect_minp, params.isect_maxp
+	local water_level = params.sealevel
+
+	local n_ignore = mod.node['ignore']
+	local n_air = mod.node['air']
+
+	local biome = params.share.biome
+
+	local index = 1
+	for z = minp.z, maxp.z do
+		for x = minp.x, maxp.x do
+			local surface = params.share.surface[z][x]
+			local height = surface.top or water_level or minp.y - 2
+			local ivm = area:index(x, maxp.y - 1, z)
+
+			biome = biome or surface.biome or {}
+
+			local node_dust
+			if biome then
+				node_dust = biome.node_dust
+			end
+
+			if node_dust and data[ivm] == n_air then
+				local yc
+				for y = maxp.y - 1, minp.y + 1, -1 do
+					if y >= height and data[ivm] ~= n_air then
+						yc = y
+						break
+					end
+
+					ivm = ivm - area.ystride
+				end
+
+				if yc then
+					local name = minetest.get_name_from_content_id(data[ivm])
+					local n = minetest.registered_nodes[name]
+					if data[ivm] == n_ignore
+					or (
+						n and (not n.drawtype or mod.dusty_types[n.drawtype])
+						and (n.walkable ~= false or (n.groups and n.groups.leaves))
+					) then
+						ivm = ivm + area.ystride
+						data[ivm] = node_dust
+						p2data[ivm] = 0
+					end
+				end
+			end
+
+			index = index + 1
+		end
+	end
+end
+
+
 -------------------------------------------------
 -- Finds a place to put decorations with the all_floors,
 --  all_ceilings, or liquid_surface flags.
