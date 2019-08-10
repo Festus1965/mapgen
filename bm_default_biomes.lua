@@ -10,6 +10,16 @@ local chunksize = tonumber(minetest.settings:get('chunksize') or 5)
 local chunk_offset = math.floor(chunksize / 2) * 16;
 
 
+local default_noises = {
+	filler_depth = { offset = 0, scale = 1.5, seed = -47383, spread = {x = 8, y = 8, z = 8}, octaves = 2, persist = 1.0, lacunarity = 2 },
+	geographic_heat_blend = { offset = 0, scale = 4, seed = 5349, spread = {x = 10, y = 10, z = 10}, octaves = 3, persist = 0.5, lacunarity = 2, flags = 'eased' },
+	heat = { offset = 50, scale = 50, spread = {x = 1000, y = 1000, z = 1000}, seed = 5349, octaves = 3, persistence = 0.5, lacunarity = 2.0, flags = 'eased' },
+	heat_blend = { offset = 0, scale = 1.5, spread = {x = 8, y = 8, z = 8}, seed = 13, octaves = 2, persistence = 1.0, lacunarity = 2.0, flags = 'eased' },
+	humidity = { offset = 50, scale = 50, seed = 842, spread = {x = 1000, y = 1000, z = 1000}, octaves = 3, persist = 0.5, lacunarity = 2, flags = 'eased' },
+	humidity_blend = { offset = 0, scale = 1.5, seed = 90003, spread = {x = 8, y = 8, z = 8}, octaves = 2, persist = 1.0, lacunarity = 2, flags = 'eased' },
+}
+
+
 -----------------------------------------------
 --
 -----------------------------------------------
@@ -38,6 +48,8 @@ local default_sources = {
 	['dflat'] = true,
 }
 
+local sandy_nodes
+
 function mod.bm_default_biomes(params)
 	local offset = params.biome_height_offset or 0
 	local water_level = params.sealevel
@@ -47,6 +59,15 @@ function mod.bm_default_biomes(params)
 
 	if not params.biomes_here then
 		params.biomes_here = {}
+	end
+
+	if not sandy_nodes then
+		sandy_nodes = {}
+		for k, v in pairs(minetest.registered_nodes) do
+			if v.groups and v.groups.sand then
+				sandy_nodes[params.node[k]] = true
+			end
+		end
 	end
 
 	-- Biome selection is expensive. This helps a bit.
@@ -65,6 +86,7 @@ function mod.bm_default_biomes(params)
 	end
 	local humidity_map = layers_mod.get_noise2d('humidity', nil, nil, nil, { x = csize.x, y = csize.z }, { x = minp.x, y = minp.z })
 	local humidity_blend_map = layers_mod.get_noise2d('humidity_blend', nil, nil, nil, { x = csize.x, y = csize.z }, { x = minp.x, y = minp.z })
+	local filler_depth_map = layers_mod.get_noise2d('filler_depth', nil, nil, nil, { x = csize.x, y = csize.z }, { x = minp.x, y = minp.z })
 
 	local index = 1
 	for z = minp.z, maxp.z do
@@ -108,6 +130,24 @@ function mod.bm_default_biomes(params)
 
 			if biome then
 				surface.biome = biome
+
+				local h_factor = 0.03
+				if sandy_nodes[biome.node_top] then
+					h_factor = h_factor * 3
+				end
+
+				local f = biome.filler_depth or 1
+				local t = biome.top_depth or 1
+				local d = math.floor(math.max(0, filler_depth_map[index] + t) + f - height * h_factor + 0.5)
+
+				if d + f + t < 1 then
+					t = 0
+				end
+				surface.top_depth = t
+				surface.filler_depth = math.max(0, d + f - t)
+				d = d + surface.filler_depth + t
+				surface.erosion = math.max(0, - d)
+
 				if params.biomes_here[biome.name] == true then
 					params.biomes_here[biome.name] = 1
 				end
@@ -120,7 +160,9 @@ function mod.bm_default_biomes(params)
 end
 
 
-layers_mod.register_noise( 'geographic_heat_blend', { offset = 0, scale = 4, seed = 5349, spread = {x = 10, y = 10, z = 10}, octaves = 3, persist = 0.5, lacunarity = 2, flags = 'eased' } )
+for name, def in pairs(default_noises) do
+	layers_mod.register_noise(name, def)
+end
 
 
 if true then

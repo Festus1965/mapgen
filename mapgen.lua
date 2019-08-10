@@ -30,14 +30,6 @@ local m_p2data = {}
 local drotn = {[0]=3, 0, 1, 2, 19, 16, 17, 18, 15, 12, 13, 14, 7, 4, 5, 6, 11, 8, 9, 10, 21, 22, 23, 20}
 
 
-local default_noises = {
-	heat = { offset = 50, scale = 50, spread = {x = 1000, y = 1000, z = 1000}, seed = 5349, octaves = 3, persistence = 0.5, lacunarity = 2.0, flags = 'eased' },
-	heat_blend = { offset = 0, scale = 1.5, spread = {x = 8, y = 8, z = 8}, seed = 13, octaves = 2, persistence = 1.0, lacunarity = 2.0, flags = 'eased' },
-	humidity = { offset = 50, scale = 50, seed = 842, spread = {x = 1000, y = 1000, z = 1000}, octaves = 3, persist = 0.5, lacunarity = 2, flags = 'eased' },
-	humidity_blend = { offset = 0, scale = 1.5, seed = 90003, spread = {x = 8, y = 8, z = 8}, octaves = 2, persist = 1.0, lacunarity = 2, flags = 'eased' },
-}
-
-
 mod.ores = {
 	{ 'default:dirt', 0, },
 	{ 'default:sand', 0, },
@@ -319,11 +311,6 @@ function mod.main()
 		minetest.log(mod_name .. ': Running without safety measures...')
 	else
 		mod.use_pcall = true
-	end
-
-
-	for name, def in pairs(default_noises) do
-		mod.register_noise(name, def)
 	end
 
 

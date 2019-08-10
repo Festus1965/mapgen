@@ -114,6 +114,9 @@ function mod.ponds(params)
 		['savanna'] = true,
 		['rainforest'] = true,
 	}
+
+	-- Erosion and ponds don't mix well.
+	local pond_max = params.sealevel + 75
 	local pond_min = params.sealevel + 12
 	local ps = PcgRandom(params.chunk_seed + 93)
 
@@ -123,7 +126,7 @@ function mod.ponds(params)
 			local p = {x=x+minp.x, z=z+minp.z}
 			local index = z * csize.x + x + 1
 			local height = params.share.surface[p.z][p.x].top + 1
-			if height > pond_min and height >= minp.y - 1 and height <= maxp.y + 1 then
+			if height > pond_min and height < pond_max and height >= minp.y - 1 and height <= maxp.y + 1 then
 				local search = {}
 				local highest = 0
 				local h1 = height_search(params, index)
@@ -221,8 +224,6 @@ function mod.generate_dflat(params)
 
 	-- just a few 2d noises
 	local ground_noise_map = layers_mod.get_noise2d('dflat_ground', nil, nil, nil, {x=csize.x, y=csize.z}, { x = minp.x, y = minp.z })
-	--local under_noise_map = layers_mod.get_noise2d('floaters_under', nil, nil, nil, {x=csize.x, y=csize.z}, { x = minp.x, y = minp.z })
-	local base_noise_map = layers_mod.get_noise2d('erosion', nil, nil, nil, {x=csize.x, y=csize.z}, { x = minp.x, y = minp.z })
 
 	local height_min = max_height
 	local height_max = max_height
@@ -289,20 +290,14 @@ function mod.generate_dflat(params)
 			-- depths
 			local depth_top = surface.top_depth or biome.depth_top or 0  -- 1?
 			local depth_filler = surface.filler_depth or biome.depth_filler or 0  -- 6?!
-			local o_depth_top = depth_top
-			if depth_top > 0 then
-				--depth_top = self:erosion(height, index, depth_top, 100)
-			end
-			if depth_filler > 0 then
-				--depth_filler = self:erosion(height, index, depth_filler, 20)
-			end
+			local erosion = surface.erosion or 0
 			local wtd = biome.node_water_top_depth or 0
 			local grass_p2 = surface.grass_p2 or 0
 
-			local fill_0 = height - math.max(0, (o_depth_top - depth_top))
+			height = height - erosion
+			surface.top = height
 			local fill_1 = height - depth_top
-			local fill_1 = height - o_depth_top
-			local fill_2 = fill_1 - math.max(0, depth_filler)
+			local fill_2 = fill_1 - depth_filler
 
 			-- biome-determined nodes
 			local stone = biome.node_stone or n_stone
@@ -334,8 +329,6 @@ function mod.generate_dflat(params)
 						data[ivm] = ww
 					end
 					p2data[ivm] = 0
-				elseif y <= height and y > fill_0 then
-					data[ivm] = n_air
 				elseif y <= height and y > fill_1 then
 					-- topping up
 					data[ivm] = top
@@ -402,7 +395,6 @@ end
 
 -- Define the noises.
 layers_mod.register_noise( 'dflat_ground', { offset = 0, scale = 100, seed = 4382, spread = {x = 320, y = 320, z = 320}, octaves = 6, persist = 0.5, lacunarity = 2.0} )
-layers_mod.register_noise( 'erosion', { offset = 0, scale = 1.5, seed = -47383, spread = {x = 8, y = 8, z = 8}, octaves = 2, persist = 1.0, lacunarity = 2 } )
 
 layers_mod.register_mapgen('tg_dflat', mod.generate_dflat)
 if layers_mod.register_spawn then
