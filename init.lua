@@ -41,6 +41,8 @@ mod.time_caves = 0
 mod.time_deco = 0
 mod.time_ore = 0
 mod.time_overhead = 0
+mod.time_ponds = 0
+mod.time_ruins = 0
 mod.time_terrain = 0
 mod.time_terrain_f = 0
 mod.time_y_loop = 0
@@ -58,6 +60,8 @@ minetest.register_on_shutdown(function()
   print('time decorations: '..math.floor(1000 * mod.time_deco / mod.chunks))
   print('time ore: '..math.floor(1000 * mod.time_ore / mod.chunks))
   print('time overhead: '..math.floor(1000 * mod.time_overhead / mod.chunks))
+  print('time ponds: '..math.floor(1000 * mod.time_ponds / mod.chunks))
+  print('time ruins: '..math.floor(1000 * mod.time_ruins / mod.chunks))
   print('time terrain: '..math.floor(1000 * mod.time_terrain / mod.chunks))
   print('time terrain_f: '..math.floor(1000 * mod.time_terrain_f / mod.chunks))
   print('time y loop: '..math.floor(1000 * mod.time_y_loop / mod.chunks))

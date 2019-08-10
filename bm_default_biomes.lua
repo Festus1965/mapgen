@@ -120,7 +120,9 @@ function mod.bm_default_biomes(params)
 			end
 
 			surface.heat = heat
+			surface.heat_blend = heat_blend
 			surface.humidity = humidity
+			surface.humidity_blend = humidity_blend
 
 			local grass_p2 = math.floor((humidity - (heat / 2) + 9) / 3)
 			grass_p2 = (7 - math.min(7, math.max(0, grass_p2))) * 32
