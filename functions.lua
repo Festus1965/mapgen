@@ -64,10 +64,19 @@ end
 assert(math.xor(60, 13) == 49)
 
 
-function vector.contains(minp, maxp, q)
-	for _, a in pairs(axes) do
-		if minp[a] > q[a] or maxp[a] < q[a] then
+function vector.contains(minp, maxp, x, y, z)
+	-- Don't create a vector here. It would be slower.
+	if y and z then
+		if minp.x > x or maxp.x < x
+		or minp.y > y or maxp.y < y
+		or minp.z > z or maxp.z < z then
 			return
+		end
+	else
+		for _, a in pairs(axes) do
+			if minp[a] > x[a] or maxp[a] < x[a] then
+				return
+			end
 		end
 	end
 

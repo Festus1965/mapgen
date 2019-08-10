@@ -296,15 +296,15 @@ function Geomorph:write_shape(shape, rot)
 	if shape.action == 'cube' then
 		self:write_cube(shape, rot)
 	elseif shape.action == 'cylinder' then
-		--self:write_cylinder(shape, rot)
+		self:write_cylinder(shape, rot)
 	elseif shape.action == 'ladder' then
-		--self:write_ladder(shape, rot)
+		self:write_ladder(shape, rot)
 	elseif shape.action == 'sphere' then
 		self:write_sphere(shape, rot)
 	elseif shape.action == 'stair' then
 		self:write_stair(shape, rot)
 	elseif shape.action == 'puzzle' then
-		--self:write_puzzle(shape, rot)
+		self:write_puzzle(shape, rot)
 	else
 		minetest.log(mod_name .. ': can\'t create a ' .. shape.action)
 	end
@@ -339,10 +339,11 @@ function Geomorph:minmax(shape, bound, rot)
 	assert(adj < 80)
 	min.y = min.y + adj
 	max.y = max.y + adj
-	bmin.y = bmin.y + adj
-	bmax.y = bmax.y + adj
+	--bmin.y = bmin.y + adj
+	--bmax.y = bmax.y + adj
 
-	return min, max, bmin, bmax
+	--return min, max, bmin, bmax
+	return min, max
 end
 
 
@@ -364,15 +365,32 @@ function get_p2(shape, rot)
 end
 
 
+function pattern_match(pattern, x, y, z)
+	if not pattern then
+		return true
+	end
+
+	if z then
+		if pattern == 1 and math.floor(z / 2) % 2 == 1 then
+			return
+		end
+	end
+
+	if x then
+		if pattern == 1 and math.floor(x / 2) % 2 == 1 then
+			return
+		end
+	end
+end
+
+
 function Geomorph:write_cube(shape, rot)
 	local bound = self.bound
 
-	local min, max, bmin, bmax = self:minmax(shape, bound, rot)
+	local min, max = self:minmax(shape, bound, rot)
 	if not min then
 		return
 	end
-	bmin, bmax = min, max
-	--print(dump(min), dump(max))
 
 	local p2 = get_p2(shape, rot)
 
@@ -396,17 +414,7 @@ function Geomorph:write_cube(shape, rot)
 
 	local pattern_fail_x, pattern_fail_y, pattern_fail_z
 	for z = min.z, max.z do
-		if pattern == 1 and math.floor(z / 2) % 2 == 1 then
-			pattern_fail_z = true
-		end
-
-		local hollow_z_good = (not hollow or z <= hmin.z or z >= hmax.z)
 		for x = min.x, max.x do
-			if pattern == 1 and math.floor(x / 2) % 2 == 1 then
-				pattern_fail_x = true
-			end
-
-			local hollow_x_good = (not hollow or x <= hmin.x or x >= hmax.x)
 			local top_y = max.y
 
 			--[[
@@ -423,28 +431,22 @@ function Geomorph:write_cube(shape, rot)
 
 			local ivm = self.area:index(minp.x + x, minp.y + min.y, minp.z + z)
 			for y = min.y, top_y do
-				local hollow_y_good = (not hollow or y <= hmin.y or y >= hmax.y)
-				local ok = (hollow_z_good or hollow_x_good or hollow_y_good)
-				ok = (ok and (not (pattern_fail_x or pattern_fail_y or pattern_fail_z)) and (not random or gpr:next(1, math.max(1, random)) == 1))
-				ok = ok and y >= bmin.y and y <= bmax.y and y < 80 and y >= 0
-
-				if ok then
-					if not intersect
+				if  (not hollow or vector.contains(hmin, hmax, x, y, z))
+				and (not pattern or pattern_match(pattern, x, y, z))
+				and (not random or gpr:next(1, math.max(1, random)) == 1)
+				and (
+					not intersect
 					or (type(intersect) == 'table' and intersect[data[ivm]])
-					or (intersect == true and data[ivm] ~= n_air) then
-						assert(y < 80 and y >= 0)
-						data[ivm] = node_num
-						p2data[ivm] = p2
-					end
+					or (intersect == true and data[ivm] ~= n_air)
+				)
+				and y < 80 and y >= 0 then
+					data[ivm] = node_num
+					p2data[ivm] = p2
 				end
 
-				pattern_fail_y = nil
 				ivm = ivm + ystride
 			end
-
-			pattern_fail_x = nil
 		end
-		pattern_fail_z = nil
 	end
 end
 
@@ -452,11 +454,10 @@ end
 function Geomorph:write_sphere(shape, rot)
 	local bound = self.bound
 
-	local min, max, bmin, bmax = self:minmax(shape, bound, rot)
+	local min, max = self:minmax(shape, bound, rot)
 	if not min then
 		return
 	end
-	bmin, bmax = min, max
 
 	local p2 = get_p2(shape, rot)
 
@@ -468,6 +469,7 @@ function Geomorph:write_sphere(shape, rot)
 	local minp = self.minp
 	local node_num = self.node[shape.node]
 	local p2data = self.p2data
+	local pattern = shape.pattern
 	local random = shape.random
 	local underground = shape.underground
 	local ystride = self.area.ystride
@@ -509,18 +511,19 @@ function Geomorph:write_sphere(shape, rot)
 			for y = min.y, top_y do
 				local yv = (y - center.y) / proportions.y
 				local dist = xvs + yv * yv + zvs
-				local radius_good = (dist <= radius_s)
-				local hollow_good = (not h_radius or dist > h_radius_s)
 
-				local ok = (not random or gpr:next(1, math.max(1, random)) == 1)
-				ok = ok and y >= bmin.y and y <= bmax.y and y < 80 and y >= 0
-				if ok and radius_good and hollow_good then
-					if not intersect
+				if (dist <= radius_s)
+				and (not random or gpr:next(1, math.max(1, random)) == 1)
+				and (not pattern or pattern_match(pattern, x, y, z))
+				and (not h_radius or dist > h_radius_s)
+				and (
+					not intersect
 					or (type(intersect) == 'table' and intersect[data[ivm]])
-					or (intersect == true and data[ivm] ~= n_air) then
-						data[ivm] = node_num
-						p2data[ivm] = p2
-					end
+					or (intersect == true and data[ivm] ~= n_air)
+				)
+				and y < 80 and y >= 0 then
+					data[ivm] = node_num
+					p2data[ivm] = p2
 				end
 
 				ivm = ivm + ystride
@@ -537,18 +540,27 @@ function Geomorph:write_cylinder(shape, rot)
 		return
 	end
 
+	local bound = self.bound
+
+	local min, max = self:minmax(shape, bound, rot)
+	if not min then
+		return
+	end
+
+	local p2 = get_p2(shape, rot)
+
 	local area = self.area
+	local axis = shape.axis
 	local bound = self.bound
 	local data = self.data
-	local minp = self.minp
-	local ystride = self.area.ystride
-
-	local min, max = rotate_coords(shape, rot, self.csize)
-	local node_num = self.node[shape.node]
-	local underground = shape.underground
 	local hollow = shape.hollow
-	local axis = shape.axis
 	local intersect = shape.intersect
+	local minp = self.minp
+	local node_num = self.node[shape.node]
+	local p2data = self.p2data
+	local pattern = shape.pattern
+	local underground = shape.underground
+	local ystride = self.area.ystride
 
 	if rot == 1 or rot == 3 then
 		if axis == 'x' or axis == 'X' then
@@ -632,12 +644,15 @@ function Geomorph:write_cylinder(shape, rot)
 					end
 				end
 
-				if radius_good and hollow_good then
-					if not intersect
+				if radius_good and hollow_good and y < 80 and y >= 0
+				and (
+					not intersect
 					or (type(intersect) == 'table' and intersect[data[ivm]])
-					or (intersect == true and data[ivm] ~= n_air) then
-						data[ivm] = node_num
-					end
+					or (intersect == true and data[ivm] ~= n_air)
+				)
+				and (not pattern or pattern_match(pattern, x, y, z)) then
+					data[ivm] = node_num
+					p2data[ivm] = p2
 				end
 
 				ivm = ivm + ystride
@@ -656,11 +671,10 @@ function Geomorph:write_stair(shape, rot)
 
 	local bound = self.bound
 
-	local min, max, bmin, bmax = self:minmax(shape, bound, rot)
+	local min, max = self:minmax(shape, bound, rot)
 	if not min then
 		return
 	end
-	bmin, bmax = min, max
 
 	local p2 = get_p2(shape, rot)
 
@@ -703,11 +717,12 @@ function Geomorph:write_stair(shape, rot)
 			elseif p2 == 3 then
 				dy = max.x - x
 			end
-			dy = math.min(dy, top_y)
 
 			local s_lo = depth and dy - depth or 0
 			local y1 = minp.y + min.y + s_lo
 			local ivm = area:index(minp.x + x, y1, minp.z + z)
+
+			local test
 			for y = s_lo, dy - 1 do
 				data[ivm] = n_depth
 				p2data[ivm] = 0
@@ -716,17 +731,15 @@ function Geomorph:write_stair(shape, rot)
 			data[ivm] = node_num
 			p2data[ivm] = p2
 
-			-----------------------------------------
-			-- issues with max height ??
-			-----------------------------------------
 			y1 = minp.y + min.y + dy + 1
 			ivm = area:index(minp.x + x, y1, minp.z + z)
 			for y = 0, s_hi do
-				data[ivm] = n_air
-				p2data[ivm] = 0
-				ivm = ivm + ystride
+				if y < 80 and y >= 0 then
+					data[ivm] = n_air
+					p2data[ivm] = 0
+					ivm = ivm + ystride
+				end
 			end
-			-----------------------------------------
 
 			index = index + 1
 		end
@@ -735,16 +748,20 @@ end
 
 
 function Geomorph:write_ladder(shape, rot)
-	local area = self.area
 	local bound = self.bound
+
+	local min, max = self:minmax(shape, bound, rot)
+	if not min then
+		return
+	end
+
+	local area = self.area
 	local data = self.data
 	local minp = self.minp
-	local p2data = self.p2data
-	local ystride = self.area.ystride
-
-	local min, max = rotate_coords(shape, rot, self.csize)
 	local node_num = self.node[shape.node]
+	local p2data = self.p2data
 	local underground = shape.underground
+	local ystride = self.area.ystride
 
 	local p2 = shape.param2
 	-- 2 X+   3 X-   4 Z+   5 Z-
@@ -768,7 +785,7 @@ function Geomorph:write_ladder(shape, rot)
 				end
 			end
 
-			for y = min.y, math.min(bound.maxp.y, top_y) do
+			for y = min.y, top_y do
 				data[ivm] = node_num
 				p2data[ivm] = p2
 

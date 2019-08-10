@@ -326,3 +326,10 @@ do
 		end
 	end
 end
+
+
+for _, n in pairs({'match_three:top', 'default:chest'}) do
+	if minetest.registered_nodes[n] then
+		mod.add_construct(n)
+	end
+end
