@@ -320,6 +320,11 @@ function Geomorph:minmax(shape, bound, rot)
 
 	local min, max = rotate_coords(shape, rot, VN(80, 80, 80))
 	--print(shape.location.y, shape.size.y, min.y, max.y)
+
+	-- This check causes problems at boundaries. The only
+	--  fix may be to check that y is in range at every node,
+	--  which is probably slower.
+	--[[
 	local bmin, bmax = mod.cube_intersect(bound, {
 		minp = min,
 		maxp = max,
@@ -327,6 +332,7 @@ function Geomorph:minmax(shape, bound, rot)
 	if not bmin then
 		return
 	end
+	--]]
 
 	-- Move up or down to match the bounds required.
 	--assert(bound.maxp.y == 79 or bound.minp.y == 0)
@@ -719,22 +725,22 @@ function Geomorph:write_stair(shape, rot)
 			end
 
 			local s_lo = depth and dy - depth or 0
-			local y1 = minp.y + min.y + s_lo
-			local ivm = area:index(minp.x + x, y1, minp.z + z)
+			if min.y + dy + 1 <= 96 and min.y + s_lo >= -16 then
+				local y1 = minp.y + min.y + s_lo
+				local ivm = area:index(minp.x + x, y1, minp.z + z)
 
-			local test
-			for y = s_lo, dy - 1 do
-				data[ivm] = n_depth
-				p2data[ivm] = 0
-				ivm = ivm + ystride
-			end
-			data[ivm] = node_num
-			p2data[ivm] = p2
+				local test
+				for y = s_lo, dy - 1 do
+					data[ivm] = n_depth
+					p2data[ivm] = 0
+					ivm = ivm + ystride
+				end
+				data[ivm] = node_num
+				p2data[ivm] = p2
 
-			y1 = minp.y + min.y + dy + 1
-			ivm = area:index(minp.x + x, y1, minp.z + z)
-			for y = 0, s_hi do
-				if y < 80 and y >= 0 then
+				y1 = minp.y + min.y + dy + 1
+				ivm = area:index(minp.x + x, y1, minp.z + z)
+				for y = 0, s_hi do
 					data[ivm] = n_air
 					p2data[ivm] = 0
 					ivm = ivm + ystride

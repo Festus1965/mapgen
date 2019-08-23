@@ -393,6 +393,10 @@ end
 
 
 function mod.parse_configuration_file_line(line, lineno)
+	if line:match('^#') then
+		return
+	end
+
 	local fields = {}
 	for f in line:gmatch('([^|]+)%|?') do
 		local s = f:gsub('%s+', '')
@@ -493,6 +497,7 @@ function mod.place_all_decorations(params, do_not_scan)
 	local minp, maxp = params.isect_minp, params.isect_maxp
 	local ps = PcgRandom(params.chunk_seed + 53)
 	local biome = params.biome or params.share.biome
+	local by = minp.y - (params.biome_height_offset or 0)
 
 	for _, deco in pairs(mod.registered_decorations) do
 		local b_check
@@ -509,8 +514,8 @@ function mod.place_all_decorations(params, do_not_scan)
 
 		if b_check and not (
 			deco.bad_schem
-			or (deco.max_y and deco.max_y < minp.y)
-			or (deco.min_y and deco.min_y > maxp.y)
+			or (deco.max_y and deco.max_y < by)
+			or (deco.min_y and deco.min_y > by - minp.y + maxp.y)
 		) then
 			mod.place_deco(params, ps, deco, do_not_scan)
 		end
@@ -614,7 +619,9 @@ function mod.place_deco(params, ps, deco, do_not_scan)
 						by = surface.biome_height or surface.top or by
 					end
                 end
-				by = by - (params.biome_height_offset or 0)
+
+				-- This was already done in the biome manager?
+				--by = by - (params.biome_height_offset or 0)
 				--------------------------------------------
 
 				if y then

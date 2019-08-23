@@ -166,19 +166,14 @@ end
 
 
 function mod.cube_intersect(r1, r2)
-	if not (
-		vector.contains(r1.minp, r1.maxp, r2.minp)
-		or vector.contains(r1.minp, r1.maxp, r2.maxp)
-		or vector.contains(r2.minp, r2.maxp, r1.minp)
-		or vector.contains(r2.minp, r2.maxp, r1.maxp)
-	) then
-		return
-	end
-
 	local minp, maxp = {}, {}
 	for _, axis in pairs(axes) do
 		minp[axis] = math.max(r1.minp[axis], r2.minp[axis])
 		maxp[axis] = math.min(r1.maxp[axis], r2.maxp[axis])
+
+		if minp[axis] > maxp[axis] then
+			return
+		end
 	end
 	return minp, maxp
 end
