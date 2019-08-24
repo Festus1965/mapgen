@@ -70,7 +70,6 @@ function mod.rotate_coords(item, rot, csize)
 	local min = table.copy(null_vector)
 	local max = table.copy(null_vector)
 
-	--assert(rot == 0)
 	if rot == 0 then
 		min.x = item.location.x
 		max.x = item.location.x + item.size.x - 1
@@ -96,8 +95,11 @@ function mod.rotate_coords(item, rot, csize)
 	min.y = item.location.y
 	max.y = item.location.y + item.size.y - 1
 
-	min = vector.max(0, min)
-	max = vector.min(vector.add(csize, -1), max)
+	-- Limiting to csize causes problems with splitting maps,
+	--  and it shouldn't be necessary. If the input was out
+	--  of bounds, it should still be out of bounds here.
+	--min = vector.max(0, min)
+	--max = vector.min(vector.add(csize, -1), max)
 
 	return min, max
 end
@@ -115,13 +117,6 @@ Geomorph.action_names = action_names
 function Geomorph.new(mgen, description, bound)
 	local self = setmetatable({
 	}, Geomorph)
-
-	if not bound then
-		bound = {
-			minp = VN(0, 0, 0),
-			maxp = VN(79, 79, 79),
-		}
-	end
 
 	self.area = mgen.area
 	self.bound = bound
@@ -151,7 +146,6 @@ function Geomorph.new(mgen, description, bound)
 
 	return self
 end
---mod.Geomorph = Geomorph
 
 
 function Geomorph:create_shape(t)
@@ -254,7 +248,6 @@ function Geomorph:write_to_map(rot, replace)
 			--copy.potholes = potholes and potholes
 			--copy.stain = copy.stain or cobble
 			copy.hollow = 5
-			--print(dump(copy))
 			self:write_shape(copy, rot)
 		end
 
@@ -318,8 +311,7 @@ function Geomorph:minmax(shape, bound, rot)
 	-- the bottom of the chunk and vice versa.
 	-- This only works in the Y-axis at the moment.
 
-	local min, max = rotate_coords(shape, rot, VN(80, 80, 80))
-	--print(shape.location.y, shape.size.y, min.y, max.y)
+	local min, max = rotate_coords(shape, rot, self.csize)
 
 	-- This check causes problems at boundaries. The only
 	--  fix may be to check that y is in range at every node,
@@ -334,21 +326,21 @@ function Geomorph:minmax(shape, bound, rot)
 	end
 	--]]
 
+	if not bound then
+		return min, max
+	end
+
 	-- Move up or down to match the bounds required.
-	--assert(bound.maxp.y == 79 or bound.minp.y == 0)
 	local adj = 0
 	if bound.minp.y == 0 then
 		adj = self.csize.y - bound.maxp.y - 1
 	else
 		adj = - bound.minp.y
 	end
-	--assert(adj < 80)
+
 	min.y = min.y + adj
 	max.y = max.y + adj
-	--bmin.y = bmin.y + adj
-	--bmax.y = bmax.y + adj
 
-	--return min, max, bmin, bmax
 	return min, max
 end
 
@@ -724,6 +716,8 @@ function Geomorph:write_stair(shape, rot)
 				dy = max.x - x
 			end
 
+			--dy = math.min(dy, top_y)
+
 			local s_lo = depth and dy - depth or 0
 			if min.y + dy + 1 <= 96 and min.y + s_lo >= -16 then
 				local y1 = minp.y + min.y + s_lo
@@ -740,7 +734,12 @@ function Geomorph:write_stair(shape, rot)
 
 				y1 = minp.y + min.y + dy + 1
 				ivm = area:index(minp.x + x, y1, minp.z + z)
-				for y = 0, s_hi do
+				for y = 1, s_hi do
+					-- This attempts to match corridor heights without
+					--  actually knowing them. It's very questionable.
+					if y1 + y - minp.y > top_y + s_hi then
+						break
+					end
 					data[ivm] = n_air
 					p2data[ivm] = 0
 					ivm = ivm + ystride

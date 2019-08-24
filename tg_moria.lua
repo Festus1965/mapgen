@@ -269,9 +269,9 @@ function mod.generate_moria(params)
 		geo:add({
 			action = 'cube',
 			node = 'default:stone',
-			location = vector.subtract(VN(80, 80, 80), params.csize),
+			location = vector.new(0, 0, 0),
 			size = table.copy(params.csize),
-		}, 1)
+		})
 		geo:write_to_map(0)
 	end
 
