@@ -266,6 +266,10 @@ function mod.generate_dflat(params)
 		layers_mod.time_ponds = (layers_mod.time_ponds or 0) + os.clock() - t_ponds
 	end
 
+	if not params.no_passages then
+		mod.passages(params)
+	end
+
 	if layers_mod.place_all_decorations then
 		layers_mod.place_all_decorations(params)
 
@@ -821,6 +825,228 @@ function mod.ponds(params)
 			end
 		end
 	end
+end
+
+
+local passages_replace_nodes = {
+	'air',
+	'default:stone',
+	'default:dirt',
+	'default:dirt_with_grass',
+	'default:dirt_with_dry_grass',
+	'default:dirt_with_snow',
+	'default:dirt_with_coniferous_litter',
+	'default:dirt_with_rainforest_litter',
+	'default:cobble',
+	'default:mossycobble',
+	layers_mod.mod_name .. ':granite',
+	layers_mod.mod_name .. ':basalt',
+	layers_mod.mod_name .. ':stone_with_algae',
+	layers_mod.mod_name .. ':stone_with_moss',
+	layers_mod.mod_name .. ':stone_with_lichen',
+	layers_mod.mod_name .. ':basalt',
+	layers_mod.mod_name .. ':granite',
+	'default:dirt',
+	'default:sand',
+	'default:gravel',
+	'default:clay',
+	'default:stone_with_coal',
+	'default:stone_with_iron',
+	'default:stone_with_gold',
+	'default:stone_with_diamond',
+	'default:stone_with_mese',
+	'default:cave_ice',
+	'default:ice',
+	'default:snowblock',
+	'default:snow',
+}
+
+
+function mod.passages(params)
+	if params.share.height_min and params.share.height_min < params.sealevel then
+		return
+	end
+
+	--[[
+	if not mod.passages_replace then
+		mod.passages_replace = {}
+
+		for _, n in pairs(passages_replace_nodes) do
+			mod.passages_replace[mod.node[n] ] = true
+		end
+
+		for _, n in pairs(minetest.registered_ores) do
+			mod.passages_replace[mod.node[n.ore] ] = true
+		end
+	end
+	--]]
+
+	local node = layers_mod.node
+	local replace = mod.passages_replace
+
+	local minp, maxp = params.isect_minp, params.isect_maxp
+	local data, p2data = params.data, params.p2data
+	local area = params.area
+	local csize = params.csize
+	local seed = params.map_seed
+	local ps = params.gpr
+
+	local meet_at = vector.new(24, 0, 49)
+	local divs = vector.floor(vector.divide(csize, 4))
+
+	local geo = Geomorph.new(params)
+	local surface = params.share.surface
+	local x, z, l, pos, size = 6, 12
+	local lx, ly, lz, ll
+	local alt = 0
+	local div_size = 4
+	local up
+	for y = math.floor(csize.y / (div_size * 2)) * div_size * 2, 0, - div_size * 2 do
+		local num = ps:next(2, 6)
+		local join
+		local bct = 0
+		for ct = 1, num do
+			bct = bct + 1
+			if alt % 2 == 0 then
+				if lz then
+					z = ps:next(lz, lz + ll - 1)
+					--z = lz
+					if ly ~= y then
+						join = vector.new(x * div_size, y, z * div_size)
+					end
+				else
+					z = ps:next(1, divs.z - 2)
+				end
+				x = ps:next(1, 4)
+				l = ps:next(1, divs.x - x - 2)
+				if lz and x + l < lx then
+					l = lx - x + 1
+				end
+				pos = vector.new(x * div_size, y, z * div_size)
+				size = vector.new(l * div_size, div_size, div_size)
+			else
+				if lx then
+					x = ps:next(lx, lx + ll - 1)
+					--x = lx
+					if ly ~= y then
+						join = vector.new(x * div_size, y, z * div_size)
+					end
+				else
+					x = ps:next(1, divs.x - 2)
+				end
+				z = ps:next(1, 4)
+				l = ps:next(1, divs.z - z - 2)
+				if lx and z + l < lz then
+					l = lz - z + 1
+				end
+				pos = vector.new(x * div_size, y, z * div_size)
+				size = vector.new(div_size, div_size, l * div_size)
+			end
+
+			--assert(pos.x >= 5)
+			--assert(pos.z >= 5)
+			--assert(pos.x + size.x < 76)
+			--assert(pos.z + size.z < 76)
+
+			local good = true
+			--if minp.y + y < 20 or minp.y + y > 30 then
+				for z = pos.z, pos.z + size.z do
+					if not good then
+						break
+					end
+
+					if z < 0 or z >= csize.z then
+						good = false
+						join = nil
+						break
+					end
+
+					for x = pos.x, pos.x + size.x do
+						if x < 0 or x >= csize.x then
+							good = false
+							join = nil
+							break
+						end
+
+						local sur = surface[minp.z + z][minp.x + x]
+						if not sur or sur.top <= minp.y + pos.y + size.y + 2 then
+							good = false
+							join = nil
+							break
+						end
+					end
+				end
+			--end
+
+			if good then
+				lx, ly, lz, ll = x, y, z, l
+				alt = alt + 1
+
+				geo:add({
+					action = 'cube',
+					node = 'air',
+					location = table.copy(pos),
+					size = table.copy(size),
+				})
+
+				if join then
+					geo:add({
+						action = 'cube',
+						node = 'air',
+						location = table.copy(join),
+						size = vector.new(div_size, div_size * 2, div_size),
+					})
+					join = nil
+				end
+			elseif bct < 1000 then
+				ct = ct - 1
+			end
+		end
+
+		if bct > 999 then
+			return
+		end
+
+		if params.passages_entrances and math.abs(params.passages_entrances - minp.y - y) <= div_size then
+			geo:add({
+				action = 'cube',
+				node = 'air',
+				location = vector.new(0, y, 11 * 4),
+				size = vector.new(csize.x, div_size, div_size),
+				intersect = passages_replace_nodes,
+			})
+			geo:add({
+				action = 'cube',
+				node = 'air',
+				location = vector.new(6 * 4, y, 0),
+				size = vector.new(div_size, div_size, csize.z),
+				intersect = passages_replace_nodes,
+			})
+		end
+	end
+
+	if minp.y == params.realm_minp.y then
+		geo:add({
+			action = 'cube',
+			node = 'air',
+			location = vector.new(6 * 4, 0, 11 * 4),
+			size = vector.new(div_size * 2, div_size * 2, div_size * 2),
+		})
+		geo:add({
+			action = 'cube',
+			node = 'air',
+			location = vector.new(0, 0, 11 * 4),
+			size = vector.new(csize.x, div_size, div_size * 2),
+		})
+		geo:add({
+			action = 'cube',
+			node = 'air',
+			location = vector.new(6 * 4, 0, 0),
+			size = vector.new(div_size * 2, div_size, csize.z),
+		})
+	end
+
+	geo:write_to_map(0)
 end
 
 
