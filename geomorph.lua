@@ -790,11 +790,13 @@ function Geomorph:write_ladder(shape, rot)
 				end
 			end
 
-			for y = min.y, top_y do
-				data[ivm] = node_num
-				p2data[ivm] = p2
+			if min.y + top_y + 1 <= 96 and min.y + top_y + 1 >= -16 then
+				for y = min.y, top_y do
+					data[ivm] = node_num
+					p2data[ivm] = p2
 
-				ivm = ivm + ystride
+					ivm = ivm + ystride
+				end
 			end
 
 			index = index + 1
