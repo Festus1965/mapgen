@@ -76,8 +76,6 @@ function mod.dust(params)
 	local n_ignore = mod.node['ignore']
 	local n_air = mod.node['air']
 
-	local biome = params.share.biome
-
 	local index = 1
 	for z = minp.z, maxp.z do
 		for x = minp.x, maxp.x do
@@ -85,7 +83,7 @@ function mod.dust(params)
 			local height = surface.top or water_level or minp.y - 2
 			local ivm = area:index(x, maxp.y - 1, z)
 
-			biome = biome or surface.biome or {}
+			local biome = params.share.biome or surface.biome or {}
 
 			local node_dust
 			if biome then
@@ -94,7 +92,7 @@ function mod.dust(params)
 
 			if node_dust and data[ivm] == n_air then
 				local yc
-				for y = maxp.y - 1, minp.y + 1, -1 do
+				for y = maxp.y - 0, minp.y + 0, -1 do
 					if y >= height and data[ivm] ~= n_air then
 						yc = y
 						break

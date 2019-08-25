@@ -156,14 +156,25 @@ function Geomorph:create_shape(t)
 
 	local intersect = t.intersect
 	if type(intersect) == 'string' then
-		intersect = { [minetest.get_content_id(t.intersect)] = true }
-	elseif type(intersect) == 'table' then
+		intersect = { intersect }
+	end
+
+	if type(intersect) == 'table' then
 		local t2 = {}
 		local con
 		for n, v in pairs(intersect) do
 			if type(v) == 'string' then
-				t2[minetest.get_content_id(v)] = true
-				con = true
+				if v:find('^group:') then
+					local g = v:gsub('^group:', '')
+					for nm, n in pairs(minetest.registered_nodes) do
+						if n.groups and n.groups[g] then
+							t2[minetest.get_content_id(nm)] = true
+						end
+					end
+				else
+					t2[minetest.get_content_id(v)] = true
+					con = true
+				end
 			end
 		end
 		if con then

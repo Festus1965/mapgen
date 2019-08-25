@@ -829,7 +829,6 @@ end
 
 
 local passages_replace_nodes = {
-	'air',
 	'default:stone',
 	'default:dirt',
 	'default:dirt_with_grass',
@@ -844,8 +843,6 @@ local passages_replace_nodes = {
 	layers_mod.mod_name .. ':stone_with_algae',
 	layers_mod.mod_name .. ':stone_with_moss',
 	layers_mod.mod_name .. ':stone_with_lichen',
-	layers_mod.mod_name .. ':basalt',
-	layers_mod.mod_name .. ':granite',
 	'default:dirt',
 	'default:sand',
 	'default:gravel',
@@ -859,6 +856,23 @@ local passages_replace_nodes = {
 	'default:ice',
 	'default:snowblock',
 	'default:snow',
+}
+
+
+local passages_replace_nodes = {
+	'group:soil',
+	'group:stone',
+	'group:sand',
+	'group:ore',
+	'default:cobble',
+	'default:mossycobble',
+	'default:gravel',
+	'default:clay',
+	'default:cave_ice',
+	'default:ice',
+	'default:snowblock',
+	'default:snow',
+	'default:sandstone',
 }
 
 
