@@ -93,7 +93,7 @@ function mod.dust(params)
 			if node_dust and data[ivm] == n_air then
 				local yc
 				for y = maxp.y - 0, minp.y + 0, -1 do
-					if y >= height and data[ivm] ~= n_air then
+					if y >= height and data[ivm] ~= n_air and data[ivm] ~= n_ignore then
 						yc = y
 						break
 					end
