@@ -385,9 +385,6 @@ end
 
 function Geomorph:write_cube(shape, rot)
 	local bound = self.bound
-	if self.move_earth then
-		print('x')
-	end
 
 	local min, max = self:minmax(shape, bound, rot)
 	if not min then
@@ -435,7 +432,6 @@ function Geomorph:write_cube(shape, rot)
 
 			local top_node, top_p2
 			if move_earth and surface then
-				print('surface')
 				local mz = minp.z + z
 				local mx = minp.x + x
 				if surface[mz] and surface[mz][mx] and surface[mz][mx].top then
@@ -445,7 +441,6 @@ function Geomorph:write_cube(shape, rot)
 
 						top_node = data[ivm]
 						top_p2 = p2data[ivm]
-						print('top_node =', minetest.get_name_from_content_id(top_node))
 					end
 				end
 			end
