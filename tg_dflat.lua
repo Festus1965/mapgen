@@ -260,14 +260,14 @@ function mod.generate_dflat(params)
 		end
 	end
 
+	if not params.no_passages then
+		mod.passages(params)
+	end
+
 	if not params.no_ponds then
 		local t_ponds = os.clock()
 		mod.ponds(params)
 		layers_mod.time_ponds = (layers_mod.time_ponds or 0) + os.clock() - t_ponds
-	end
-
-	if not params.no_passages then
-		mod.passages(params)
 	end
 
 	if layers_mod.place_all_decorations then
@@ -867,20 +867,6 @@ function mod.passages(params)
 		return
 	end
 
-	--[[
-	if not mod.passages_replace then
-		mod.passages_replace = {}
-
-		for _, n in pairs(passages_replace_nodes) do
-			mod.passages_replace[mod.node[n] ] = true
-		end
-
-		for _, n in pairs(minetest.registered_ores) do
-			mod.passages_replace[mod.node[n.ore] ] = true
-		end
-	end
-	--]]
-
 	local node = layers_mod.node
 	local replace = mod.passages_replace
 
@@ -943,40 +929,33 @@ function mod.passages(params)
 				size = vector.new(div_size, div_size, l * div_size)
 			end
 
-			--assert(pos.x >= 5)
-			--assert(pos.z >= 5)
-			--assert(pos.x + size.x < 76)
-			--assert(pos.z + size.z < 76)
-
 			local good = true
-			--if minp.y + y < 20 or minp.y + y > 30 then
-				for z = pos.z, pos.z + size.z do
-					if not good then
-						break
-					end
+			for z = pos.z, pos.z + size.z do
+				if not good then
+					break
+				end
 
-					if z < 0 or z >= csize.z then
+				if z < 0 or z >= csize.z then
+					good = false
+					join = nil
+					break
+				end
+
+				for x = pos.x, pos.x + size.x do
+					if x < 0 or x >= csize.x then
 						good = false
 						join = nil
 						break
 					end
 
-					for x = pos.x, pos.x + size.x do
-						if x < 0 or x >= csize.x then
-							good = false
-							join = nil
-							break
-						end
-
-						local sur = surface[minp.z + z][minp.x + x]
-						if not sur or sur.top <= minp.y + pos.y + size.y + 2 then
-							good = false
-							join = nil
-							break
-						end
+					local sur = surface[minp.z + z][minp.x + x]
+					if not sur or sur.top <= minp.y + pos.y + size.y + 2 then
+						good = false
+						join = nil
+						break
 					end
 				end
-			--end
+			end
 
 			if good then
 				lx, ly, lz, ll = x, y, z, l
@@ -1011,16 +990,18 @@ function mod.passages(params)
 			geo:add({
 				action = 'cube',
 				node = 'air',
-				location = vector.new(0, y, 11 * 4),
+				location = vector.new(0, y, 11 * div_size),
 				size = vector.new(csize.x, div_size, div_size),
 				intersect = passages_replace_nodes,
+				move_earth = true,
 			})
 			geo:add({
 				action = 'cube',
 				node = 'air',
-				location = vector.new(6 * 4, y, 0),
+				location = vector.new(6 * div_size, y, 0),
 				size = vector.new(div_size, div_size, csize.z),
 				intersect = passages_replace_nodes,
+				move_earth = true,
 			})
 		end
 	end

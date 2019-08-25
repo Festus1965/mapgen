@@ -198,6 +198,7 @@ function Geomorph:create_shape(t)
 			intersect = intersect,
 			lining = lining,
 			location = location,
+			move_earth = t.move_earth,
 			node = t.node,
 			param2 = param2,
 			pattern = t.pattern,
@@ -384,6 +385,9 @@ end
 
 function Geomorph:write_cube(shape, rot)
 	local bound = self.bound
+	if self.move_earth then
+		print('x')
+	end
 
 	local min, max = self:minmax(shape, bound, rot)
 	if not min then
@@ -397,6 +401,7 @@ function Geomorph:write_cube(shape, rot)
 	local hollow = shape.hollow
 	local intersect = shape.intersect
 	local minp, maxp = self.minp, self.maxp
+	local move_earth = shape.move_earth
 	local node_num = self.node[shape.node]
 	local p2data = self.p2data
 	local pattern = shape.pattern
@@ -414,10 +419,11 @@ function Geomorph:write_cube(shape, rot)
 	for z = min.z, max.z do
 		for x = min.x, max.x do
 			local top_y = max.y
+			local surface = self.params.share.surface
 
 			--[[
 			if underground then
-				local height = self.params.share.surface[z][x] - minp.y
+				local height = surface[z][x] - minp.y
 				if height then
 					top_y = math.min(max.y, height - underground)
 				end
@@ -426,6 +432,23 @@ function Geomorph:write_cube(shape, rot)
 				top_y = math.min(top_y, min.y + shape.height)
 			end
 			--]]
+
+			local top_node, top_p2
+			if move_earth and surface then
+				print('surface')
+				local mz = minp.z + z
+				local mx = minp.x + x
+				if surface[mz] and surface[mz][mx] and surface[mz][mx].top then
+					local tn = surface[mz][mx].top
+					if tn <= minp.y + top_y and tn >= min.y + minp.y then
+						local ivm = self.area:index(mx, surface[mz][mx].top, mz)
+
+						top_node = data[ivm]
+						top_p2 = p2data[ivm]
+						print('top_node =', minetest.get_name_from_content_id(top_node))
+					end
+				end
+			end
 
 			local ivm = self.area:index(minp.x + x, minp.y + min.y, minp.z + z)
 			for y = min.y, top_y do
@@ -438,8 +461,14 @@ function Geomorph:write_cube(shape, rot)
 					or (intersect == true and data[ivm] ~= n_air)
 				)
 				and y < 80 and y >= 0 then
-					data[ivm] = node_num
-					p2data[ivm] = p2
+					if top_node and y == min.y then
+						data[ivm] = top_node
+						p2data[ivm] = top_p2
+						surface[minp.z + z][minp.x + x].top = minp.y + y
+					else
+						data[ivm] = node_num
+						p2data[ivm] = p2
+					end
 				end
 
 				ivm = ivm + ystride
