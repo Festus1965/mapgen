@@ -92,6 +92,29 @@ function mod.generate_dflat(params)
 	local height_max = max_height
 	local surface = {}
 
+	-- for placing dungeon decor
+	if not mod.carpetable then
+		mod.carpetable = {
+			[node['default:stone']] = true,
+			[node['default:sandstone']] = true,
+			[node['default:desert_stone']] = true,
+			[node['default:cobble']] = true,
+			[node['default:mossycobble']] = true,
+		}
+	end
+
+	-- for placing cobwebs, etc.
+	if not mod.sides then
+		mod.sides = {
+			{ i = -1, p2 = 3 },
+			{ i = 1, p2 = 2 },
+			{ i = - area.zstride, p2 = 5 },
+			{ i = area.zstride, p2 = 4 },
+			{ i = - area.ystride, p2 = 1 },
+			{ i = area.ystride, p2 = 0 },
+		}
+	end
+
 	local index = 1
 	for z = minp.z, maxp.z do
 		surface[z] = {}
@@ -860,6 +883,7 @@ function mod.passages(params)
 	local csize = params.csize
 	local seed = params.map_seed
 	local ps = params.gpr
+	local ystride = area.ystride
 
 	local meet_at = vector.new(24, 0, 49)
 	local divs = vector.floor(vector.divide(csize, 4))
@@ -1033,6 +1057,44 @@ function mod.passages(params)
 	end
 
 	geo:write_to_map(0)
+
+	local n_web = node[mod_name..':spider_web']
+	local n_puddle = node[mod_name..':puddle_ooze']
+	local n_broken_door = node[mod_name..':broken_door']
+	local n_air = node['air']
+
+	for _, shape in pairs(geo.shapes) do
+		if shape.size.y == div_size then
+			local pos = vector.add(shape.location, minp)
+			local size = shape.size
+			for z = pos.z, pos.z + size.z - 1 do
+				for x = pos.x, pos.x + size.x - 1 do
+					local ivm = params.area:index(x, pos.y, z)
+					for y = 1, size.y do
+						if data[ivm] == n_air then
+							for i, s in pairs(mod.sides) do
+								if mod.carpetable[data[ivm + s.i]] then
+									local sr = params.gpr:next(1, 1000)
+									if sr < 3 then
+										data[ivm] = n_puddle
+										p2data[ivm] = s.p2
+									elseif i == 5 and sr < 4 then
+										data[ivm] = n_broken_door
+										p2data[ivm] = s.p2
+									elseif sr < 8 then
+										data[ivm] = n_web
+										p2data[ivm] = s.p2
+									end
+								end
+							end
+						end
+
+						ivm = ivm + ystride
+					end
+				end
+			end
+		end
+	end
 end
 
 
