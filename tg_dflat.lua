@@ -11,6 +11,7 @@ local VN = vector.new
 local chunksize = tonumber(minetest.settings:get('chunksize') or 5)
 local chunk_offset = math.floor(chunksize / 2) * 16;
 local div
+local TREASURE_RARITY = 10
 
 
 local mod, layers_mod
@@ -829,37 +830,6 @@ end
 
 
 local passages_replace_nodes = {
-	'default:stone',
-	'default:dirt',
-	'default:dirt_with_grass',
-	'default:dirt_with_dry_grass',
-	'default:dirt_with_snow',
-	'default:dirt_with_coniferous_litter',
-	'default:dirt_with_rainforest_litter',
-	'default:cobble',
-	'default:mossycobble',
-	layers_mod.mod_name .. ':granite',
-	layers_mod.mod_name .. ':basalt',
-	layers_mod.mod_name .. ':stone_with_algae',
-	layers_mod.mod_name .. ':stone_with_moss',
-	layers_mod.mod_name .. ':stone_with_lichen',
-	'default:dirt',
-	'default:sand',
-	'default:gravel',
-	'default:clay',
-	'default:stone_with_coal',
-	'default:stone_with_iron',
-	'default:stone_with_gold',
-	'default:stone_with_diamond',
-	'default:stone_with_mese',
-	'default:cave_ice',
-	'default:ice',
-	'default:snowblock',
-	'default:snow',
-}
-
-
-local passages_replace_nodes = {
 	'group:soil',
 	'group:stone',
 	'group:sand',
@@ -901,6 +871,11 @@ function mod.passages(params)
 	local alt = 0
 	local div_size = 4
 	local up
+
+	if not params.share.treasure_chests then
+		params.share.treasure_chests = {}
+	end
+
 	for y = math.floor(csize.y / (div_size * 2)) * div_size * 2, 0, - div_size * 2 do
 		local num = ps:next(2, 6)
 		local join
@@ -987,9 +962,25 @@ function mod.passages(params)
 						action = 'cube',
 						node = 'air',
 						location = table.copy(join),
-						size = vector.new(div_size, div_size * 2, div_size),
+						size = vector.new(div_size, div_size * 2 + 1, div_size),
 					})
 					join = nil
+				elseif ps:next(1, TREASURE_RARITY) == 1 then
+					local cpos = VN(
+						ps:next(pos.x, pos.x + size.x - 1),
+						pos.y,
+						ps:next(pos.z, pos.z + size.z - 1)
+					)
+
+					geo:add({
+						action = 'cube',
+						node = 'default:chest',
+						location = cpos,
+						size = VN(1, 1, 1),
+					})
+
+					local acpos = vector.add(cpos, minp)
+					table.insert(params.share.treasure_chests, acpos)
 				end
 			elseif bct < 1000 then
 				ct = ct - 1

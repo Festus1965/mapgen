@@ -1185,6 +1185,20 @@ function mod.save_map(params)
 		end
 	end
 
+	do
+		local ps = PcgRandom(os.time())
+		for k, v in ipairs(params.share.treasure_chests or {}) do
+			local n = minetest.get_node_or_nil(v)
+			if n and dungeon_loot and dungeon_loot.populate_chest then
+				local inv = minetest.get_meta(v):get_inventory()
+				local listsz = inv:get_size("main")
+				if listsz > 0 then
+					dungeon_loot.populate_chest(v, ps)
+				end
+			end
+		end
+	end
+
 	mod.time_overhead = mod.time_overhead + os.clock() - t_over
 end
 
