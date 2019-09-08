@@ -1065,6 +1065,7 @@ function mod.simple_ore(params, force_alt, num_deposits)
 	end
 	geo:write_to_map()
 
+	--[[
 	-- Change the colors of all default stone.
 	-- The time for this is negligible.
 	if params.stone_layers then
@@ -1087,6 +1088,7 @@ function mod.simple_ore(params, force_alt, num_deposits)
 			end
 		end
 	end
+	--]]
 
 	mod.time_ore = mod.time_ore + os.clock() - t_ore
 end
