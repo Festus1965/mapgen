@@ -215,6 +215,7 @@ function Geomorph:create_shape(t)
 			pattern = t.pattern,
 			random = t.random,
 			size = t.size,
+			treasure = t.treasure,
 			underground = t.underground,
 		}
 
@@ -260,6 +261,7 @@ function Geomorph:write_to_map(rot, replace)
 			--copy.potholes = potholes and potholes
 			--copy.stain = copy.stain or cobble
 			copy.hollow = 5
+			copy.treasure = nil
 			self:write_shape(copy, rot)
 		end
 
@@ -276,6 +278,7 @@ function Geomorph:write_to_map(rot, replace)
 			copy.location.y = copy.location.y - 1
 			copy.size = table.copy(copy.size)
 			copy.size.y = 1
+			copy.treasure = nil
 			copy.node = shape.floor
 			--copy.potholes = potholes and potholes
 			--copy.stain = copy.stain or cobble
@@ -458,7 +461,7 @@ function Geomorph:write_cube(shape, rot)
 
 			local ivm = self.area:index(minp.x + x, minp.y + min.y, minp.z + z)
 			for y = min.y, top_y do
-				if  (not hollow or vector.contains(hmin, hmax, x, y, z))
+				if  (not hollow or not vector.contains(hmin, hmax, x, y, z))
 				and (not pattern or pattern_match(pattern, x, y, z))
 				and (not random or gpr:next(1, math.max(1, random)) == 1)
 				and (
@@ -479,6 +482,24 @@ function Geomorph:write_cube(shape, rot)
 
 				ivm = ivm + ystride
 			end
+		end
+	end
+
+	if shape.treasure and type(shape.treasure) == 'number'
+	and self.gpr:next(1, shape.treasure) == 1 then
+		if not self.params.share.treasure_chests then
+			self.params.share.treasure_chests = {}
+		end
+		local acpos = {
+			x = self.gpr:next(min.x, max.x),
+			y = min.y,
+			z = self.gpr:next(min.z, max.z),
+		}
+		acpos = vector.add(acpos, minp)
+		local ivm = self.area:indexp(acpos)
+		if data[ivm] == n_air then
+			data[ivm] = self.node['default:chest']
+			table.insert(self.params.share.treasure_chests, acpos)
 		end
 	end
 end

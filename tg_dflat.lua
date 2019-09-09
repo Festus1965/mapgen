@@ -1006,6 +1006,7 @@ function mod.passages(params)
 					node = 'air',
 					location = table.copy(pos),
 					size = table.copy(size),
+					treasure = TREASURE_RARITY,
 				})
 
 				if join then
@@ -1016,22 +1017,6 @@ function mod.passages(params)
 						size = vector.new(div_size, div_size * 2 + 1, div_size),
 					})
 					join = nil
-				elseif ps:next(1, TREASURE_RARITY) == 1 then
-					local cpos = VN(
-						ps:next(pos.x, pos.x + size.x - 1),
-						pos.y,
-						ps:next(pos.z, pos.z + size.z - 1)
-					)
-
-					geo:add({
-						action = 'cube',
-						node = 'default:chest',
-						location = cpos,
-						size = VN(1, 1, 1),
-					})
-
-					local acpos = vector.add(cpos, minp)
-					table.insert(params.share.treasure_chests, acpos)
 				end
 			elseif bct < 1000 then
 				ct = ct - 1

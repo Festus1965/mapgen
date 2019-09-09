@@ -272,10 +272,12 @@ do
 		})
 		mod.eight_random_colors[mod.node[i]] = true
 	end
+	--[[
 	minetest.override_item('default:stone', {
 		paramtype2 = 'colorfacedir',
 		palette = 'mapgen_palette_stone_1.png',
 	})
+	--]]
 
 	minetest.override_item('default:dirt_with_grass', {
 		paramtype2 = 'colorfacedir',
@@ -328,8 +330,12 @@ do
 end
 
 
-for _, n in pairs({'match_three:top', 'default:chest'}) do
-	if minetest.registered_nodes[n] then
-		mod.add_construct(n)
+do
+	for _, n in pairs({'match_three:top', 'default:chest'}) do
+		if minetest.registered_nodes[n] then
+			mod.add_construct(n)
+		end
 	end
+
+	minetest.override_item('default:chest', { light_source = 2 })
 end
