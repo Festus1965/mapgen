@@ -258,9 +258,42 @@ function mod.generate_floaters(params)
 	end
 end
 
+
+function mod.get_spawn_level(realm, x, z, force)
+	local water_level = realm.sealevel
+	local base_base_level = water_level + 63
+
+	local ground_noise = minetest.get_perlin(mod.registered_noises['floaters_over'])
+	ground_noise = ground_noise:get_2d({x=x, y=z})
+	local base_noise = minetest.get_perlin(mod.registered_noises['floaters_base'])
+	base_noise = base_noise:get_2d({x=x, y=z})
+	local under_noise = minetest.get_perlin(mod.registered_noises['floaters_under'])
+	under_noise = under_noise:get_2d({x=x, y=z})
+
+	local base_level = base_base_level + math.abs(base_noise)
+	local height = ground_noise + base_level
+	local depth = base_level - under_noise
+
+	height = math.floor(height + 0.5)
+	depth = math.floor(depth + 0.5)
+	if depth >= base_level then
+		height = realm.sealevel - 1
+	end
+
+	if not force and height <= realm.sealevel then
+		return
+	end
+
+	return height
+end
+
+
 -- Define the noises.
 layers_mod.register_noise( 'floaters_base', {offset = 0, scale = 50, seed = 2567, spread = {x = 250, y = 250, z = 250}, octaves = 3, persist = 0.5, lacunarity = 2} )
 layers_mod.register_noise( 'floaters_over', {offset = -20, scale = 25, seed = 4877, spread = {x = 200, y = 200, z = 200}, octaves = 4, persist = 0.8, lacunarity = 2} )
 layers_mod.register_noise( 'floaters_under', {offset = 0, scale = 75, seed = 4877, spread = {x = 200, y = 200, z = 200}, octaves = 7, persist = 0.6, lacunarity = 2} )
 
 layers_mod.register_mapgen('tg_floaters', mod.generate_floaters)
+if layers_mod.register_spawn then
+	layers_mod.register_spawn('tg_floaters', mod.get_spawn_level)
+end
