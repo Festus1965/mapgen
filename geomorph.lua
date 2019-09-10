@@ -740,7 +740,7 @@ function Geomorph:write_stair(shape, rot)
 	local minp = self.minp
 	local node_num = self.node[shape.node]
 	local p2data = self.p2data
-	local s_hi = (shape.height and shape.height > 0) and shape.height or 2
+	local s_hi = (shape.height and shape.height > 0) and shape.height or 3
 	local underground = shape.underground
 	local ystride = self.area.ystride
 
