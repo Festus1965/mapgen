@@ -165,9 +165,48 @@ do
 		drawtype = 'glasslike',
 		light_source = 5,
 		groups = { cracky = 3, stone = 1 },
-		--drop = { items = { { items = { 'default:cobble' }, }, { items = { mod_name .. ':glowing_fungus', }, }, }, },
 		sounds = default.node_sound_stone_defaults(),
 	})
+
+	minetest.register_node(mod_name .. ':sand_gem_glass', {
+		description = 'Sand Gem Glass',
+		tiles = { 'mapgen_glowing_gem_glass.png', 'mapgen_glowing_gem_glass_detail.png', },
+		is_ground_content = true,
+		paramtype = 'light',
+		--use_texture_alpha = true,
+		drawtype = 'glasslike_framed_optional',
+		light_source = 5,
+		groups = { cracky = 3, stone = 1, oddly_breakable_by_hand = 1 },
+		sunlight_propagates = true,
+		sounds = default.node_sound_glass_defaults(),
+	})
+
+	minetest.register_craft({
+		output = mod_name .. ':sand_gem_glass 2',
+		type = 'shapeless',
+		recipe = {
+			mod_name .. ':glowing_gem',
+			'default:glass',
+		}
+	})
+
+	if minetest.get_modpath('doors') then
+		print('register door')
+		doors.register('door_sand_gem_glass', {
+			tiles = {'mapgen_sand_gem_glass_door.png'},
+			description = 'Sand Gem Glass Door',
+			inventory_image = 'mapgen_sand_gem_glass_door.png',
+			groups = {cracky=3},
+			sounds = default.node_sound_glass_defaults(),
+			sound_open = 'doors_glass_door_open',
+			sound_close = 'doors_glass_door_close',
+			recipe = {
+				{'mapgen:sand_gem_glass', 'mapgen:sand_gem_glass'},
+				{'mapgen:sand_gem_glass', 'mapgen:sand_gem_glass'},
+				{'mapgen:sand_gem_glass', 'mapgen:sand_gem_glass'},
+			},
+		})
+	end
 
 	-- black (oily) sand
 	newnode = clone_node('default:sand')

@@ -192,15 +192,18 @@ function mod.generate_all(params)
 		local minp, maxp = realm.realm_minp, realm.realm_maxp
 
 		-- This won't necessarily find realms smaller than a chunk.
-		local intersect = mod.cube_intersect(
+		local isect_minp, isect_maxp = mod.cube_intersect(
 			{minp = params.chunk_minp, maxp = params.chunk_maxp},
 			{minp = realm.realm_minp, maxp = realm.realm_maxp}
 		)
-		if intersect then
-			if mod.use_pcall then
-				minetest.log('running mapgen ' .. realm.mapgen)
+		if isect_minp and isect_maxp then
+			if DEBUG then
+				--minetest.log('running mapgen ' .. realm.mapgen)
 			end
-			table.insert(realms, realm)
+			local r_copy = table.copy(realm)
+			r_copy.isect_minp = isect_minp
+			r_copy.isect_maxp = isect_maxp
+			table.insert(realms, r_copy)
 		end
 	end
 
@@ -208,9 +211,16 @@ function mod.generate_all(params)
 		return
 	end
 
-	local vm, emin, emax = minetest.get_mapgen_object('voxelmanip')
+	local vm, emin, emax
+	if params.genesis_redo then
+		vm = minetest.get_voxel_manip()
+		emin, emax = vm:read_from_map(params.chunk_minp, params.chunk_maxp)
+	else
+		vm, emin, emax = minetest.get_mapgen_object('voxelmanip')
+	end
 
 	if not (vm and emin and emax) then
+		--print(vm, emin, emax)
 		return
 	end
 
@@ -230,14 +240,11 @@ function mod.generate_all(params)
 	mod.populate_node_arrays()
 
 	--params.biomemaps = {}
+	local r_params_list = {}
 	for _, realm in pairs(realms) do
 		local t_terrain = os.clock()
-		local r_params = table.copy(realm)
-
-		r_params.isect_minp, r_params.isect_maxp = mod.cube_intersect(
-			{minp = params.chunk_minp, maxp = params.chunk_maxp},
-			{minp = realm.realm_minp, maxp = realm.realm_maxp}
-		)
+		local r_params = realm
+		table.insert(r_params_list, r_params)
 
 		for k, v in pairs(params) do
 			r_params[k] = v
@@ -268,11 +275,21 @@ function mod.generate_all(params)
 		r_params.realm_seed = r_params.map_seed
 		-----------------------------------------
 
-		-------------------------------------------
-		-- This must include height and biome mapping.
-		-------------------------------------------
 		mod.registered_mapgens[realm.mapgen](r_params)
 		mod.time_terrain = mod.time_terrain + os.clock() - t_terrain
+	end
+
+	for k, params in pairs(r_params_list) do
+		if params.biomefunc then
+			mod.rmf[params.biomefunc](params)
+			if not params.no_decorations then
+				mod.place_all_decorations(params)
+
+				if not params.share.no_dust then
+					mod.dust(params)
+				end
+			end
+		end
 	end
 
 	mod.save_map(params)
@@ -1000,100 +1017,6 @@ function mod.read_configuration_file()
 end
 
 
-function mod.simple_ore(params, force_alt, num_deposits)
-	local t_ore = os.clock()
-
-	local minp, maxp = params.isect_minp, params.isect_maxp
-	local f_alt = force_alt
-
-	if not f_alt then
-		f_alt = minp.y
-		-- Correct for higher planes.
-		if params.sealevel > 0 then
-			f_alt = f_alt - params.sealevel
-		end
-
-		f_alt = math.max(0, - math.floor((f_alt + chunk_offset) / (chunksize * 16)))
-		f_alt = math.max(f_alt, math.floor(math.max(math.abs(minp.x), math.abs(minp.z)) / 3000))
-	end
-
-	local volume = params.csize.x * params.csize.y * params.csize.z
-	local pr = params.gpr
-	if not num_deposits then
-		num_deposits = math.floor(100 * volume / (80 * 80 * 80))
-	end
-
-	if not params.ore_intersect then
-		params.ore_intersect = table.copy(mod.default_ore_intersect)
-	end
-
-	local geo = Geomorph.new(params)
-	for _ = 1, num_deposits do
-		local ore = mod.get_ore(params.gpr, f_alt)
-
-		local size = VN(
-			pr:next(1, 4) + pr:next(1, 4),
-			pr:next(1, 4) + pr:next(1, 4),
-			pr:next(1, 4) + pr:next(1, 4)
-		)
-		if params.placed_lava then
-			size = VN(size, 2)
-		end
-
-		local max_range = VN(
-			params.csize.x - size.x,
-			params.csize.y - size.y - 3,
-			params.csize.z - size.z
-		)
-
-		if max_range.y > 3 then
-			local p = VN(
-				pr:next(0, max_range.x),
-				pr:next(3, max_range.y),
-				pr:next(0, max_range.z)
-			)
-
-			geo:add({
-				action = 'cube',
-				node = ore,
-				random = 4,
-				location = p,
-				size = size,
-				intersect = params.ore_intersect,
-			})
-		end
-	end
-	geo:write_to_map()
-
-	--[[
-	-- Change the colors of all default stone.
-	-- The time for this is negligible.
-	if params.stone_layers then
-		local area = params.area
-		local data, p2data = params.data, params.p2data
-		local stone_layers = params.stone_layers
-		local ystride = area.ystride
-		for z = minp.z, maxp.z do
-			for x = minp.x, maxp.x do
-				local ivm = area:index(x, minp.y, z)
-				for y = minp.y, maxp.y do
-					local dy = y - minp.y
-
-					if data[ivm] == n_stone then
-						p2data[ivm] = stone_layers[dy]
-					end
-
-					ivm = ivm + ystride
-				end
-			end
-		end
-	end
-	--]]
-
-	mod.time_ore = mod.time_ore + os.clock() - t_ore
-end
-
-
 function mod.spawnplayer(player)
 	local realm = mod.spawn_realm
 	if not realm then
@@ -1155,7 +1078,7 @@ function mod.save_map(params)
 
 	if DEBUG then
 		params.vm:set_lighting({day = 10, night = 10})
-	else
+	elseif not params.genesis_redo then
 		params.vm:set_lighting({day = 0, night = 0})
 		params.vm:calc_lighting(nil, nil, params.share.propagate_shadow)
 	end

@@ -926,3 +926,26 @@ function mod.register_geomorph(def)
 
 	mod.registered_geomorphs[def.name] = def
 end
+
+
+if false then
+	minetest.register_lbm({
+		name = 'mapgen:fix_impassible_stairs',
+		nodenames = {
+			'stairs:stair_stone',
+		},
+		run_at_every_load = true,
+		action = function(pos, node)
+			local p = table.copy(pos)
+			for y = pos.y + 1, pos.y + 3 do
+				p.y = y
+				local n = minetest.get_node_or_nil(p)
+				if n and n.name and n.name ~= 'air' then
+					if n.name == 'default:stone' then
+						minetest.set_node(p, { name = 'air' })
+					end
+				end
+			end
+		end,
+	})
+end

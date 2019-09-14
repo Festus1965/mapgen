@@ -164,6 +164,22 @@ end
 local bts = {}
 -- check
 function mod.generate_moria(params)
+	local minp, maxp = params.isect_minp, params.isect_maxp
+
+	local c = vector.divide(vector.add(minp, 32), 80)
+	if c.x ~= math.floor(c.x) or c.y ~= math.floor(c.y) or c.z ~= math.floor(c.z) then
+		return
+	end
+
+	if params.csize.x ~= 80 or params.csize.y ~= 80 or params.csize.z ~= 80 then
+		return
+	end
+
+
+	if params.share.height_min and params.share.height_min < params.realm_maxp.y then
+		return
+	end
+
 	--print('called at minp ', params.isect_minp.y)
 	if not box_names then
 		box_names = {}

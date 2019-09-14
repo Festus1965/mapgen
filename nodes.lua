@@ -13,7 +13,7 @@ do
 	local tree_sch = {}
 
 	local function get_tree_schematic(tree_name)
-		for k, v in pairs(mod.decorations) do
+		for k, v in pairs(mod.registered_decorations) do
 			if v.name:find(tree_name) then
 				-- For some reason, the game doesn't use the
 				--  schematic probabilities the way the documentation

@@ -419,8 +419,8 @@ function mod.translate_schematic(deco)
 end
 
 
-function mod.register_flower(name, source, desc, biomes, seed)
-	local groups = { }
+function mod.register_flower(name, source, desc, biomes, seed, groups)
+	groups = groups or { }
 	groups.snappy = 3
 	groups.flammable = 2
 	groups.flower = 1
@@ -586,6 +586,64 @@ function mod.schematic_array(width, height, depth)
 end
 
 
+do
+	local found_it
+	for k, v in pairs(minetest.registered_abms) do
+		if v.label == 'Grass spread' then
+			found_it = k
+		end
+	end
+
+	if not found_it then
+		minetest.log(mod_name .. ': Cannot locate (or correct) grass spread abm.')
+	else
+		table.remove(minetest.registered_abms, found_it)
+
+		minetest.register_abm({
+			label = "Grass spread",
+			nodenames = {"default:dirt"},
+			neighbors = {
+				"air",
+				"group:grass",
+				"group:dry_grass",
+				"default:snow",
+			},
+			interval = 6,
+			chance = 50,
+			catch_up = false,
+			action = function(pos, node)
+				-- Check for darkness: night, shadow or under a light-blocking node
+				-- Returns if ignore above
+				local above = {x = pos.x, y = pos.y + 1, z = pos.z}
+				if (minetest.get_node_light(above) or 0) < 13 then
+					return
+				end
+
+				-- Look for spreading dirt-type neighbours
+				local p2 = minetest.find_node_near(pos, 1, "group:spreading_dirt_type")
+				if p2 then
+					local n3 = minetest.get_node(p2)
+					minetest.set_node(pos, {name = n3.name, param2 = n3.param2})
+					return
+				end
+
+				-- Else, any seeding nodes on top?
+				local name = minetest.get_node(above).name
+				-- Snow check is cheapest, so comes first
+				if name == "default:snow" then
+					minetest.set_node(pos, {name = "default:dirt_with_snow"})
+				-- Most likely case first
+				elseif minetest.get_item_group(name, "grass") ~= 0 then
+					minetest.set_node(pos, {name = "default:dirt_with_grass"})
+				elseif minetest.get_item_group(name, "dry_grass") ~= 0 then
+					minetest.set_node(pos, {name = "default:dirt_with_dry_grass"})
+				end
+			end
+		})
+	end
+end
+
+
 
 minetest.register_privilege('mapgen', {
 	description = 'allowed to alter the landscape',
@@ -659,7 +717,6 @@ minetest.register_chatcommand('chunk', {
 })
 
 
---[[
 minetest.register_chatcommand('genesis', {
 	params = '',
 	description = 'Regenerate a chunk, destroying all existing nodes.',
@@ -717,16 +774,21 @@ minetest.register_chatcommand('genesis', {
 		vm:write_to_map()
 		vm = nil
 
-		local mg = mod.Mapgen(minp, maxp, nil)
-		if not mg then
-			return
-		end
-		mg.name = 'Mapgen'
+		local map_seed = mod.generate_map_seed()
+		local blockseed = mod.generate_block_seed(minp)
 
-		mg:generate_all(true)
+		local params = {
+			chunk_minp = minp,
+			chunk_maxp = maxp,
+			chunk_csize = vector.add(vector.subtract(maxp, minp), 1),
+			chunk_seed = blockseed,
+			genesis_redo = true,
+			--real_chunk_seed = seed,
+			map_seed = map_seed,
+		}
+		mod.generate_all(params)
 	end,
 })
---]]
 
 
 do

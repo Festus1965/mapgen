@@ -58,7 +58,13 @@ function mod.bm_fun_caves_biomes(params)
 		end
 	end
 
-	local seedb = params.share.cave_layer.minp.y % 1137
+	local cl_min_y
+	if params.share.cave_layer then
+		cl_min_y = params.share.cave_layer.minp.y
+	else
+		cl_min_y = params.isect_minp.y
+	end
+	local seedb = cl_min_y % 1137
 	local heat_map = layers_mod.get_noise2d('fun_caves_heat', nil, seedb, nil, {x=csize.x, y=csize.z}, { x = minp.x, y = minp.z })
 	local humidity_map = layers_mod.get_noise2d('fun_caves_humidity', nil, seedb, nil, {x=csize.x, y=csize.z}, { x = minp.x, y = minp.z })
 

@@ -9,6 +9,16 @@ local biomes = layers_mod.registered_biomes
 local chunksize = tonumber(minetest.settings:get('chunksize') or 5)
 local chunk_offset = math.floor(chunksize / 2) * 16;
 
+local node
+if layers_mod.mod_name == 'mapgen' then
+	node = layers_mod.node
+	clone_node = layers_mod.clone_node
+else
+	dofile(mod.path .. '/functions.lua')
+	node = mod.node
+	clone_node = mod.clone_node
+end
+
 
 local default_noises = {
 	filler_depth = { offset = 0, scale = 1.5, seed = -47383, spread = {x = 8, y = 8, z = 8}, octaves = 2, persist = 1.0, lacunarity = 2 },
@@ -48,14 +58,25 @@ local default_sources = {
 	['dflat'] = true,
 }
 
-local sandy_nodes
+local sandy_nodes, stone_layers
 
 function mod.bm_default_biomes(params)
 	local offset = params.biome_height_offset or 0
 	local water_level = params.sealevel
 	local minp, maxp = params.isect_minp, params.isect_maxp
+	local area, data, p2data = params.area, params.data, params.p2data
+	local ystride = area.ystride
 	local csize = params.csize
 	local biomes_i = {}
+
+	local n_stone = node['default:stone']
+	local n_desert_stone = node['default:desert_stone']
+	local n_air = node['air']
+	local n_water = node['default:water_source']
+	local n_ice = node['default:ice']
+	local n_ignore = node['ignore']
+	local n_sand = node['default:sand']
+	local n_clay = node['default:clay']
 
 	if not params.biomes_here then
 		params.biomes_here = {}
@@ -154,6 +175,112 @@ function mod.bm_default_biomes(params)
 					params.biomes_here[biome.name] = 1
 				end
 				params.biomes_here[biome.name] = (params.biomes_here[biome.name] or 0) + 1
+
+				local depth = surface.bottom
+
+				-- depths
+				local depth_top = surface.top_depth or biome.depth_top or 0  -- 1?
+				local depth_filler = surface.filler_depth or biome.depth_filler or 0  -- 6?!
+				local erosion = surface.erosion or 0
+				local wtd = biome.node_water_top_depth or 0
+				local grass_p2 = surface.grass_p2 or 0
+
+				height = height - erosion
+				surface.top = height
+
+				-- biome-determined nodes
+				local stone = biome.node_stone or n_stone
+				local filler = biome.node_filler or n_air
+				local top = biome.node_top or n_air
+				local riverbed = biome.node_riverbed
+				local ww = biome.node_water or node['default:water_source']
+				local wt = biome.node_water_top
+
+				if ww == n_water and surface.heat
+				and not params.share.disable_icing then
+					if surface.heat < 30 then
+						wt = n_ice
+						wtd = math.ceil(math.max(0, (30 - surface.heat) / 3))
+					else
+						wt = nil
+					end
+				end
+
+				local hu2_check
+				local hu2 = surface.humidity_blend
+				if (not hu2 or hu2 > 1 or math.floor(hu2 * 1000) % 2 == 0)
+				and surface.humidity and surface.humidity > 70 then
+					hu2_check = true
+				end
+
+				-- Start at the top and fill down.
+				local off, underwater
+				if height > maxp.y then
+					off = height
+				end
+
+				local fill_1, fill_2
+				local ivm = area:index(x, maxp.y, z)
+				for y = maxp.y, minp.y, -1 do
+					if not off then
+						if data[ivm] ~= n_air then
+							off = y
+							surface.top = off
+							if data[ivm] == n_water then
+								underwater = true
+							end
+						elseif (y == minp.y and y == height) then
+							off = y
+							if data[ivm] == n_water then
+								underwater = true
+							end
+						end
+
+						if off then
+							fill_1 = off - depth_top
+							fill_2 = fill_1 - depth_filler
+						end
+					end
+
+					if data[ivm] == n_air and y > height and y <= water_level then
+						if y > water_level - wtd then
+							data[ivm] = wt
+						else
+							data[ivm] = ww
+						end
+						p2data[ivm] = 0
+						underwater = true
+					elseif data[ivm] == n_water and heat < 30 then
+						data[ivm] = n_ice
+					elseif data[ivm] == n_water and humidity < 30 then
+						data[ivm] = n_air
+					elseif y == off and data[ivm] == n_clay and humidity < 30 then
+						data[ivm] = n_sand
+					elseif not off or y > off then
+						-- nop
+					elseif data[ivm] ~= n_stone and data[ivm] ~= n_ignore then
+						-- nop
+					elseif depth_top < 1 and y > height then
+						data[ivm] = n_air
+						--surface.top = height - 1
+					elseif fill_1 and y > fill_1 then
+						-- topping up
+						data[ivm] = top
+						p2data[ivm] = grass_p2
+					elseif filler and fill_2 and y > fill_2 then
+						-- filling
+						data[ivm] = filler
+						p2data[ivm] = 0
+					else
+						-- Otherwise, it's stoned.
+						if stone_layers and stone == n_desert_stone then
+							data[ivm] = stone_layers[y % 30 + 1]
+						end
+						p2data[ivm] = 0
+					end
+
+					ivm = ivm - ystride
+				end
 			end
 
 			index = index + 1
@@ -304,9 +431,9 @@ do
 end
 
 
-layers_mod.register_flower('orchid', 'dflat', 'Orchid', { 'rainforest', 'rainforest_swamp' }, 783)
-layers_mod.register_flower('bird_of_paradise', 'dflat', 'Bird of Paradise', { 'rainforest' }, 798)
-layers_mod.register_flower('gerbera', 'Gerbera', 'dflat', { 'savanna', 'rainforest' }, 911)
+layers_mod.register_flower('orchid', 'dflat', 'Orchid', { 'rainforest', 'rainforest_swamp' }, 783, { color_pink = 1 })
+layers_mod.register_flower('bird_of_paradise', 'dflat', 'Bird of Paradise', { 'rainforest' }, 798, { color_orange = 1 })
+layers_mod.register_flower('gerbera', 'Gerbera', 'dflat', { 'savanna', 'rainforest' }, 911, { color_red = 1 })
 
 
 layers_mod.register_mapfunc('bm_default_biomes', mod.bm_default_biomes)
