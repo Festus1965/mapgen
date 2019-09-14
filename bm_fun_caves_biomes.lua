@@ -9,6 +9,16 @@ local biomes = layers_mod.registered_biomes
 local chunksize = tonumber(minetest.settings:get('chunksize') or 5)
 local chunk_offset = math.floor(chunksize / 2) * 16;
 
+local node
+if layers_mod.mod_name == 'mapgen' then
+	node = layers_mod.node
+	clone_node = layers_mod.clone_node
+else
+	dofile(mod.path .. '/functions.lua')
+	node = mod.node
+	clone_node = mod.clone_node
+end
+
 
 -----------------------------------------------
 --
@@ -44,8 +54,24 @@ function mod.bm_fun_caves_biomes(params)
 	local offset = params.biome_height_offset or 0
 	local water_level = params.sealevel
 	local minp, maxp = params.isect_minp, params.isect_maxp
+	local area, data, p2data = params.area, params.data, params.p2data
 	local csize = params.csize
+	local ystride = area.ystride
 	local biomes_i = {}
+
+	local n_stone = node['default:stone']
+	local n_desert_stone = node['default:desert_stone']
+	local n_air = node['air']
+	local n_water = node['default:water_source']
+	local n_ice = node['default:ice']
+	local n_ignore = node['ignore']
+	local n_sand = node['default:sand']
+	local n_clay = node['default:clay']
+
+	local empty = {
+		[n_air] = true,
+		[n_ignore] = true,
+	}
 
 	if not params.biomes_here then
 		params.biomes_here = {}
@@ -73,21 +99,58 @@ function mod.bm_fun_caves_biomes(params)
 		for x = minp.x, maxp.x do
 			local surface = params.share.surface[z][x]
 
+			local biome
 			local heat = heat_map[index]
 			local humidity = humidity_map[index]
-			local biome = mod.get_biome(biomes_i, heat, humidity, surface.top)
-			--biome = layers_mod.registered_biomes['basalt_lava']
+			local height = surface.top
 
-			local grass_p2 = math.floor((humidity - (heat / 2) + 9) / 3)
-			grass_p2 = (7 - math.min(7, math.max(0, grass_p2))) * 32
-			surface.grass_p2 = grass_p2
+			if height - 20 >= minp.y then
+				biome = mod.get_biome(biomes_i, heat, humidity, height)
+				--biome = layers_mod.registered_biomes['coal']
+
+				local grass_p2 = math.floor((humidity - (heat / 2) + 9) / 3)
+				grass_p2 = (7 - math.min(7, math.max(0, grass_p2))) * 32
+				surface.grass_p2 = grass_p2
+			end
 
 			if biome then
-				surface.biome = biome
+				--surface.biome = biome
 				if params.biomes_here[biome.name] == true then
 					params.biomes_here[biome.name] = 1
 				end
 				params.biomes_here[biome.name] = (params.biomes_here[biome.name] or 0) + 1
+
+				local n_b_stone = biome.node_stone or n_stone
+				local n_ceiling = biome.node_ceiling or biome.node_lining
+				local n_floor = biome.node_floor or biome.node_lining
+				local n_fluid = biome.node_cave_liquid or n_water
+				local surface_depth = biome.surface_depth or 1
+				local n_gas = biome.node_air or n_air
+
+				local fill_1, fill_2
+				local ivm = area:index(x, minp.y, z)
+				for y = minp.y, maxp.y do
+					local depth = height - y
+					if y > height - 20 then
+						-- nop
+					elseif n_floor and empty[data[ivm]] and data[ivm - ystride] == n_stone then
+						-- floor
+						data[ivm - ystride] = n_floor
+						if surface_depth > 1 then
+							data[ivm - ystride * 2] = n_ceiling
+						end
+					elseif n_ceiling and empty[data[ivm]] and data[ivm + ystride] == n_stone then
+						-- ceiling
+						data[ivm + ystride] = n_ceiling
+						if surface_depth > 1 then
+							data[ivm + ystride * 2] = n_floor
+						end
+					elseif data[ivm] == n_stone and depth > 20 then
+						data[ivm] = n_b_stone
+					end
+
+					ivm = ivm + ystride
+				end
 			end
 
 			index = index + 1

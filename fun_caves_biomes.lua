@@ -1103,6 +1103,7 @@ do
         heat_point = 50,
         humidity_point = -5,
         node_lining = mod_name .. ':stone_with_salt',
+        node_stone = 'default:sandstone',
 		surface_depth = 2,
 		y_min = 0,
     })
@@ -1111,15 +1112,15 @@ do
         name = 'granite',
         heat_point = 60,
         humidity_point = 50,
-        node_lining = mod_name .. ':granite',
+        node_stone = mod_name .. ':granite',
     })
 
     register_cave_biome({
         name = 'sand',
         heat_point = 70,
         humidity_point = 25,
-        node_ceiling = 'default:sandstone',
         node_floor = 'default:sand',
+        node_stone = 'default:sandstone',
 		surface_depth = 2,
     })
 
@@ -1147,7 +1148,7 @@ do
         heat_point = -15,
         humidity_point = 50,
 		node_cave_liquid = 'default:ice',
-        node_lining = 'default:ice',
+		node_stone = 'default:ice',
 		surface_depth = 4,
     })
 end
