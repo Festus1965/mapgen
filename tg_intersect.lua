@@ -32,6 +32,7 @@ function mod.generate_intersect(params)
 	local n_water = node['default:water_source']
 	local n_stone = node['default:stone']
 	local n_lava = node['default:lava_source']
+	local n_placeholder_lining = node[layers_mod.mod_name .. ':placeholder_lining']
 
 	if not ground_c then
 		ground_c = {
@@ -115,6 +116,8 @@ function mod.generate_intersect(params)
 
 				local n1 = (math.abs(cave_noise_1[index3d]) < 0.07)
 				local n2 = (math.abs(cave_noise_2[index3d]) < 0.07)
+				local n3 = (math.abs(cave_noise_1[index3d]) < 0.09)
+				local n4 = (math.abs(cave_noise_2[index3d]) < 0.09)
 				if n1 and n2 then
 					local height = surface[z][x].top
 					local skip
@@ -133,23 +136,32 @@ function mod.generate_intersect(params)
 						--if y > minp.y and data[area:index(x, y-1, z)] == n_stone then
 						data[ivm] = n_air
 						p2data[ivm] = 0
+
+						if x == minp.x or x == maxp.x or z == minp.z or z == maxp.z then
+							params.share.intersected = true
+						end
+					end
+				elseif n3 and n4 then
+					local height = surface[z][x].top
+					local skip
+					if close or (base_level and height <= base_level) then
+						local depth = height - y
+						if depth < 20 then
+							skip = true
+						end
+					end
+
+					if data[ivm] == n_stone and not skip then
+						local sr = 1000
+						data[ivm] = n_placeholder_lining
+						p2data[ivm] = 0
+
+						if x == minp.x or x == maxp.x or z == minp.z or z == maxp.z then
+							params.share.intersected = true
+						end
 					end
 				end
 			end
-
-			--[[
-			for y = minp.y, maxp.y do
-				local height = surface[z][x].top
-				local ivm = area:index(x, height, z)
-				while data[ivm] == n_air and height > minp.y do
-					height = height - 1
-					ivm = ivm - area.ystride
-				end
-				if height ~= surface[z][x].top then
-					surface[z][x].top = height
-				end
-			end
-			--]]
 		end
 	end
 

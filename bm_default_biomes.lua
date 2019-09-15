@@ -20,6 +20,41 @@ else
 end
 
 
+-- , st, st, st, ss, ds, st, st, ss, ss, st, st, ss, ss, ss, ds, ds, ds, st, ds, ss, ss, st, ss, ds, st, ds, ds, st, st, ss
+local sandy_nodes, stone_layers
+
+do
+	local st = node['default:stone']
+	local ss = node['default:sandstone']
+	local ds = node['default:desert_stone']
+	local s = ''
+	stone_layers = { ds, ds, ds, st, ds, ss, ss, ds, ds, ss, st, st, ds, ss, ds, st, ss, st, ss, st, ds, st, ds, ss, ss, st, ss, ss, st, st }
+
+	if false then
+		stone_layers = {}
+		for i = 1, 30 do
+			local j = math.random(3)
+			if j == 1 then
+				s = s .. ', st'
+				table.insert(stone_layers, st)
+			elseif j == 2 then
+				s = s .. ', ss'
+				table.insert(stone_layers, ss)
+			else
+				s = s .. ', ds'
+				table.insert(stone_layers, ds)
+			end
+		end
+		print(s)
+	end
+end
+
+local default_sources = {
+	['default'] = true,
+	['dflat'] = true,
+}
+
+
 local default_noises = {
 	filler_depth = { offset = 0, scale = 1.5, seed = -47383, spread = {x = 8, y = 8, z = 8}, octaves = 2, persist = 1.0, lacunarity = 2 },
 	geographic_heat_blend = { offset = 0, scale = 4, seed = 5349, spread = {x = 10, y = 10, z = 10}, octaves = 3, persist = 0.5, lacunarity = 2, flags = 'eased' },
@@ -49,16 +84,10 @@ function mod.get_biome(biomes_i, heat, humidity, height)
 			end
 		end
 	end
+	--return mapgen.registered_biomes['desert']
 	return biome
 end
 
-
-local default_sources = {
-	['default'] = true,
-	['dflat'] = true,
-}
-
-local sandy_nodes, stone_layers
 
 function mod.bm_default_biomes(params)
 	local offset = params.biome_height_offset or 0
@@ -77,9 +106,16 @@ function mod.bm_default_biomes(params)
 	local n_ignore = node['ignore']
 	local n_sand = node['default:sand']
 	local n_clay = node['default:clay']
+	local n_placeholder_lining = node[layers_mod.mod_name .. ':placeholder_lining']
 
-	if not params.biomes_here then
-		params.biomes_here = {}
+	local replace = {
+		[ n_stone ] = true,
+		[ n_ignore ] = true,
+		[ n_placeholder_lining ] = true,
+	}
+
+	if not params.share.biomes_here then
+		params.share.biomes_here = {}
 	end
 
 	if not sandy_nodes then
@@ -150,8 +186,9 @@ function mod.bm_default_biomes(params)
 			surface.grass_p2 = grass_p2
 
 			local biome = mod.get_biome(biomes_i, heat, humidity, height)
+			assert(biome)
 
-			if biome then
+			do
 				surface.biome = biome
 
 				local h_factor = 0.03
@@ -168,33 +205,38 @@ function mod.bm_default_biomes(params)
 				end
 				surface.top_depth = t
 				surface.filler_depth = math.max(0, d + f - t)
-				d = d + surface.filler_depth + t
-				surface.erosion = math.max(0, - d)
+				--d = d + surface.filler_depth + t
+				--surface.erosion = math.max(0, - d)
 
-				if params.biomes_here[biome.name] == true then
-					params.biomes_here[biome.name] = 1
+				-- Erosion screws up the ponds. They should probably
+				--  be placed here, not in dflats...
+
+				if params.share.biomes_here[biome.name] == true then
+					params.share.biomes_here[biome.name] = 1
 				end
-				params.biomes_here[biome.name] = (params.biomes_here[biome.name] or 0) + 1
+				params.share.biomes_here[biome.name] = (params.share.biomes_here[biome.name] or 0) + 1
 
 				local depth = surface.bottom
 
 				-- depths
 				local depth_top = surface.top_depth or biome.depth_top or 0  -- 1?
 				local depth_filler = surface.filler_depth or biome.depth_filler or 0  -- 6?!
-				local erosion = surface.erosion or 0
+				--local erosion = surface.erosion or 0
 				local wtd = biome.node_water_top_depth or 0
 				local grass_p2 = surface.grass_p2 or 0
 
-				height = height - erosion
+				--height = height - erosion
 				surface.top = height
 
 				-- biome-determined nodes
 				local stone = biome.node_stone or n_stone
+				--print(minetest.get_name_from_content_id(biome.node_stone))
 				local filler = biome.node_filler or n_air
 				local top = biome.node_top or n_air
 				local riverbed = biome.node_riverbed
 				local ww = biome.node_water or node['default:water_source']
 				local wt = biome.node_water_top
+				local in_desert = biome.name:find('desert') or humidity < 30
 
 				if ww == n_water and surface.heat
 				and not params.share.disable_icing then
@@ -220,10 +262,11 @@ function mod.bm_default_biomes(params)
 				end
 
 				local fill_1, fill_2
+				--local maxy = math.min(maxp.y, math.max(water_level, height))
 				local ivm = area:index(x, maxp.y, z)
 				for y = maxp.y, minp.y, -1 do
 					if not off then
-						if data[ivm] ~= n_air then
+						if replace[data[ivm]] then
 							off = y
 							surface.top = off
 							if data[ivm] == n_water then
@@ -252,17 +295,19 @@ function mod.bm_default_biomes(params)
 						underwater = true
 					elseif data[ivm] == n_water and heat < 30 then
 						data[ivm] = n_ice
-					elseif data[ivm] == n_water and humidity < 30 then
+					elseif data[ivm] == n_water and in_desert then
 						data[ivm] = n_air
-					elseif y == off and data[ivm] == n_clay and humidity < 30 then
+					elseif y >= height - 1 and data[ivm] == n_clay and in_desert then
 						data[ivm] = n_sand
 					elseif not off or y > off then
 						-- nop
-					elseif data[ivm] ~= n_stone and data[ivm] ~= n_ignore then
+					elseif not replace[data[ivm]] then
 						-- nop
-					elseif depth_top < 1 and y > height then
+					--elseif y > off - surface.erosion then
+					--	data[ivm] = n_air
+					elseif depth_top < 1 and y >= height then
+						-- a minimal, pseudo-erosion
 						data[ivm] = n_air
-						--surface.top = height - 1
 					elseif fill_1 and y > fill_1 then
 						-- topping up
 						data[ivm] = top
@@ -275,8 +320,9 @@ function mod.bm_default_biomes(params)
 						-- Otherwise, it's stoned.
 						if stone_layers and stone == n_desert_stone then
 							data[ivm] = stone_layers[y % 30 + 1]
+							p2data[ivm] = 0
 						end
-						p2data[ivm] = 0
+						--p2data[ivm] = 0
 					end
 
 					ivm = ivm - ystride

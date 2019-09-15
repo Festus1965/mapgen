@@ -5,9 +5,13 @@
 
 bm_fun_caves_biomes = {}
 local mod, layers_mod = bm_fun_caves_biomes, mapgen
+local mod_name = mapgen.mod_name
 local biomes = layers_mod.registered_biomes
 local chunksize = tonumber(minetest.settings:get('chunksize') or 5)
 local chunk_offset = math.floor(chunksize / 2) * 16;
+local VN = vector.new
+local cave_underground = 5
+local DIRT_CHANCE = 10
 
 local node
 if layers_mod.mod_name == 'mapgen' then
@@ -25,7 +29,6 @@ end
 -----------------------------------------------
 
 -- FIX: water biomes
--- FIX: ore generation
 
 
 function mod.get_biome(biomes_i, heat, humidity, height)
@@ -42,6 +45,7 @@ function mod.get_biome(biomes_i, heat, humidity, height)
 			end
 		end
 	end
+	biome = biome or layers_mod.registered_biomes['stone']
 	return biome
 end
 
@@ -49,6 +53,9 @@ end
 local default_sources = {
 	['fun_caves'] = true,
 }
+
+local chunk_heat_noise = PerlinNoise(layers_mod.registered_noises['heat'])
+local chunk_humidity_noise = PerlinNoise(layers_mod.registered_noises['humidity'])
 
 function mod.bm_fun_caves_biomes(params)
 	local offset = params.biome_height_offset or 0
@@ -58,8 +65,10 @@ function mod.bm_fun_caves_biomes(params)
 	local csize = params.csize
 	local ystride = area.ystride
 	local biomes_i = {}
+	local pr = params.gpr
 
 	local n_stone = node['default:stone']
+	local n_dirt = node['default:dirt']
 	local n_desert_stone = node['default:desert_stone']
 	local n_air = node['air']
 	local n_water = node['default:water_source']
@@ -67,83 +76,95 @@ function mod.bm_fun_caves_biomes(params)
 	local n_ignore = node['ignore']
 	local n_sand = node['default:sand']
 	local n_clay = node['default:clay']
+	local n_placeholder_lining = node[layers_mod.mod_name .. ':placeholder_lining']
 
 	local empty = {
 		[n_air] = true,
 		[n_ignore] = true,
 	}
 
-	if not params.biomes_here then
-		params.biomes_here = {}
+	if not params.share.biomes_here then
+		params.share.biomes_here = {}
 	end
 
 	-- Biome selection is expensive. This helps a bit.
 	for _, b in pairs(biomes) do
-		if default_sources[b.source] and b.wet == params.share.wet_cave then
+		if default_sources[b.source] and b.wet ~= params.share.intersected then
 			table.insert(biomes_i, b)
 		end
 	end
 
-	local cl_min_y
+	local cl_min_y, seedb, heat_map, humidity_map
 	if params.share.cave_layer then
 		cl_min_y = params.share.cave_layer.minp.y
+		seedb = cl_min_y % 1137
+		heat_map = layers_mod.get_noise2d('fun_caves_heat', nil, seedb, nil, {x=csize.x, y=csize.z}, { x = minp.x, y = minp.z })
+		humidity_map = layers_mod.get_noise2d('fun_caves_humidity', nil, seedb, nil, {x=csize.x, y=csize.z}, { x = minp.x, y = minp.z })
 	else
-		cl_min_y = params.isect_minp.y
+		local heat = chunk_heat_noise:get_3d({ x = minp.x, y = minp.y, z = minp.z })
+		local humidity = chunk_humidity_noise:get_3d({ x = minp.x, y = minp.y, z = minp.z })
+		local biome = mod.get_biome(biomes_i, heat, humidity, minp.y)
+		biome = biome or layers_mod.registered_biomes['stone']
+		--biome = layers_mod.registered_biomes['mossy']
+		params.share.cave_biome = biome
 	end
-	local seedb = cl_min_y % 1137
-	local heat_map = layers_mod.get_noise2d('fun_caves_heat', nil, seedb, nil, {x=csize.x, y=csize.z}, { x = minp.x, y = minp.z })
-	local humidity_map = layers_mod.get_noise2d('fun_caves_humidity', nil, seedb, nil, {x=csize.x, y=csize.z}, { x = minp.x, y = minp.z })
 
 	local index = 1
 	for z = minp.z, maxp.z do
 		for x = minp.x, maxp.x do
 			local surface = params.share.surface[z][x]
-
-			local biome
-			local heat = heat_map[index]
-			local humidity = humidity_map[index]
 			local height = surface.top
+			local biome
 
-			if height - 20 >= minp.y then
-				biome = mod.get_biome(biomes_i, heat, humidity, height)
-				--biome = layers_mod.registered_biomes['coal']
+			if heat_map and humidity_map then
+				biome = layers_mod.registered_biomes['stone']
+				local heat = heat_map[index]
+				local humidity = humidity_map[index]
 
-				local grass_p2 = math.floor((humidity - (heat / 2) + 9) / 3)
-				grass_p2 = (7 - math.min(7, math.max(0, grass_p2))) * 32
-				surface.grass_p2 = grass_p2
+				if height - 20 >= minp.y then
+					biome = mod.get_biome(biomes_i, heat, humidity, height)
+					--biome = layers_mod.registered_biomes['coal']
+				end
+			else
+				biome = params.share.cave_biome
 			end
 
-			if biome then
-				--surface.biome = biome
-				if params.biomes_here[biome.name] == true then
-					params.biomes_here[biome.name] = 1
+			do
+				if params.share.biomes_here[biome.name] == true then
+					params.share.biomes_here[biome.name] = 1
 				end
-				params.biomes_here[biome.name] = (params.biomes_here[biome.name] or 0) + 1
+				params.share.biomes_here[biome.name] = (params.share.biomes_here[biome.name] or 0) + 1
 
+				-- Surface depth is ignored for expediency.
+				biome = biome or {}
 				local n_b_stone = biome.node_stone or n_stone
-				local n_ceiling = biome.node_ceiling or biome.node_lining
-				local n_floor = biome.node_floor or biome.node_lining
+				local n_ceiling = biome.node_ceiling or biome.node_lining or n_b_stone
+				local n_floor = biome.node_floor or biome.node_lining or n_b_stone
 				local n_fluid = biome.node_cave_liquid or n_water
-				local surface_depth = biome.surface_depth or 1
 				local n_gas = biome.node_air or n_air
 
+				-- This depends on the cave mods to drop a placeholder
+				--  node where the ceilings and floors should be.
+				-- It's faster and prettier, if not as precise.
 				local fill_1, fill_2
 				local ivm = area:index(x, minp.y, z)
 				for y = minp.y, maxp.y do
 					local depth = height - y
 					if y > height - 20 then
-						-- nop
-					elseif n_floor and empty[data[ivm]] and data[ivm - ystride] == n_stone then
-						-- floor
-						data[ivm - ystride] = n_floor
-						if surface_depth > 1 then
-							data[ivm - ystride * 2] = n_ceiling
+						if data[ivm] == n_placeholder_lining then
+							if pr:next(1, DIRT_CHANCE) == 1 then
+								data[ivm] = n_dirt
+							else
+								data[ivm] = n_stone
+							end
 						end
-					elseif n_ceiling and empty[data[ivm]] and data[ivm + ystride] == n_stone then
-						-- ceiling
-						data[ivm + ystride] = n_ceiling
-						if surface_depth > 1 then
-							data[ivm + ystride * 2] = n_floor
+					elseif data[ivm] == n_placeholder_lining then
+						if n_floor == n_sand and empty[data[ivm - ystride]] then
+							data[ivm] = n_ceiling
+						elseif pr:next(1, DIRT_CHANCE) == 1 then
+								data[ivm] = n_dirt
+						else
+							data[ivm] = n_floor
 						end
 					elseif data[ivm] == n_stone and depth > 20 then
 						data[ivm] = n_b_stone
@@ -155,6 +176,26 @@ function mod.bm_fun_caves_biomes(params)
 
 			index = index + 1
 		end
+	end
+
+	if not params.share.intersected and maxp.y <= params.sealevel then
+		local liquid = 'default:water_source'
+		local geo = Geomorph.new(params)
+		local cave_water_level = pr:next(1, 26) + pr:next(1, 26) + pr:next(1, 26)
+		params.share.cave_water_level = cave_water_level + minp.y
+
+		if liquid then
+			geo:add({
+				action = 'cube',
+				node = liquid,
+				location = VN(1, 1, 1),
+				underground = cave_underground,
+				intersect = 'air',
+				size = VN(78, cave_water_level, 78)
+			})
+		end
+
+		geo:write_to_map(0)
 	end
 end
 

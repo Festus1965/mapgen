@@ -459,8 +459,19 @@ function Geomorph:write_cube(shape, rot)
 				end
 			end
 
+			local height
+			local surf = self.params.share.surface[minp.z + z]
+			if surf then
+				surf = surf[minp.x + x]
+				if surf then
+					height = surf.top
+				end
+			end
+
 			local ivm = self.area:index(minp.x + x, minp.y + min.y, minp.z + z)
 			for y = min.y, top_y do
+				local underground_ok = not underground or (height and minp.y + y < height - underground)
+
 				if  (not hollow or not vector.contains(hmin, hmax, x, y, z))
 				and (not pattern or pattern_match(pattern, x, y, z))
 				and (not random or gpr:next(1, math.max(1, random)) == 1)
@@ -469,7 +480,7 @@ function Geomorph:write_cube(shape, rot)
 					or (type(intersect) == 'table' and intersect[data[ivm]])
 					or (intersect == true and data[ivm] ~= n_air)
 				)
-				and y < 80 and y >= 0 then
+				and y < 80 and y >= 0 and underground_ok then
 					if top_node and y == min.y then
 						data[ivm] = top_node
 						p2data[ivm] = top_p2
@@ -544,20 +555,16 @@ function Geomorph:write_sphere(shape, rot)
 		local zv = (z - center.z) / proportions.z
 		local zvs = zv * zv
 		for x = min.x, max.x do
-			local ivm = area:index(minp.x + x, minp.y + min.y, minp.z + z)
-			local top_y = max.y
-
-			--[[
-			if underground then
-				local height = self.params.share.surface[z][x] - minp.y
-				if height then
-					top_y = math.min(max.y, height - underground)
+			local height
+			local surface = self.params.share.surface[minp.z + z]
+			if surface then
+				surface = surface[minp.x + x]
+				if surface then
+					height = surface.top
 				end
 			end
-			if shape.height then
-				top_y = math.min(top_y, min.y + shape.height)
-			end
-			--]]
+			local ivm = area:index(minp.x + x, minp.y + min.y, minp.z + z)
+			local top_y = max.y
 
 			local xv = (x - center.x) / proportions.x
 			local xvs = xv * xv
@@ -565,6 +572,7 @@ function Geomorph:write_sphere(shape, rot)
 			for y = min.y, top_y do
 				local yv = (y - center.y) / proportions.y
 				local dist = xvs + yv * yv + zvs
+				local underground_ok = not underground or (height and minp.y + y < height - underground)
 
 				if (dist <= radius_s)
 				and (not random or gpr:next(1, math.max(1, random)) == 1)
@@ -575,7 +583,7 @@ function Geomorph:write_sphere(shape, rot)
 					or (type(intersect) == 'table' and intersect[data[ivm]])
 					or (intersect == true and data[ivm] ~= n_air)
 				)
-				and y < 80 and y >= 0 then
+				and y < 80 and y >= 0 and underground_ok then
 					data[ivm] = node_num
 					p2data[ivm] = p2
 				end

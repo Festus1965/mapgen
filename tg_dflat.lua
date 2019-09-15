@@ -38,34 +38,6 @@ else
 end
 
 
--- , st, st, st, ss, ds, st, st, ss, ss, st, st, ss, ss, ss, ds, ds, ds, st, ds, ss, ss, st, ss, ds, st, ds, ds, st, st, ss
-local stone_layers
-do
-	local st = node['default:stone']
-	local ss = node['default:sandstone']
-	local ds = node['default:desert_stone']
-	local s = ''
-	stone_layers = { ds, ds, ds, st, ds, ss, ss, ds, ds, ss, st, st, ds, ss, ds, st, ss, st, ss, st, ds, st, ds, ss, ss, st, ss, ss, st, st }
-
-	if false then
-		stone_layers = {}
-		for i = 1, 30 do
-			local j = math.random(3)
-			if j == 1 then
-				s = s .. ', st'
-				table.insert(stone_layers, st)
-			elseif j == 2 then
-				s = s .. ', ss'
-				table.insert(stone_layers, ss)
-			else
-				s = s .. ', ds'
-				table.insert(stone_layers, ds)
-			end
-		end
-		print(s)
-	end
-end
-
 function mod.generate_dflat(params)
 	local minp, maxp = params.isect_minp, params.isect_maxp
 	local water_level = params.sealevel

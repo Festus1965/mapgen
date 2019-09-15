@@ -70,7 +70,7 @@ mod.dusty_types = {
 
 function mod.dust(params)
 	local area, data, p2data = params.area, params.data, params.p2data
-	local minp, maxp = params.isect_minp, params.isect_maxp
+	local minp, maxp = params.chunk_minp, params.chunk_maxp
 	local water_level = params.sealevel
 
 	local n_ignore = mod.node['ignore']
@@ -129,7 +129,7 @@ end
 
 local y_s = {}
 function mod.find_break(params, x, z, flags, gpr)
-	local minp, maxp = params.isect_minp, params.isect_maxp
+	local minp, maxp = params.chunk_minp, params.chunk_maxp
 	local data, area = params.data, params.area
 	local ystride = params.area.ystride
 	local buildable_to = mod.buildable_to
@@ -225,6 +225,7 @@ function mod.generate_all(params)
 	end
 
 	params.area = VoxelArea:new({MinEdge = emin, MaxEdge = emax})
+	params.csize = vector.add(vector.subtract(params.chunk_maxp, params.chunk_minp), 1)
 	params.data = vm:get_data(m_data)
 	params.gpr = PcgRandom(params.chunk_seed + 772)
 	params.metadata = {}
@@ -233,6 +234,7 @@ function mod.generate_all(params)
 	params.schematics = {}
 	params.share = {}
 	params.share.propagate_shadow = false
+	params.share.biomes_here = {}
 	params.vmparam2 = params.p2data
 	params.vm = vm
 
@@ -279,16 +281,19 @@ function mod.generate_all(params)
 		mod.time_terrain = mod.time_terrain + os.clock() - t_terrain
 	end
 
+	local called_bfuncs = {}
 	for k, params in pairs(r_params_list) do
-		if params.biomefunc then
+		if params.biomefunc and not called_bfuncs[params.biomefunc] then
 			mod.rmf[params.biomefunc](params)
-			if not params.no_decorations then
-				mod.place_all_decorations(params)
+			called_bfuncs[params.biomefunc] = true
+		end
+	end
 
-				if not params.share.no_dust then
-					mod.dust(params)
-				end
-			end
+	if not params.no_decorations then
+		mod.place_all_decorations(params)
+
+		if not params.share.no_dust then
+			mod.dust(params)
 		end
 	end
 
@@ -509,7 +514,8 @@ end
 function mod.place_all_decorations(params, do_not_scan)
 	local t_deco = os.clock()
 
-	local minp, maxp = params.isect_minp, params.isect_maxp
+	--local minp, maxp = params.isect_minp, params.isect_maxp
+	local minp, maxp = params.chunk_minp, params.chunk_maxp
 	local ps = PcgRandom(params.chunk_seed + 53)
 	local biome = params.biome or params.share.biome
 	local by = minp.y - (params.biome_height_offset or 0)
@@ -518,7 +524,7 @@ function mod.place_all_decorations(params, do_not_scan)
 		local b_check
 		if deco.biomes then
 			for b in pairs(deco.biomes_i) do
-				if (biome and b == biome.name) or params.biomes_here[b] then
+				if (biome and b == biome.name) or params.share.biomes_here[b] then
 					b_check = true
 					break
 				end
@@ -543,12 +549,13 @@ end
 -- check
 function mod.place_deco(params, ps, deco, do_not_scan)
     local data, p2data, vm_area = params.data, params.p2data, params.area
-    local minp, maxp = params.isect_minp, params.isect_maxp
+    local minp, maxp = params.chunk_minp, params.chunk_maxp
     local schem = params.schematics
 	--local biomemap = params.biomemap
 	local ystride = vm_area.ystride
 	local node = mod.node
 	local scan = not do_not_scan
+	local cave_water_level = params.share.cave_water_level
 
     local csize = params.csize
     local sidelen = deco.sidelen or csize.x
@@ -600,32 +607,15 @@ function mod.place_deco(params, ps, deco, do_not_scan)
 				local surface = params.share.surface[z][x]
 				local by = -33000
 
-				--------------------------------------------
-				-- FIX: check/opt this
-				--------------------------------------------
                 if deco.liquid_surface or deco.all_floors or deco.all_ceilings then
-					if deco.liquid_surface or scan then
-						y = mod.find_break(params, x, z, deco, ps)
-						if y then
-							if y < 0 then
-								y = math.abs(y)
-								upside_down = true
-							end
-							y = y + minp.y
-						end
-					elseif deco.all_floors and (not deco.all_ceilings or math.random(2) == 1) then
-						local fy = surface.cave_floor or -33000
-						if fy >= minp.y and fy < maxp.y then
-							y = fy
-							by = surface.biome_height or surface.cave_floor or by
-						end
-					elseif deco.all_ceilings then
-						local fy = surface.cave_ceiling or -33000
-						if fy >= minp.y and fy < maxp.y then
-							y = fy
-							by = surface.biome_height or surface.cave_ceiling or by
+					y = mod.find_break(params, x, z, deco, ps)
+					if y then
+						if y < 0 then
+							y = math.abs(y)
 							upside_down = true
 						end
+						y = y + minp.y
+						by = y - (params.biome_height_offset or 0)
 					end
                 elseif surface then
                     local fy = surface.top
@@ -635,17 +625,20 @@ function mod.place_deco(params, ps, deco, do_not_scan)
 					end
                 end
 
-				-- This was already done in the biome manager?
-				--by = by - (params.biome_height_offset or 0)
-				--------------------------------------------
-
 				if y then
-					local biome = params.biome or params.share.biome or (not deco.biomes_i) or surface.biome
+					local biome
 
-					if biome then
+					if y < surface.top then
+						biome = params.share.cave_biome or params.share.biome
+					end
+
+					biome = biome or surface.biome
+
+					if biome or not deco.biomes_i then
 						local ivm = vm_area:index(x, y, z)
 						if ((not deco.place_on_i) or deco.place_on_i[data[ivm]])
 						and ((not deco.biomes_i) or deco.biomes_i[biome.name])
+						and (not cave_water_level or deco.aquatic or y > cave_water_level)
 						and (not deco.y_max or deco.y_max >= by)
 						and (not deco.y_min or deco.y_min <= by) then
 							if upside_down then
@@ -1076,7 +1069,7 @@ function mod.save_map(params)
 	params.vm:set_data(params.data)
 	params.vm:set_param2_data(params.p2data)
 
-	if DEBUG then
+	if DEBUG and not params.genesis_redo then
 		params.vm:set_lighting({day = 10, night = 10})
 	elseif not params.genesis_redo then
 		params.vm:set_lighting({day = 0, night = 0})

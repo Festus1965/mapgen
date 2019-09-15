@@ -42,6 +42,10 @@ do
 		end
 	end
 
+	minetest.register_node(mod_name .. ':placeholder_lining', {
+		description = 'This should not be here.',
+	})
+
 	minetest.register_node(mod_name .. ':pretty_crystal', {
 		description = 'Pretty Crystal',
 		tiles = { 'mapgen_70_white.png' },
@@ -690,7 +694,7 @@ do
 			decoration = mod_name .. ':' .. desc.stalac,
 			name = desc.stalac,
 			flags = 'all_ceilings',
-			y_min = 0,
+			y_max = 0,
 		})
 
 		minetest.register_decoration({
@@ -702,7 +706,7 @@ do
 			decoration = mod_name .. ':' .. desc.stalag,
 			name = desc.stalag,
 			flags = 'all_floors',
-			y_min = 0,
+			y_max = 0,
 		})
 	end
 	--[[
@@ -759,7 +763,7 @@ do
 		schematic = huge_mushroom_sch,
 		name = 'huge_mushroom',
 		flags = 'all_floors',
-		y_min = 0,
+		y_max = 0,
 	})
 
 	minetest.register_decoration({
@@ -778,7 +782,7 @@ do
 		schematic = giant_mushroom_sch,
 		name = 'giant_mushroom',
 		flags = 'all_floors',
-		y_min = 0,
+		y_max = 0,
 	})
 
 	minetest.register_node(mod_name .. ':glow_worm', {
@@ -892,7 +896,7 @@ do
 		name = 'lava_flow',
 		place_offset_y = -1,  -- This fails in C.
 		flags = 'all_ceilings, force_placement',
-		y_min = 0,
+		y_max = 0,
 	})
 
 	--[[
@@ -925,7 +929,7 @@ do
 		decoration = 'fire:permanent_flame',
 		name = 'Gas Flame',
 		flags = 'all_floors',
-		y_min = 0,
+		y_max = 0,
 	})
 
 	minetest.register_decoration({
@@ -1105,7 +1109,7 @@ do
         node_lining = mod_name .. ':stone_with_salt',
         node_stone = 'default:sandstone',
 		surface_depth = 2,
-		y_min = 0,
+		--y_min = 0,
     })
 
     register_cave_biome({
