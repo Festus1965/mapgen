@@ -6,18 +6,7 @@
 bm_default_biomes = {}
 local mod, layers_mod = bm_default_biomes, mapgen
 local biomes = layers_mod.registered_biomes
-local chunksize = tonumber(minetest.settings:get('chunksize') or 5)
-local chunk_offset = math.floor(chunksize / 2) * 16;
-
-local node
-if layers_mod.mod_name == 'mapgen' then
-	node = layers_mod.node
-	clone_node = layers_mod.clone_node
-else
-	dofile(mod.path .. '/functions.lua')
-	node = mod.node
-	clone_node = mod.clone_node
-end
+local node = layers_mod.node
 
 
 -- , st, st, st, ss, ds, st, st, ss, ss, st, st, ss, ss, ss, ds, ds, ds, st, ds, ss, ss, st, ss, ds, st, ds, ds, st, st, ss
@@ -30,9 +19,10 @@ do
 	local s = ''
 	stone_layers = { ds, ds, ds, st, ds, ss, ss, ds, ds, ss, st, st, ds, ss, ds, st, ss, st, ss, st, ds, st, ds, ss, ss, st, ss, ss, st, st }
 
-	if false then
+	local GENERATE_LAYERS = false
+	if GENERATE_LAYERS then
 		stone_layers = {}
-		for i = 1, 30 do
+		for _ = 1, 30 do
 			local j = math.random(3)
 			if j == 1 then
 				s = s .. ', st'
@@ -56,12 +46,77 @@ local default_sources = {
 
 
 local default_noises = {
-	filler_depth = { offset = 0, scale = 1.5, seed = -47383, spread = {x = 8, y = 8, z = 8}, octaves = 2, persist = 1.0, lacunarity = 2 },
-	geographic_heat_blend = { offset = 0, scale = 4, seed = 5349, spread = {x = 10, y = 10, z = 10}, octaves = 3, persist = 0.5, lacunarity = 2, flags = 'eased' },
-	heat = { offset = 50, scale = 50, spread = {x = 1000, y = 1000, z = 1000}, seed = 5349, octaves = 3, persistence = 0.5, lacunarity = 2.0, flags = 'eased' },
-	heat_blend = { offset = 0, scale = 1.5, spread = {x = 8, y = 8, z = 8}, seed = 13, octaves = 2, persistence = 1.0, lacunarity = 2.0, flags = 'eased' },
-	humidity = { offset = 50, scale = 50, seed = 842, spread = {x = 1000, y = 1000, z = 1000}, octaves = 3, persist = 0.5, lacunarity = 2, flags = 'eased' },
-	humidity_blend = { offset = 0, scale = 1.5, seed = 90003, spread = {x = 8, y = 8, z = 8}, octaves = 2, persist = 1.0, lacunarity = 2, flags = 'eased' },
+	filler_depth = {
+		offset = 0,
+		scale = 1.5,
+		seed = -47383,
+		spread = {x = 8,
+		y = 8,
+		z = 8},
+		octaves = 2,
+		persist = 1.0,
+		lacunarity = 2
+	},
+	geographic_heat_blend = {
+		offset = 0,
+		scale = 4,
+		seed = 5349,
+		spread = {x = 10,
+		y = 10,
+		z = 10},
+		octaves = 3,
+		persist = 0.5,
+		lacunarity = 2,
+		flags = 'eased'
+	},
+	heat = {
+		offset = 50,
+		scale = 50,
+		spread = {x = 1000,
+		y = 1000,
+		z = 1000},
+		seed = 5349,
+		octaves = 3,
+		persistence = 0.5,
+		lacunarity = 2.0,
+		flags = 'eased'
+	},
+	heat_blend = {
+		offset = 0,
+		scale = 1.5,
+		spread = {x = 8,
+		y = 8,
+		z = 8},
+		seed = 13,
+		octaves = 2,
+		persistence = 1.0,
+		lacunarity = 2.0,
+		flags = 'eased'
+	},
+	humidity = {
+		offset = 50,
+		scale = 50,
+		seed = 842,
+		spread = {x = 1000,
+		y = 1000,
+		z = 1000},
+		octaves = 3,
+		persist = 0.5,
+		lacunarity = 2,
+		flags = 'eased'
+	},
+	humidity_blend = {
+		offset = 0,
+		scale = 1.5,
+		seed = 90003,
+		spread = {x = 8,
+		y = 8,
+		z = 8},
+		octaves = 2,
+		persist = 1.0,
+		lacunarity = 2,
+		flags = 'eased'
+	},
 }
 
 
@@ -99,6 +154,8 @@ function mod.bm_default_biomes(params)
 	local biomes_i = {}
 
 	local n_stone = node['default:stone']
+	local n_cobble = node['default:cobble']
+	local n_mossy = node['default:mossycobble']
 	local n_desert_stone = node['default:desert_stone']
 	local n_air = node['air']
 	local n_water = node['default:water_source']
@@ -122,7 +179,7 @@ function mod.bm_default_biomes(params)
 		sandy_nodes = {}
 		for k, v in pairs(minetest.registered_nodes) do
 			if v.groups and v.groups.sand then
-				sandy_nodes[params.node[k]] = true
+				sandy_nodes[k] = true
 			end
 		end
 	end
@@ -136,14 +193,38 @@ function mod.bm_default_biomes(params)
 
 	local heat_map, heat_blend_map
 	if params.geographic_heat then
-		heat_blend_map = layers_mod.get_noise2d('geographic_heat_blend', nil, nil, nil, { x = csize.x, y = csize.z }, { x = minp.x, y = minp.z })
+		heat_blend_map = layers_mod.get_noise2d({
+			name = 'geographic_heat_blend',
+			pos = { x = minp.x, y = minp.z },
+			size = {x=csize.x, y=csize.z},
+		})
 	else
-		heat_map = layers_mod.get_noise2d('heat', nil, nil, nil, { x = csize.x, y = csize.z }, { x = minp.x, y = minp.z })
-		heat_blend_map = layers_mod.get_noise2d('heat_blend', nil, nil, nil, { x = csize.x, y = csize.z }, { x = minp.x, y = minp.z })
+		heat_map = layers_mod.get_noise2d({
+			name = 'heat',
+			pos = { x = minp.x, y = minp.z },
+			size = {x=csize.x, y=csize.z},
+		})
+		heat_blend_map = layers_mod.get_noise2d({
+			name = 'heat_blend',
+			pos = { x = minp.x, y = minp.z },
+			size = {x=csize.x, y=csize.z},
+		})
 	end
-	local humidity_map = layers_mod.get_noise2d('humidity', nil, nil, nil, { x = csize.x, y = csize.z }, { x = minp.x, y = minp.z })
-	local humidity_blend_map = layers_mod.get_noise2d('humidity_blend', nil, nil, nil, { x = csize.x, y = csize.z }, { x = minp.x, y = minp.z })
-	local filler_depth_map = layers_mod.get_noise2d('filler_depth', nil, nil, nil, { x = csize.x, y = csize.z }, { x = minp.x, y = minp.z })
+	local humidity_map = layers_mod.get_noise2d({
+		name = 'humidity',
+		pos = { x = minp.x, y = minp.z },
+		size = {x=csize.x, y=csize.z},
+	})
+	local humidity_blend_map = layers_mod.get_noise2d({
+		name = 'humidity_blend',
+		pos = { x = minp.x, y = minp.z },
+		size = {x=csize.x, y=csize.z},
+	})
+	local filler_depth_map = layers_mod.get_noise2d({
+		name = 'filler_depth',
+		pos = { x = minp.x, y = minp.z },
+		size = {x=csize.x, y=csize.z},
+	})
 
 	local index = 1
 	for z = minp.z, maxp.z do
@@ -171,7 +252,6 @@ function mod.bm_default_biomes(params)
 			humidity = humidity + humidity_blend
 
 			if height > 25 then
-				local t = heat
 				local h2 = height - 25
 				heat = heat - h2 * h2 * 0.005
 			end
@@ -216,26 +296,21 @@ function mod.bm_default_biomes(params)
 				end
 				params.share.biomes_here[biome.name] = (params.share.biomes_here[biome.name] or 0) + 1
 
-				local depth = surface.bottom
-
 				-- depths
 				local depth_top = surface.top_depth or biome.depth_top or 0  -- 1?
 				local depth_filler = surface.filler_depth or biome.depth_filler or 0  -- 6?!
 				--local erosion = surface.erosion or 0
 				local wtd = biome.node_water_top_depth or 0
-				local grass_p2 = surface.grass_p2 or 0
 
 				--height = height - erosion
 				surface.top = height
 
 				-- biome-determined nodes
-				local stone = biome.node_stone or n_stone
-				--print(minetest.get_name_from_content_id(biome.node_stone))
-				local filler = biome.node_filler or n_air
-				local top = biome.node_top or n_air
-				local riverbed = biome.node_riverbed
-				local ww = biome.node_water or node['default:water_source']
-				local wt = biome.node_water_top
+				local stone = node[biome.node_stone] or n_stone
+				local filler = node[biome.node_filler] or n_air
+				local top = node[biome.node_top] or n_air
+				local ww = node[biome.node_water] or node['default:water_source']
+				local wt = node[biome.node_water_top]
 				local in_desert = biome.name:find('desert') or humidity < 30
 
 				if ww == n_water and surface.heat
@@ -256,7 +331,7 @@ function mod.bm_default_biomes(params)
 				end
 
 				-- Start at the top and fill down.
-				local off, underwater
+				local off
 				if height > maxp.y then
 					off = height
 				end
@@ -264,18 +339,19 @@ function mod.bm_default_biomes(params)
 				local fill_1, fill_2
 				--local maxy = math.min(maxp.y, math.max(water_level, height))
 				local ivm = area:index(x, maxp.y, z)
+				--local t_yloop = os.clock()
 				for y = maxp.y, minp.y, -1 do
 					if not off then
 						if replace[data[ivm]] then
 							off = y
 							surface.top = off
 							if data[ivm] == n_water then
-								underwater = true
+								surface.underwater = true
 							end
 						elseif (y == minp.y and y == height) then
 							off = y
 							if data[ivm] == n_water then
-								underwater = true
+								surface.underwater = true
 							end
 						end
 
@@ -292,7 +368,7 @@ function mod.bm_default_biomes(params)
 							data[ivm] = ww
 						end
 						p2data[ivm] = 0
-						underwater = true
+						surface.underwater = true
 					elseif data[ivm] == n_water and heat < 30 then
 						data[ivm] = n_ice
 					elseif data[ivm] == n_water and in_desert then
@@ -301,6 +377,8 @@ function mod.bm_default_biomes(params)
 						data[ivm] = n_sand
 					elseif not off or y > off then
 						-- nop
+					elseif data[ivm] == n_cobble and hu2_check then
+						data[ivm] = n_mossy
 					elseif not replace[data[ivm]] then
 						-- nop
 					--elseif y > off - surface.erosion then
@@ -318,7 +396,7 @@ function mod.bm_default_biomes(params)
 						p2data[ivm] = 0
 					else
 						-- Otherwise, it's stoned.
-						if stone_layers and stone == n_desert_stone then
+						if stone_layers and in_desert then
 							data[ivm] = stone_layers[y % 30 + 1]
 							p2data[ivm] = 0
 						end
@@ -327,6 +405,8 @@ function mod.bm_default_biomes(params)
 
 					ivm = ivm - ystride
 				end
+
+				--layers_mod.time_y_loop = (layers_mod.time_y_loop or 0) + os.clock() - t_yloop
 			end
 
 			index = index + 1
@@ -340,7 +420,8 @@ for name, def in pairs(default_noises) do
 end
 
 
-if true then
+local PRINT_BIOMES_DECOS = false
+if not PRINT_BIOMES_DECOS then
 	dofile(layers_mod.path .. '/default_biomes.lua')
 else
 	local source = 'default'
@@ -368,7 +449,8 @@ end
 -----------------------------------------------
 
 
-if false then
+--[[
+do
 	minetest.register_biome({
 		name = 'ether',
 		heat_point = -99,
@@ -377,6 +459,7 @@ if false then
 		source = 'dflat_ether',
 	})
 end
+--]]
 
 
 do
@@ -474,6 +557,16 @@ do
 
 	--rereg = nil
 	--]]
+
+	--[[
+
+	-- Let realms do the biomes.
+	if not params.no_ponds then
+		local t_ponds = os.clock()
+		mod.ponds(params)
+		layers_mod.time_ponds = (layers_mod.time_ponds or 0) + os.clock() - t_ponds
+	end
+--]]
 end
 
 

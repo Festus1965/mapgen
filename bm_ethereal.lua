@@ -3,17 +3,15 @@
 -- Distributed under the LGPLv2.1 (https://www.gnu.org/licenses/old-licenses/lgpl-2.1.en.html)
 
 
+bm_ethereal = {}
+local mod, layers_mod = bm_ethereal, mapgen
+local biomes = layers_mod.registered_biomes
+
+
 if not minetest.get_modpath('ethereal') then
 	minetest.log(layers_mod.mod_name .. ': * The Ethereal mod is not selected. Biomes will be disabled.')
 	return
 end
-
-
-bm_ethereal = {}
-local mod, layers_mod = bm_ethereal, mapgen
-local biomes = layers_mod.registered_biomes
-local chunksize = tonumber(minetest.settings:get('chunksize') or 5)
-local chunk_offset = math.floor(chunksize / 2) * 16;
 
 
 -----------------------------------------------
@@ -59,10 +57,26 @@ function mod.bm_ethereal(params)
 		end
 	end
 
-	local heat_map = layers_mod.get_noise2d('heat', nil, nil, nil, { x = csize.x, y = csize.z }, { x = minp.x, y = minp.z })
-	local heat_blend_map = layers_mod.get_noise2d('heat_blend', nil, nil, nil, { x = csize.x, y = csize.z }, { x = minp.x, y = minp.z })
-	local humidity_map = layers_mod.get_noise2d('humidity', nil, nil, nil, { x = csize.x, y = csize.z }, { x = minp.x, y = minp.z })
-	local humidity_blend_map = layers_mod.get_noise2d('humidity_blend', nil, nil, nil, { x = csize.x, y = csize.z }, { x = minp.x, y = minp.z })
+	local heat_map = layers_mod.get_noise2d({
+		name = 'heat',
+		pos = { x = minp.x, y = minp.z },
+		size = {x=csize.x, y=csize.z},
+	})
+	local heat_blend_map = layers_mod.get_noise2d({
+		name = 'heat_blend',
+		pos = { x = minp.x, y = minp.z },
+		size = {x=csize.x, y=csize.z},
+	})
+	local humidity_map = layers_mod.get_noise2d({
+		name = 'humidity',
+		pos = { x = minp.x, y = minp.z },
+		size = {x=csize.x, y=csize.z},
+	})
+	local humidity_blend_map = layers_mod.get_noise2d({
+		name = 'humidity_blend',
+		pos = { x = minp.x, y = minp.z },
+		size = {x=csize.x, y=csize.z},
+	})
 
 	local index = 1
 	for z = minp.z, maxp.z do
@@ -82,7 +96,6 @@ function mod.bm_ethereal(params)
 			humidity = humidity + humidity_blend
 
 			if height > 25 then
-				local t = heat
 				local h2 = height - 25
 				heat = heat - h2 * h2 * 0.005
 			end

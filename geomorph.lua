@@ -10,7 +10,6 @@ local mod_name = 'mapgen'
 local ladder_transform = { [0] = 4, 2, 5, 3 }
 local n_air = mod.node['air']
 local null_vector = {x = 1, y = 1, z = 1}
-local VN = vector.new
 
 
 local action_names = {
@@ -23,13 +22,40 @@ local action_names = {
 }
 
 
+--[[
 local stone_types = {
-	{'default:cobble', 'default:stonebrick', 'default:stone', 'default:stoneblock'},
-	{'default:desert_cobble', 'default:desert_stonebrick', 'default:desert_stone', 'default:desert_stone_block'},
-	{'default:sandstonebrick', 'default:sandstonebrick', 'default:sandstone', 'default:sandstone_block'},
-	{'default:desert_sandstone_brick', 'default:desert_sandstone_brick', 'default:desert_sandstone', 'default:desert_sandstone_block'},
-	{'default:silver_sandstone_brick', 'default:silver_sandstone_brick', 'default:silver_sandstone', 'default:silver_sandstone_block'},
+	{
+		'default:cobble',
+		'default:stonebrick',
+		'default:stone',
+		'default:stoneblock'
+	},
+	{
+		'default:desert_cobble',
+		'default:desert_stonebrick',
+		'default:desert_stone',
+		'default:desert_stone_block'
+	},
+	{
+		'default:sandstonebrick',
+		'default:sandstonebrick',
+		'default:sandstone',
+		'default:sandstone_block'
+	},
+	{
+		'default:desert_sandstone_brick',
+		'default:desert_sandstone_brick',
+		'default:desert_sandstone',
+		'default:desert_sandstone_block'
+	},
+	{
+		'default:silver_sandstone_brick',
+		'default:silver_sandstone_brick',
+		'default:silver_sandstone',
+		'default:silver_sandstone_block'
+	},
 }
+--]]
 
 
 function vector.max(v1, v2)
@@ -162,7 +188,7 @@ function Geomorph:create_shape(t)
 	if type(intersect) == 'table' then
 		local t2 = {}
 		local con
-		for n, v in pairs(intersect) do
+		for _, v in pairs(intersect) do
 			if type(v) == 'string' then
 				if v:find('^group:') then
 					local g = v:gsub('^group:', '')
@@ -346,7 +372,7 @@ function Geomorph:minmax(shape, bound, rot)
 	end
 
 	-- Move up or down to match the bounds required.
-	local adj = 0
+	local adj
 	if bound.minp.y == 0 then
 		adj = self.csize.y - bound.maxp.y - 1
 	else
@@ -360,7 +386,7 @@ function Geomorph:minmax(shape, bound, rot)
 end
 
 
-function get_p2(shape, rot)
+function mod.get_p2(shape, rot)
 	-- This gets the rotated p2 value without disrupting
 	-- color data in the more significant bits.
 
@@ -378,7 +404,7 @@ function get_p2(shape, rot)
 end
 
 
-function pattern_match(pattern, x, y, z)
+function mod.pattern_match(pattern, x, y, z)
 	if not pattern then
 		return true
 	end
@@ -405,13 +431,13 @@ function Geomorph:write_cube(shape, rot)
 		return
 	end
 
-	local p2 = get_p2(shape, rot)
+	local p2 = mod.get_p2(shape, rot)
 
 	local data = self.data
 	local gpr = self.gpr
 	local hollow = shape.hollow
 	local intersect = shape.intersect
-	local minp, maxp = self.minp, self.maxp
+	local minp = self.minp
 	local move_earth = shape.move_earth
 	local node_num = self.node[shape.node]
 	local p2data = self.p2data
@@ -426,7 +452,7 @@ function Geomorph:write_cube(shape, rot)
 		hmax = vector.subtract(max, hollow)
 	end
 
-	local pattern_fail_x, pattern_fail_y, pattern_fail_z
+	--local pattern_fail_x, pattern_fail_y, pattern_fail_z
 	for z = min.z, max.z do
 		for x = min.x, max.x do
 			local top_y = max.y
@@ -473,7 +499,7 @@ function Geomorph:write_cube(shape, rot)
 				local underground_ok = not underground or (height and minp.y + y < height - underground)
 
 				if  (not hollow or not vector.contains(hmin, hmax, x, y, z))
-				and (not pattern or pattern_match(pattern, x, y, z))
+				and (not pattern or mod.pattern_match(pattern, x, y, z))
 				and (not random or gpr:next(1, math.max(1, random)) == 1)
 				and (
 					not intersect
@@ -524,10 +550,9 @@ function Geomorph:write_sphere(shape, rot)
 		return
 	end
 
-	local p2 = get_p2(shape, rot)
+	local p2 = mod.get_p2(shape, rot)
 
 	local area = self.area
-	local bound = self.bound
 	local data = self.data
 	local gpr = self.gpr
 	local intersect = shape.intersect
@@ -576,7 +601,7 @@ function Geomorph:write_sphere(shape, rot)
 
 				if (dist <= radius_s)
 				and (not random or gpr:next(1, math.max(1, random)) == 1)
-				and (not pattern or pattern_match(pattern, x, y, z))
+				and (not pattern or mod.pattern_match(pattern, x, y, z))
 				and (not h_radius or dist > h_radius_s)
 				and (
 					not intersect
@@ -609,11 +634,10 @@ function Geomorph:write_cylinder(shape, rot)
 		return
 	end
 
-	local p2 = get_p2(shape, rot)
+	local p2 = mod.get_p2(shape, rot)
 
 	local area = self.area
 	local axis = shape.axis
-	local bound = self.bound
 	local data = self.data
 	local hollow = shape.hollow
 	local intersect = shape.intersect
@@ -621,7 +645,7 @@ function Geomorph:write_cylinder(shape, rot)
 	local node_num = self.node[shape.node]
 	local p2data = self.p2data
 	local pattern = shape.pattern
-	local underground = shape.underground
+	--local underground = shape.underground
 	local ystride = self.area.ystride
 
 	if rot == 1 or rot == 3 then
@@ -712,7 +736,7 @@ function Geomorph:write_cylinder(shape, rot)
 					or (type(intersect) == 'table' and intersect[data[ivm]])
 					or (intersect == true and data[ivm] ~= n_air)
 				)
-				and (not pattern or pattern_match(pattern, x, y, z)) then
+				and (not pattern or mod.pattern_match(pattern, x, y, z)) then
 					data[ivm] = node_num
 					p2data[ivm] = p2
 				end
@@ -738,10 +762,9 @@ function Geomorph:write_stair(shape, rot)
 		return
 	end
 
-	local p2 = get_p2(shape, rot)
+	local p2 = mod.get_p2(shape, rot)
 
 	local area = self.area
-	local bound = self.bound
 	local data = self.data
 	local depth_fill = shape.depth_fill
 	local depth = (shape.depth and shape.depth > -1) and shape.depth
@@ -749,7 +772,7 @@ function Geomorph:write_stair(shape, rot)
 	local node_num = self.node[shape.node]
 	local p2data = self.p2data
 	local s_hi = (shape.height and shape.height > 0) and shape.height or 3
-	local underground = shape.underground
+	--local underground = shape.underground
 	local ystride = self.area.ystride
 
 	local n_stone = self.node['default:stone']
@@ -787,8 +810,7 @@ function Geomorph:write_stair(shape, rot)
 				local y1 = minp.y + min.y + s_lo
 				local ivm = area:index(minp.x + x, y1, minp.z + z)
 
-				local test
-				for y = s_lo, dy - 1 do
+				for _ = s_lo, dy - 1 do
 					data[ivm] = n_depth
 					p2data[ivm] = 0
 					ivm = ivm + ystride
@@ -855,7 +877,7 @@ function Geomorph:write_ladder(shape, rot)
 			end
 
 			if min.y + top_y + 1 <= 96 and min.y + top_y + 1 >= -16 then
-				for y = min.y, top_y do
+				for _ = min.y, top_y do
 					data[ivm] = node_num
 					p2data[ivm] = p2
 
@@ -936,24 +958,24 @@ function mod.register_geomorph(def)
 end
 
 
-if false then
-	minetest.register_lbm({
-		name = 'mapgen:fix_impassible_stairs',
-		nodenames = {
-			'stairs:stair_stone',
-		},
-		run_at_every_load = true,
-		action = function(pos, node)
-			local p = table.copy(pos)
-			for y = pos.y + 1, pos.y + 3 do
-				p.y = y
-				local n = minetest.get_node_or_nil(p)
-				if n and n.name and n.name ~= 'air' then
-					if n.name == 'default:stone' then
-						minetest.set_node(p, { name = 'air' })
-					end
+--[[
+minetest.register_lbm({
+	name = 'mapgen:fix_impassible_stairs',
+	nodenames = {
+		'stairs:stair_stone',
+	},
+	run_at_every_load = true,
+	action = function(pos, node)
+		local p = table.copy(pos)
+		for y = pos.y + 1, pos.y + 3 do
+			p.y = y
+			local n = minetest.get_node_or_nil(p)
+			if n and n.name and n.name ~= 'air' then
+				if n.name == 'default:stone' then
+					minetest.set_node(p, { name = 'air' })
 				end
 			end
-		end,
-	})
-end
+		end
+	end,
+})
+--]]

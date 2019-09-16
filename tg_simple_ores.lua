@@ -6,33 +6,11 @@
 local NUM_DEPOSITS = 50
 
 
-local mod, layers_mod
-if minetest.get_modpath('realms') then
-	layers_mod = realms
-	mod = floaters
-else
-	layers_mod = mapgen
-	mod = mapgen
-end
-
+local mod, layers_mod = mapgen, mapgen
 local mod_name = mod.mod_name
-local nodes_name = 'mapgen'
-
 local chunksize = tonumber(minetest.settings:get('chunksize') or 5)
 local chunk_offset = math.floor(chunksize / 2) * 16;
-local max_height = 31000
 local VN = vector.new
-
-
-local node
-if layers_mod.mod_name == 'mapgen' then
-	node = layers_mod.node
-	clone_node = layers_mod.clone_node
-else
-	dofile(mod.path .. '/functions.lua')
-	node = mod.node
-	clone_node = mod.clone_node
-end
 
 
 function mod.generate_simple_ores(params)
@@ -42,7 +20,7 @@ function mod.generate_simple_ores(params)
 
 	local t_ore = os.clock()
 
-	local minp, maxp = params.chunk_minp, params.chunk_maxp
+	local minp = params.chunk_minp
 	local f_alt = force_alt
 	local pr = params.gpr
 

@@ -7,38 +7,16 @@ local altitude_cutoff_high = 30
 local altitude_cutoff_low = -10
 local altitude_cutoff_low_2 = 63
 local water_diff = 8
-local VN = vector.new
-local chunksize = tonumber(minetest.settings:get('chunksize') or 5)
-local chunk_offset = math.floor(chunksize / 2) * 16;
-local div
-local TREASURE_RARITY = 10
 
 
-local mod, layers_mod
-if minetest.get_modpath('realms') then
-	layers_mod = realms
-	mod = floaters
-else
-	layers_mod = mapgen
-	mod = mapgen
-end
-
+local mod, layers_mod = mapgen, mapgen
 local mod_name = mod.mod_name
-
 local max_height = 31000
-
-local node
-if layers_mod.mod_name == 'mapgen' then
-	node = layers_mod.node
-	clone_node = layers_mod.clone_node
-else
-	dofile(mod.path .. '/functions.lua')
-	node = mod.node
-	clone_node = mod.clone_node
-end
+local node = layers_mod.node
 
 
 function mod.generate_dflat(params)
+				--local t_yloop = os.clock()
 	local minp, maxp = params.isect_minp, params.isect_maxp
 	local water_level = params.sealevel
 	local area, data, p2data = params.area, params.data, params.vmparam2
@@ -48,18 +26,17 @@ function mod.generate_dflat(params)
 	params.csize = csize
 
 	local n_stone = node['default:stone']
-	local n_desert_stone = node['default:desert_stone']
 	local n_air = node['air']
-	local n_water = node['default:water_source']
-	local n_ice = node['default:ice']
 	local n_ignore = node['ignore']
-
-	local ps = PcgRandom(params.chunk_seed + 7712)
 
 	local base_level = params.sealevel + water_diff
 
 	-- just a few 2d noises
-	local ground_noise_map = layers_mod.get_noise2d('dflat_ground', nil, nil, nil, {x=csize.x, y=csize.z}, { x = minp.x, y = minp.z })
+	local ground_noise_map = layers_mod.get_noise2d({
+			name = 'dflat_ground',
+			pos = { x = minp.x, y = minp.z },
+			size = {x=csize.x, y=csize.z},
+		})
 
 	local height_min = max_height
 	local height_max = - max_height
@@ -150,141 +127,8 @@ function mod.generate_dflat(params)
 	params.share.surface = surface
 
 	mod.ponds(params)
-end
 
-if false then
-	-- Let realms do the biomes.
-	if params.biomefunc then
-		layers_mod.rmf[params.biomefunc](params)
-	end
-
-	local t_ruins = os.clock()
-	mod.map_roads(params)
-	mod.mark_plots(params)
-	local roads = params.roads or {}
-
-	local hn = house_noise:get_2d({
-		x = math.floor(minp.x / csize.x),
-		y = math.floor(minp.z / csize.z),
-	})
-	if hn > 0 then
-		mod.houses(params)
-	end
-	layers_mod.time_ruins = (layers_mod.time_ruins or 0) + os.clock() - t_ruins
-
-	-- Loop through every horizontal space.
-	local index = 1
-	for z = minp.z, maxp.z do
-		for x = minp.x, maxp.x do
-			local surface = params.share.surface[z][x]
-			local height = surface.top
-			local depth = surface.bottom
-			local biome = surface.biome or {}
-
-			-- depths
-			local depth_top = surface.top_depth or biome.depth_top or 0  -- 1?
-			local depth_filler = surface.filler_depth or biome.depth_filler or 0  -- 6?!
-			local erosion = surface.erosion or 0
-			local wtd = biome.node_water_top_depth or 0
-			local grass_p2 = surface.grass_p2 or 0
-
-			height = height - erosion
-			surface.top = height
-			local fill_1 = height - depth_top
-			local fill_2 = fill_1 - depth_filler
-
-			-- biome-determined nodes
-			local stone = biome.node_stone or n_stone
-			local filler = biome.node_filler or n_air
-			local top = biome.node_top or n_air
-			local riverbed = biome.node_riverbed
-			local ww = biome.node_water or node['default:water_source']
-			local wt = biome.node_water_top
-
-			if ww == n_water and surface.heat
-			and not params.share.disable_icing then
-				if surface.heat < 30 then
-					wt = n_ice
-					wtd = math.ceil(math.max(0, (30 - surface.heat) / 3))
-				else
-					wt = nil
-				end
-			end
-
-			local hu2_check
-			local hu2 = surface.humidity_blend
-			if (not hu2 or hu2 > 1 or math.floor(hu2 * 1000) % 2 == 0)
-			and surface.humidity and surface.humidity > 70 then
-				hu2_check = true
-			end
-
-			-- Start at the bottom and fill up.
-			local ivm = area:index(x, minp.y, z)
-			for y = minp.y, maxp.y do
-				if not (data[ivm] == n_air or data[ivm] == n_ignore) then
-					-- nop
-				elseif make_tracks and (not div)
-				and y == height and tracks[index] then
-					if x % 5 == 0 or z % 5 == 0 then
-						data[ivm] = n_rail_power
-					else
-						data[ivm] = n_rail
-					end
-				elseif make_roads and (not div)
-				and y >= height - 1 and y <= height
-				and roads[index] then
-					if hu2_check then
-						data[ivm] = n_mossy
-					else
-						data[ivm] = n_cobble
-					end
-				elseif y > height and y <= water_level then
-					if y > water_level - wtd then
-						data[ivm] = wt
-					else
-						data[ivm] = ww
-					end
-					p2data[ivm] = 0
-				elseif y <= height and y > fill_1 then
-					-- topping up
-					data[ivm] = top
-
-					-- decorate
-					if biome.decorate and y == height then
-						biome.decorate(x,y+1,z, biome, params)
-					end
-
-					p2data[ivm] = grass_p2 --  + 0
-				elseif filler and y <= height and y > fill_2 then
-					-- filling
-					data[ivm] = filler
-					p2data[ivm] = 0
-				elseif y <= height then
-					-- Otherwise, it's stoned.
-					if stone == n_desert_stone then
-						data[ivm] = stone_layers[y % 30 + 1]
-					else
-						data[ivm] = stone
-					end
-					p2data[ivm] = 0
-				end
-
-				ivm = ivm + ystride
-			end
-
-			index = index +	1
-		end
-	end
-
-	if params.passages then
-		mod.passages(params)
-	end
-
-	if not params.no_ponds then
-		local t_ponds = os.clock()
-		mod.ponds(params)
-		layers_mod.time_ponds = (layers_mod.time_ponds or 0) + os.clock() - t_ponds
-	end
+				--layers_mod.time_y_loop = (layers_mod.time_y_loop or 0) + os.clock() - t_yloop
 end
 
 
@@ -307,7 +151,7 @@ end
 -- It is cpu-intensive, but also easy to code.
 local function height_search(params, ri)
 	local csize = params.csize
-	local minp, maxp = params.isect_minp, params.isect_maxp
+	local minp = params.isect_minp
 
 	params.share.propagate_shadow = true
 
@@ -420,8 +264,6 @@ function mod.ponds(params)
 					end
 
 					for _, p2 in ipairs(search) do
-						local index = p2.z * csize.x + p2.x + 1
-
 						p2.x = p2.x + minp.x
 						p2.z = p2.z + minp.z
 
@@ -454,237 +296,6 @@ function mod.ponds(params)
 		end
 	end
 	layers_mod.time_ponds = (layers_mod.time_ponds or 0) + os.clock() - t_ponds
-end
-
-
-local passages_replace_nodes = {
-	'group:soil',
-	'group:stone',
-	'group:sand',
-	'group:ore',
-	'default:cobble',
-	'default:mossycobble',
-	'default:gravel',
-	'default:clay',
-	'default:cave_ice',
-	'default:ice',
-	'default:snowblock',
-	'default:snow',
-	'default:sandstone',
-}
-
-
-function mod.passages(params)
-	if params.share.height_min and params.share.height_min < params.sealevel then
-		return
-	end
-
-	local node = layers_mod.node
-	local replace = mod.passages_replace
-
-	local minp, maxp = params.isect_minp, params.isect_maxp
-	local data, p2data = params.data, params.p2data
-	local area = params.area
-	local csize = params.csize
-	local seed = params.map_seed
-	local ps = params.gpr
-	local ystride = area.ystride
-
-	local meet_at = vector.new(24, 0, 49)
-	local divs = vector.floor(vector.divide(csize, 4))
-
-	local geo = Geomorph.new(params)
-	local surface = params.share.surface
-	local x, z, l, pos, size = 6, 12
-	local lx, ly, lz, ll
-	local alt = 0
-	local div_size = 4
-	local up
-
-	if not params.share.treasure_chests then
-		params.share.treasure_chests = {}
-	end
-
-	for y = math.floor(csize.y / (div_size * 2)) * div_size * 2, 0, - div_size * 2 do
-		local num = ps:next(2, 6)
-		local join
-		local bct = 0
-		for ct = 1, num do
-			bct = bct + 1
-			if alt % 2 == 0 then
-				if lz then
-					z = ps:next(lz, lz + ll - 1)
-					--z = lz
-					if ly ~= y then
-						join = vector.new(x * div_size, y, z * div_size)
-					end
-				else
-					z = ps:next(1, divs.z - 2)
-				end
-				x = ps:next(1, 4)
-				l = ps:next(1, divs.x - x - 2)
-				if lz and x + l < lx then
-					l = lx - x + 1
-				end
-				pos = vector.new(x * div_size, y, z * div_size)
-				size = vector.new(l * div_size, div_size, div_size)
-			else
-				if lx then
-					x = ps:next(lx, lx + ll - 1)
-					--x = lx
-					if ly ~= y then
-						join = vector.new(x * div_size, y, z * div_size)
-					end
-				else
-					x = ps:next(1, divs.x - 2)
-				end
-				z = ps:next(1, 4)
-				l = ps:next(1, divs.z - z - 2)
-				if lx and z + l < lz then
-					l = lz - z + 1
-				end
-				pos = vector.new(x * div_size, y, z * div_size)
-				size = vector.new(div_size, div_size, l * div_size)
-			end
-
-			local good = true
-			for z = pos.z, pos.z + size.z do
-				if not good then
-					break
-				end
-
-				if z < 0 or z >= csize.z then
-					good = false
-					join = nil
-					break
-				end
-
-				for x = pos.x, pos.x + size.x do
-					if x < 0 or x >= csize.x then
-						good = false
-						join = nil
-						break
-					end
-
-					local sur = surface[minp.z + z][minp.x + x]
-					if not sur or sur.top <= minp.y + pos.y + size.y + 2 then
-						good = false
-						join = nil
-						break
-					end
-				end
-			end
-
-			if good then
-				lx, ly, lz, ll = x, y, z, l
-				alt = alt + 1
-
-				geo:add({
-					action = 'cube',
-					node = 'air',
-					location = table.copy(pos),
-					size = table.copy(size),
-					treasure = TREASURE_RARITY,
-				})
-
-				if join then
-					geo:add({
-						action = 'cube',
-						node = 'air',
-						location = table.copy(join),
-						size = vector.new(div_size, div_size * 2 + 1, div_size),
-					})
-					join = nil
-				end
-			elseif bct < 1000 then
-				ct = ct - 1
-			end
-		end
-
-		if bct > 999 then
-			return
-		end
-
-		if params.passages_entrances and math.abs(params.passages_entrances - minp.y - y) <= div_size then
-			geo:add({
-				action = 'cube',
-				node = 'air',
-				location = vector.new(0, y, 11 * div_size),
-				size = vector.new(csize.x, div_size, div_size),
-				intersect = passages_replace_nodes,
-				move_earth = true,
-			})
-			geo:add({
-				action = 'cube',
-				node = 'air',
-				location = vector.new(6 * div_size, y, 0),
-				size = vector.new(div_size, div_size, csize.z),
-				intersect = passages_replace_nodes,
-				move_earth = true,
-			})
-		end
-	end
-
-	if minp.y == params.realm_minp.y then
-		geo:add({
-			action = 'cube',
-			node = 'air',
-			location = vector.new(6 * 4, 0, 11 * 4),
-			size = vector.new(div_size * 2, div_size * 2, div_size * 2),
-		})
-		geo:add({
-			action = 'cube',
-			node = 'air',
-			location = vector.new(0, 0, 11 * 4),
-			size = vector.new(csize.x, div_size, div_size * 2),
-		})
-		geo:add({
-			action = 'cube',
-			node = 'air',
-			location = vector.new(6 * 4, 0, 0),
-			size = vector.new(div_size * 2, div_size, csize.z),
-		})
-	end
-
-	geo:write_to_map(0)
-
-	local n_web = node[mod_name..':spider_web']
-	local n_puddle = node[mod_name..':puddle_ooze']
-	local n_broken_door = node[mod_name..':broken_door']
-	local n_air = node['air']
-
-	for _, shape in pairs(geo.shapes) do
-		if shape.size.y == div_size then
-			local pos = vector.add(shape.location, minp)
-			local size = shape.size
-			for z = pos.z, pos.z + size.z - 1 do
-				for x = pos.x, pos.x + size.x - 1 do
-					local ivm = params.area:index(x, pos.y, z)
-					for y = 1, size.y do
-						if data[ivm] == n_air then
-							for i, s in pairs(mod.sides) do
-								if mod.carpetable[data[ivm + s.i]] then
-									local sr = params.gpr:next(1, 1000)
-									if sr < 3 then
-										data[ivm] = n_puddle
-										p2data[ivm] = s.p2
-									elseif i == 5 and sr < 4 then
-										data[ivm] = n_broken_door
-										p2data[ivm] = s.p2
-									elseif sr < 8 then
-										data[ivm] = n_web
-										p2data[ivm] = s.p2
-									end
-								end
-							end
-						end
-
-						ivm = ivm + ystride
-					end
-				end
-			end
-		end
-	end
 end
 
 

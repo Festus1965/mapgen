@@ -9,7 +9,6 @@ local mod_name = 'mapgen'
 
 local VN = vector.new
 local chunksize = tonumber(minetest.settings:get('chunksize') or 5)
-local chunk_offset = math.floor(chunksize / 2) * 16;
 
 
 if minetest.get_modpath('realms') then
@@ -146,7 +145,7 @@ function mod.find_break(params, x, z, flags, gpr)
 			if data[ivm] ~= n_air then
 				return
 			end
-			if liquids[data[ivm - ystride]] then
+			if mod.liquids[data[ivm - ystride]] then
 				return (y - minp.y - 1)
 			end
 			ivm = ivm - ystride
@@ -189,17 +188,12 @@ function mod.generate_all(params)
 
 	local realms = {}
 	for _, realm in pairs(mod.registered_realms) do
-		local minp, maxp = realm.realm_minp, realm.realm_maxp
-
 		-- This won't necessarily find realms smaller than a chunk.
 		local isect_minp, isect_maxp = mod.cube_intersect(
 			{minp = params.chunk_minp, maxp = params.chunk_maxp},
 			{minp = realm.realm_minp, maxp = realm.realm_maxp}
 		)
 		if isect_minp and isect_maxp then
-			if DEBUG then
-				--minetest.log('running mapgen ' .. realm.mapgen)
-			end
 			local r_copy = table.copy(realm)
 			r_copy.isect_minp = isect_minp
 			r_copy.isect_maxp = isect_maxp
@@ -282,10 +276,12 @@ function mod.generate_all(params)
 	end
 
 	local called_bfuncs = {}
-	for k, params in pairs(r_params_list) do
-		if params.biomefunc and not called_bfuncs[params.biomefunc] then
-			mod.rmf[params.biomefunc](params)
-			called_bfuncs[params.biomefunc] = true
+	for _, r_params in pairs(r_params_list) do
+		if r_params.biomefunc and not called_bfuncs[r_params.biomefunc] then
+			local t_terrain = os.clock()
+			mod.rmf[r_params.biomefunc](r_params)
+			called_bfuncs[r_params.biomefunc] = true
+			mod.time_terrain = mod.time_terrain + os.clock() - t_terrain
 		end
 	end
 
@@ -480,9 +476,9 @@ function mod.parse_configuration_file_line(line, lineno)
 		if a and b then
 			fields[i] = { a, b }
 		else
-			local a = fields[i]:match('%s*([%a%d_]+)')
-			if a then
-				fields[i] = { a }
+			local c = fields[i]:match('%s*([%a%d_]+)')
+			if c then
+				fields[i] = { c }
 			end
 		end
 	end
@@ -547,14 +543,15 @@ end
 
 
 -- check
-function mod.place_deco(params, ps, deco, do_not_scan)
+--function mod.place_deco(params, ps, deco, do_not_scan)
+function mod.place_deco(params, ps, deco)
     local data, p2data, vm_area = params.data, params.p2data, params.area
     local minp, maxp = params.chunk_minp, params.chunk_maxp
     local schem = params.schematics
 	--local biomemap = params.biomemap
 	local ystride = vm_area.ystride
 	local node = mod.node
-	local scan = not do_not_scan
+	--local scan = not do_not_scan
 	local cave_water_level = params.share.cave_water_level
 
     local csize = params.csize
@@ -1016,8 +1013,6 @@ function mod.spawnplayer(player)
 		return
 	end
 
-	local chunksize = tonumber(minetest.settings:get('chunksize') or 5)
-	local csize = { x=chunksize * 16, y=chunksize * 16, z=chunksize * 16 }
 	local range = realm.spawn_range or 2000
 
 	local beds_here = (minetest.get_modpath('beds') and beds and beds.spawn)
@@ -1034,7 +1029,7 @@ function mod.spawnplayer(player)
 	local pos
 	local center = vector.divide(vector.add(realm.realm_minp, realm.realm_maxp), 2)
 
-	for ct = 1, 10000 do
+	for _ = 1, 10000 do
 		pos = table.copy(center)
 		pos.x = pos.x + math.random(range) + math.random(range) - range
 		pos.z = pos.z + math.random(range) + math.random(range) - range
@@ -1105,7 +1100,7 @@ function mod.save_map(params)
 
 	do
 		local ps = PcgRandom(os.time())
-		for k, v in ipairs(params.share.treasure_chests or {}) do
+		for _, v in ipairs(params.share.treasure_chests or {}) do
 			local n = minetest.get_node_or_nil(v)
 			if n and dungeon_loot and dungeon_loot.populate_chest then
 				local inv = minetest.get_meta(v):get_inventory()

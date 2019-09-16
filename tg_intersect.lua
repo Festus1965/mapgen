@@ -6,20 +6,13 @@
 --  but it's been through a couple of mods since.
 
 
-local mod, layers_mod
-if minetest.get_modpath('realms') then
-	layers_mod = realms
-	mod = floaters
-else
-	layers_mod = mapgen
-	mod = mapgen
-end
-
+local mod, layers_mod = mapgen, mapgen
 local mod_name = mod.mod_name
-local ground_c, move_down
+local ground_c
 
 
 function mod.generate_intersect(params)
+				--local t_yloop = os.clock()
 	local t_caves = os.clock()
 
 	local minp, maxp = params.isect_minp, params.isect_maxp
@@ -28,10 +21,7 @@ function mod.generate_intersect(params)
 
 	local node = layers_mod.node
 	local n_air = node['air']
-	local n_ignore = node['ignore']
-	local n_water = node['default:water_source']
 	local n_stone = node['default:stone']
-	local n_lava = node['default:lava_source']
 	local n_placeholder_lining = node[layers_mod.mod_name .. ':placeholder_lining']
 
 	if not ground_c then
@@ -99,29 +89,48 @@ function mod.generate_intersect(params)
 	end
 	--]]
 
-	local cave_noise_1 = minetest.get_perlin_map({offset = 0, scale = 1, seed = -8402, spread = {x = 128, y = 64, z = 128}, octaves = 3, persist = 0.5, lacunarity = 2}, csize):get3dMap_flat(minp)
-	local cave_noise_2 = minetest.get_perlin_map({offset = 0, scale = 1, seed = 3944, spread = {x = 128, y = 64, z = 128}, octaves = 3, persist = 0.5, lacunarity = 2}, csize):get3dMap_flat(minp)
+	local cave_noise_def_1 = {
+		offset = 0,
+		scale = 1,
+		seed = -8402,
+		spread = {x = 128, y = 64, z = 128},
+		octaves = 3,
+		persist = 0.5,
+		lacunarity = 2,
+	}
+	local cave_noise_def_2 = {
+		offset = 0,
+		scale = 1,
+		seed = 3944,
+		spread = {x = 128, y = 64, z = 128},
+		octaves = 3,
+		persist = 0.5,
+		lacunarity = 2,
+	}
+	local cave_noise_1 = minetest.get_perlin_map(cave_noise_def_1, csize):get3dMap_flat(minp)
+	local cave_noise_2 = minetest.get_perlin_map(cave_noise_def_2, csize):get3dMap_flat(minp)
 
 	local base_level = params.share.base_level
-	local height_max = math.max(params.share.height_max, (base_level or 8) + 20)
+	local height_max = math.max(params.share.height_max - 20, (base_level or 8))
 	local surface = params.share.surface
-	local index3d = 0
+	local index3d = 1
 	for z = minp.z, maxp.z do
-		for y = minp.y, maxp.y do
-			local close = height_max - y < 20
+		for x = minp.x, maxp.x do
+			local height = surface[z][x].top
+			local ivm = area:index(x, minp.y, z)
+			local index3d = (z - minp.z) * csize.y * csize.x + (x - minp.x) + 1
+			local close = base_level and height <= base_level
+			local border = (x == minp.x or x == maxp.x or z == minp.z or z == maxp.z)
 
-			for x = minp.x, maxp.x do
-				index3d = index3d + 1
-				local ivm = area:index(x, y, z)
-
+			for y = minp.y, maxp.y do
 				local n1 = (math.abs(cave_noise_1[index3d]) < 0.07)
 				local n2 = (math.abs(cave_noise_2[index3d]) < 0.07)
 				local n3 = (math.abs(cave_noise_1[index3d]) < 0.09)
 				local n4 = (math.abs(cave_noise_2[index3d]) < 0.09)
+
 				if n1 and n2 then
-					local height = surface[z][x].top
 					local skip
-					if close or (base_level and height <= base_level) then
+					if close or y > height_max then
 						local depth = height - y
 						if depth == 1 then
 							skip = true
@@ -132,19 +141,16 @@ function mod.generate_intersect(params)
 					end
 
 					if data[ivm] == n_stone and not skip then
-						local sr = 1000
-						--if y > minp.y and data[area:index(x, y-1, z)] == n_stone then
 						data[ivm] = n_air
 						p2data[ivm] = 0
 
-						if x == minp.x or x == maxp.x or z == minp.z or z == maxp.z then
+						if border then
 							params.share.intersected = true
 						end
 					end
 				elseif n3 and n4 then
-					local height = surface[z][x].top
 					local skip
-					if close or (base_level and height <= base_level) then
+					if close or y > height_max then
 						local depth = height - y
 						if depth < 20 then
 							skip = true
@@ -152,20 +158,24 @@ function mod.generate_intersect(params)
 					end
 
 					if data[ivm] == n_stone and not skip then
-						local sr = 1000
 						data[ivm] = n_placeholder_lining
 						p2data[ivm] = 0
 
-						if x == minp.x or x == maxp.x or z == minp.z or z == maxp.z then
+						if border then
 							params.share.intersected = true
 						end
 					end
 				end
+
+				index3d = index3d + csize.x
+				ivm = ivm + area.ystride
 			end
 		end
 	end
 
 	mod.time_caves = mod.time_caves + os.clock() - t_caves
+
+				--layers_mod.time_y_loop = (layers_mod.time_y_loop or 0) + os.clock() - t_yloop
 end
 
 

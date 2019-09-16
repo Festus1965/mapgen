@@ -638,12 +638,54 @@ end
 do
 	-- What's a cave without speleothems?
 	local spel = {
-		{ stalac = 'stalactite', stalag = 'stalagmite', tile = 'default_stone.png', place_on = { 'default:stone' }, biomes = { 'stone' }, },
-		{ stalac = 'stalactite_slimy', stalag = 'stalagmite_slimy', tile = 'default_stone.png^mapgen_algae.png', light = light_max-6, place_on = { mod_name .. ':stone_with_algae' }, biomes = { 'algae' }, },
-		{ stalac = 'stalactite_mossy', stalag = 'stalagmite_mossy', tile = 'default_stone.png^mapgen_moss.png', light = light_max-6, place_on = { mod_name .. ':stone_with_moss' }, biomes = { 'mossy' }, },
-		{ stalac = 'stalactite_lichen', stalag = 'stalagmite_lichen', tile = 'default_stone.png^mapgen_lichen.png', light = light_max-6, place_on = { mod_name .. ':stone_with_lichen' }, biomes = { 'lichen' }, },
-		--{ stalac = 'stalactite_crystal', stalag = 'stalagmite_crystal', tile = 'mapgen_radioactive_ore', light = light_max },
-		{ stalac = 'icicle_down', stalag = 'icicle_up', desc = 'Icicle', tile = 'default_ice.png', drop = 'default:ice', place_on = { 'default:ice' }, biomes = { 'ice', }, },
+		{
+			stalac = 'stalactite',
+			stalag = 'stalagmite',
+			tile = 'default_stone.png',
+			place_on = { 'default:stone' },
+			biomes = { 'stone' },
+		},
+		{
+			stalac = 'stalactite_slimy',
+			stalag = 'stalagmite_slimy',
+			tile = 'default_stone.png^mapgen_algae.png',
+			light = light_max-6,
+			place_on = { mod_name .. ':stone_with_algae' },
+			biomes = { 'algae' },
+		},
+		{
+			stalac = 'stalactite_mossy',
+			stalag = 'stalagmite_mossy',
+			tile = 'default_stone.png^mapgen_moss.png',
+			light = light_max-6,
+			place_on = { mod_name .. ':stone_with_moss' },
+			biomes = { 'mossy' },
+		},
+		{
+			stalac = 'stalactite_lichen',
+			stalag = 'stalagmite_lichen',
+			tile = 'default_stone.png^mapgen_lichen.png',
+			light = light_max-6,
+			place_on = { mod_name .. ':stone_with_lichen' },
+			biomes = { 'lichen' },
+		},
+		--[[
+		{
+			stalac = 'stalactite_crystal',
+			stalag = 'stalagmite_crystal',
+			tile = 'mapgen_radioactive_ore',
+			light = light_max
+		},
+		--]]
+		{
+			stalac = 'icicle_down',
+			stalag = 'icicle_up',
+			desc = 'Icicle',
+			tile = 'default_ice.png',
+			drop = 'default:ice',
+			place_on = { 'default:ice' },
+			biomes = { 'ice', },
+		},
 	}
 
 	for _, desc in pairs(spel) do
@@ -1002,7 +1044,7 @@ do
 	newnode.tiles = { newnode.tiles[1]..'^[colorize:#000000:100' }
 	newnode.on_timer = function(pos, elapsed)
 		local posu = {x=pos.x, y=pos.y+1, z=pos.z}
-		local daylight = minetest.get_node_light(posu, 0.5) or 0
+		--local daylight = minetest.get_node_light(posu, 0.5) or 0
 		local light = minetest.get_node_light(posu, nil) or 0
 		if light > light_max then
 			return true
@@ -1041,28 +1083,27 @@ do
 end
 
 
-function register_cave_biome(def)
+function mod.register_cave_biome(def)
 	def.source = 'fun_caves'
 	def.underground = true
 	layer_mod.register_biome(def)
 end
-mod.register_cave_biome = register_cave_biome
 
 do
-    register_cave_biome({
+    mod.register_cave_biome({
         name = 'stone',
         heat_point = 30,
         humidity_point = 50,
     })
 
-    register_cave_biome({
+    mod.register_cave_biome({
         name = 'wet_stone',
         heat_point = 100,
         humidity_point = 100,
         node_cave_liquid = 'default:water_source',
     })
 
-    register_cave_biome({
+    mod.register_cave_biome({
         name = 'sea_cave',
         heat_point = 50,
         humidity_point = 115,
@@ -1070,7 +1111,7 @@ do
         node_gas = 'default:water_source',
     })
 
-    register_cave_biome({
+    mod.register_cave_biome({
         name = 'lichen',
         heat_point = 15,
         humidity_point = 20,
@@ -1078,7 +1119,7 @@ do
         node_lining = mod_name .. ':stone_with_lichen',
     })
 
-    register_cave_biome({
+    mod.register_cave_biome({
         name = 'algae',
         heat_point = 65,
         humidity_point = 75,
@@ -1086,7 +1127,7 @@ do
         node_cave_liquid = 'default:water_source',
     })
 
-    register_cave_biome({
+    mod.register_cave_biome({
         name = 'mossy',
         heat_point = 25,
         humidity_point = 75,
@@ -1094,7 +1135,7 @@ do
         node_cave_liquid = 'default:water_source',
     })
 
-    register_cave_biome({
+    mod.register_cave_biome({
         name = 'basalt_lava',
         heat_point = 105,
         humidity_point = 70,
@@ -1102,7 +1143,7 @@ do
         node_cave_liquid = 'default:lava_source',
     })
 
-    register_cave_biome({
+    mod.register_cave_biome({
         name = 'salt',
         heat_point = 50,
         humidity_point = -5,
@@ -1112,14 +1153,14 @@ do
 		--y_min = 0,
     })
 
-    register_cave_biome({
+    mod.register_cave_biome({
         name = 'granite',
         heat_point = 60,
         humidity_point = 50,
         node_stone = mod_name .. ':granite',
     })
 
-    register_cave_biome({
+    mod.register_cave_biome({
         name = 'sand',
         heat_point = 70,
         humidity_point = 25,
@@ -1128,7 +1169,7 @@ do
 		surface_depth = 2,
     })
 
-    register_cave_biome({
+    mod.register_cave_biome({
         name = 'coal',
         heat_point = 110,
         humidity_point = 0,
@@ -1137,7 +1178,7 @@ do
 		surface_depth = 2,
     })
 
-    register_cave_biome({
+    mod.register_cave_biome({
         name = 'hot',
         heat_point = 120,
         humidity_point = 35,
@@ -1146,7 +1187,7 @@ do
         node_cave_liquid = 'default:lava_source',
     })
 
-    register_cave_biome({
+    mod.register_cave_biome({
 		--deco = mod_name .. ':will_o_wisp_glow',
         name = 'ice',
         heat_point = -15,
@@ -1158,21 +1199,21 @@ do
 end
 
 
-if false then
-	minetest.register_lbm({
-		name = mod_name .. ':mush_timers',
-		nodenames = {
-			mod_name .. ':giant_mushroom_cap',
-			mod_name .. ':giant_mushroom_stem',
-			'flowers:mushroom_red',
-			'flowers:mushroom_brown',
-		},
-		action = function(pos, node)
-			local n = node.name
-			minetest.registered_nodes[n].on_construct(pos)
-		end,
-	})
-end
+--[[
+minetest.register_lbm({
+	name = mod_name .. ':mush_timers',
+	nodenames = {
+		mod_name .. ':giant_mushroom_cap',
+		mod_name .. ':giant_mushroom_stem',
+		'flowers:mushroom_red',
+		'flowers:mushroom_brown',
+	},
+	action = function(pos, node)
+		local n = node.name
+		minetest.registered_nodes[n].on_construct(pos)
+	end,
+})
+--]]
 
 
 mod.registered_cave_biomes = true

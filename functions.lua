@@ -179,7 +179,14 @@ function mod.cube_intersect(r1, r2)
 end
 
 
-function mod.get_noise2d(name, default, seed, default_seed, size, pos)
+function mod.get_noise2d(params)
+	local name = params.name
+	--local default = params.default
+	local seed = params.seed
+	--local default_seed = params.default_seed
+	local size = params.size
+	local pos = params.pos
+
 	if not (name and pos and size and type(name) == 'string'
 	and type(pos) == 'table' and type(size) == 'table'
 	and mod.registered_noises[name]) then
@@ -207,7 +214,14 @@ function mod.get_noise2d(name, default, seed, default_seed, size, pos)
 end
 
 
-function mod.get_noise3d(name, default, seed, default_seed, size, pos)
+function mod.get_noise3d(params)
+	local name = params.name
+	--local default = params.default
+	local seed = params.seed
+	--local default_seed = params.default_seed
+	local size = params.size
+	local pos = params.pos
+
 	if not (name and pos and size and type(name) == 'string'
 	and type(pos) == 'table' and type(size) == 'table'
 	and mod.registered_noises[name]) then
@@ -297,18 +311,18 @@ function mod.register_biome(def, source)
 
 	local w = table.copy(def)
 
-	w.node_cave_liquid = node[w.node_cave_liquid]
-	w.node_ceiling = node[w.node_ceiling]
-	w.node_dust = node[w.node_dust]
-	w.node_filler = node[w.node_filler]
-	w.node_floor = node[w.node_floor]
-	w.node_gas = node[w.node_gas]
-	w.node_lining = node[w.node_lining]
-	w.node_riverbed = node[w.node_riverbed]
-	w.node_stone = node[w.node_stone]
-	w.node_top = node[w.node_top]
-	w.node_water = node[w.node_water]
-	w.node_water_top = node[w.node_water_top]
+	--w.node_cave_liquid = node[w.node_cave_liquid]
+	--w.node_ceiling = node[w.node_ceiling]
+	--w.node_dust = node[w.node_dust]
+	--w.node_filler = node[w.node_filler]
+	--w.node_floor = node[w.node_floor]
+	--w.node_gas = node[w.node_gas]
+	--w.node_lining = node[w.node_lining]
+	--w.node_riverbed = node[w.node_riverbed]
+	--w.node_stone = node[w.node_stone]
+	--w.node_top = node[w.node_top]
+	--w.node_water = node[w.node_water]
+	--w.node_water_top = node[w.node_water_top]
 
 	w.source = source or w.source
 	mod.registered_biomes[w.name] = w
@@ -611,7 +625,7 @@ do
 			interval = 6,
 			chance = 50,
 			catch_up = false,
-			action = function(pos, node)
+			action = function(pos, node_)
 				-- Check for darkness: night, shadow or under a light-blocking node
 				-- Returns if ignore above
 				local above = {x = pos.x, y = pos.y + 1, z = pos.z}
@@ -761,7 +775,7 @@ minetest.register_chatcommand('genesis', {
 		for z = minp.z, maxp.z do
 			for y = minp.y, maxp.y do
 				local ivm = area:index(minp.x, y, z)
-				for x = minp.x, maxp.x do
+				for _ = minp.x, maxp.x do
 					data[ivm] = n_air
 					p2data[ivm] = 0
 					ivm = ivm + 1
@@ -772,7 +786,6 @@ minetest.register_chatcommand('genesis', {
 		vm:set_data(data)
 		vm:set_param2_data(p2data)
 		vm:write_to_map()
-		vm = nil
 
 		local map_seed = mod.generate_map_seed()
 		local blockseed = mod.generate_block_seed(minp)

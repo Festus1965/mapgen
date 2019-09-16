@@ -13,17 +13,17 @@ do
 	local tree_sch = {}
 
 	local function get_tree_schematic(tree_name)
-		for k, v in pairs(mod.registered_decorations) do
+		for _, v in pairs(mod.registered_decorations) do
 			if v.name:find(tree_name) then
 				-- For some reason, the game doesn't use the
 				--  schematic probabilities the way the documentation
 				--  says it should.
 				local sch = table.copy(v.schematic_array)
-				for k, v in pairs(sch.data or {}) do
-					local p = v.param1 or v.prob
+				for _, v2 in pairs(sch.data or {}) do
+					local p = v2.param1 or v2.prob
 					if p and type(p) == 'number' then
-						v.prob = math.min(255, p * 2)
-						v.param1 = nil
+						v2.prob = math.min(255, p * 2)
+						v2.param1 = nil
 					end
 				end
 				tree_sch[tree_name] = sch
@@ -58,7 +58,7 @@ do
 		end
 	end
 
-	local newnode = clone_node('default:sapling')
+	newnode = clone_node('default:sapling')
 	newnode.description =  'Oak Tree Sapling'
 	newnode.on_construct = function(pos)
 		minetest.get_node_timer(pos):start(math.random(300, 1500))
@@ -74,7 +74,7 @@ do
 	end
 	minetest.register_node(mod_name..':oak_sapling', newnode)
 
-	local newnode = clone_node('default:sapling')
+	newnode = clone_node('default:sapling')
 	newnode.description =  'Cherry Tree Sapling'
 	newnode.on_construct = function(pos)
 		minetest.get_node_timer(pos):start(math.random(300, 1500))
@@ -93,8 +93,6 @@ end
 
 
 do
-	local newnode
-
 	newnode = clone_node('default:leaves')
 	newnode.description = 'Cherry Blossoms'
 	newnode.tiles = { 'mapgen_leaves_cherry.png' }

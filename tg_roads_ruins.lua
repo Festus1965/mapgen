@@ -3,32 +3,17 @@
 -- Distributed under the LGPLv2.1 (https://www.gnu.org/licenses/old-licenses/lgpl-2.1.en.html)
 
 
-local mod, layers_mod
-if minetest.get_modpath('realms') then
-	layers_mod = realms
-	mod = floaters
-else
-	layers_mod = mapgen
-	mod = mapgen
-end
-
+local mod, layers_mod = mapgen, mapgen
 local mod_name = mod.mod_name
-local nodes_name = 'mapgen'
-
-local chunksize = tonumber(minetest.settings:get('chunksize') or 5)
-local chunk_offset = math.floor(chunksize / 2) * 16;
-local max_height = 31000
 local VN = vector.new
 
-
-local make_roads = true
 local make_tracks = false
 local road_w = 3
 
-local n_cobble = layers_mod.node['default:cobble']
-local n_mossy = layers_mod.node['default:mossycobble']
-local n_rail_power = layers_mod.node['carts:powerrail']
-local n_rail = layers_mod.node['carts:rail']
+local node = layers_mod.node
+local n_cobble = node['default:cobble']
+local n_rail_power = node['carts:powerrail']
+local n_rail = node['carts:rail']
 
 local house_materials = {
 	'sandstonebrick',
@@ -48,16 +33,6 @@ local house_noise = PerlinNoise({
 	persist = 0.5,
 	lacunarity = 2.0
 })
-
-local node
-if layers_mod.mod_name == 'mapgen' then
-	node = layers_mod.node
-	clone_node = layers_mod.clone_node
-else
-	dofile(mod.path .. '/functions.lua')
-	node = mod.node
-	clone_node = mod.clone_node
-end
 
 
 function mod.generate_roads_ruins(params)
@@ -89,9 +64,12 @@ function mod.generate_roads_ruins(params)
 				else
 					data[ivm] = n_rail
 				end
+				p2data[ivm] = 0
 			elseif roads[index] then
 				data[ivm] = n_cobble
 				data[ivm - area.ystride] = n_cobble
+				p2data[ivm] = 0
+				p2data[ivm - area.ystride] = 0
 			end
 
 			index = index + 1
@@ -105,6 +83,8 @@ function mod.generate_roads_ruins(params)
 	if hn > 0 then
 		mod.houses(params)
 	end
+
+	layers_mod.time_ruins = (layers_mod.time_ruins or 0) + os.clock() - t_ruins
 end
 
 
@@ -124,7 +104,11 @@ function mod.map_roads(params)
 	local has_roads = false
 
 	local rsize = vector.add(csize, road_w * 2)
-	local road_map = layers_mod.get_noise2d('road', nil, nil, nil, {x=rsize.x, y=rsize.z}, { x = minp.x, y = minp.z })
+	local road_map = layers_mod.get_noise2d({
+		name = 'road',
+		pos = { x = minp.x, y = minp.z },
+		size = {x=rsize.x, y=rsize.z},
+	})
 
 	local index
 	local road_ws = road_w * road_w
@@ -289,8 +273,7 @@ end
 -- The houses function takes very little cpu time.
 -- check
 function mod.houses(params)
-	local minp, maxp = params.isect_minp, params.isect_maxp
-	local csize = params.csize
+	local minp = params.isect_minp
 	local plots = params.share.plots
 	local pr = params.gpr
 	--local base_level = params.share.base_level or params.sealevel + water_diff
