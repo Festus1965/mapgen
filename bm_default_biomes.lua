@@ -7,6 +7,7 @@ bm_default_biomes = {}
 local mod, layers_mod = bm_default_biomes, mapgen
 local biomes = layers_mod.registered_biomes
 local node = layers_mod.node
+local BASE_EROSION = 0.03
 
 
 -- , st, st, st, ss, ds, st, st, ss, ss, st, st, ss, ss, ss, ds, ds, ds, st, ds, ss, ss, st, ss, ds, st, ds, ds, st, st, ss
@@ -226,6 +227,10 @@ function mod.bm_default_biomes(params)
 		size = {x=csize.x, y=csize.z},
 	})
 
+	if not params.no_ponds then
+		mod.ponds(params)
+	end
+
 	local index = 1
 	for z = minp.z, maxp.z do
 		local heat_base
@@ -266,148 +271,133 @@ function mod.bm_default_biomes(params)
 			surface.grass_p2 = grass_p2
 
 			local biome = mod.get_biome(biomes_i, heat, humidity, height)
-			assert(biome)
+			surface.biome = biome
+			params.share.biomes_here[biome.name] = (params.share.biomes_here[biome.name] or 0) + 1
+
+			-- biome-determined nodes
+			local stone = node[biome.node_stone] or n_stone
+			local filler = node[biome.node_filler] or n_air
+			local top = node[biome.node_top] or n_air
+			local ww = node[biome.node_water] or node['default:water_source']
+			local wt = node[biome.node_water_top]
+			local in_desert = biome.name:find('desert') or humidity < 30
+
+			-- depths
+			local depth_top = biome.depth_top or 0  -- 1?
+			local depth_filler = biome.depth_filler or 0
+			local wtd = biome.node_water_top_depth or 0
 
 			do
-				surface.biome = biome
-
-				local h_factor = 0.03
-				if sandy_nodes[biome.node_top] then
+				local h_factor = BASE_EROSION * height
+				if sandy_nodes[top] then
 					h_factor = h_factor * 3
 				end
 
-				local f = biome.filler_depth or 1
-				local t = biome.top_depth or 1
-				local d = math.floor(math.max(0, filler_depth_map[index] + t) + f - height * h_factor + 0.5)
-
-				if d + f + t < 1 then
-					t = 0
+				local filler_adj = filler_depth_map[index]
+				filler_adj = math.max(0, filler_adj + depth_top)
+				filler_adj = math.floor(filler_adj - h_factor + 0.5)
+				depth_filler = depth_filler + filler_adj
+				if depth_filler < 0 then
+					depth_top = math.max(0, depth_top + depth_filler)
+					depth_filler = 0
 				end
-				surface.top_depth = t
-				surface.filler_depth = math.max(0, d + f - t)
-				--d = d + surface.filler_depth + t
-				--surface.erosion = math.max(0, - d)
-
-				-- Erosion screws up the ponds. They should probably
-				--  be placed here, not in dflats...
-
-				if params.share.biomes_here[biome.name] == true then
-					params.share.biomes_here[biome.name] = 1
-				end
-				params.share.biomes_here[biome.name] = (params.share.biomes_here[biome.name] or 0) + 1
-
-				-- depths
-				local depth_top = surface.top_depth or biome.depth_top or 0  -- 1?
-				local depth_filler = surface.filler_depth or biome.depth_filler or 0  -- 6?!
-				--local erosion = surface.erosion or 0
-				local wtd = biome.node_water_top_depth or 0
-
-				--height = height - erosion
-				surface.top = height
-
-				-- biome-determined nodes
-				local stone = node[biome.node_stone] or n_stone
-				local filler = node[biome.node_filler] or n_air
-				local top = node[biome.node_top] or n_air
-				local ww = node[biome.node_water] or node['default:water_source']
-				local wt = node[biome.node_water_top]
-				local in_desert = biome.name:find('desert') or humidity < 30
-
-				if ww == n_water and surface.heat
-				and not params.share.disable_icing then
-					if surface.heat < 30 then
-						wt = n_ice
-						wtd = math.ceil(math.max(0, (30 - surface.heat) / 3))
-					else
-						wt = nil
-					end
-				end
-
-				local hu2_check
-				local hu2 = surface.humidity_blend
-				if (not hu2 or hu2 > 1 or math.floor(hu2 * 1000) % 2 == 0)
-				and surface.humidity and surface.humidity > 70 then
-					hu2_check = true
-				end
-
-				-- Start at the top and fill down.
-				local off
-				if height > maxp.y then
-					off = height
-				end
-
-				local fill_1, fill_2
-				--local maxy = math.min(maxp.y, math.max(water_level, height))
-				local ivm = area:index(x, maxp.y, z)
-				--local t_yloop = os.clock()
-				for y = maxp.y, minp.y, -1 do
-					if not off then
-						if replace[data[ivm]] then
-							off = y
-							surface.top = off
-							if data[ivm] == n_water then
-								surface.underwater = true
-							end
-						elseif (y == minp.y and y == height) then
-							off = y
-							if data[ivm] == n_water then
-								surface.underwater = true
-							end
-						end
-
-						if off then
-							fill_1 = off - depth_top
-							fill_2 = fill_1 - depth_filler
-						end
-					end
-
-					if data[ivm] == n_air and y > height and y <= water_level then
-						if y > water_level - wtd then
-							data[ivm] = wt
-						else
-							data[ivm] = ww
-						end
-						p2data[ivm] = 0
-						surface.underwater = true
-					elseif data[ivm] == n_water and heat < 30 then
-						data[ivm] = n_ice
-					elseif data[ivm] == n_water and in_desert then
-						data[ivm] = n_air
-					elseif y >= height - 1 and data[ivm] == n_clay and in_desert then
-						data[ivm] = n_sand
-					elseif not off or y > off then
-						-- nop
-					elseif data[ivm] == n_cobble and hu2_check then
-						data[ivm] = n_mossy
-					elseif not replace[data[ivm]] then
-						-- nop
-					--elseif y > off - surface.erosion then
-					--	data[ivm] = n_air
-					elseif depth_top < 1 and y >= height then
-						-- a minimal, pseudo-erosion
-						data[ivm] = n_air
-					elseif fill_1 and y > fill_1 then
-						-- topping up
-						data[ivm] = top
-						p2data[ivm] = grass_p2
-					elseif filler and fill_2 and y > fill_2 then
-						-- filling
-						data[ivm] = filler
-						p2data[ivm] = 0
-					else
-						-- Otherwise, it's stoned.
-						if stone_layers and in_desert then
-							data[ivm] = stone_layers[y % 30 + 1]
-							p2data[ivm] = 0
-						end
-						--p2data[ivm] = 0
-					end
-
-					ivm = ivm - ystride
-				end
-
-				--layers_mod.time_y_loop = (layers_mod.time_y_loop or 0) + os.clock() - t_yloop
 			end
+
+			surface.top_depth = depth_top
+			surface.filler_depth = depth_filler
+
+			if ww == n_water and surface.heat
+			and not params.share.disable_icing then
+				if surface.heat < 30 then
+					wt = n_ice
+					wtd = math.ceil(math.max(0, (30 - surface.heat) / 3))
+				else
+					wt = nil
+				end
+			end
+
+			local hu2_check
+			local hu2 = surface.humidity_blend
+			if (not hu2 or hu2 > 1 or math.floor(hu2 * 1000) % 2 == 0)
+			and surface.humidity and surface.humidity > 70 then
+				hu2_check = true
+			end
+
+			-- Start at the top and fill down.
+			local off
+			if height > maxp.y then
+				off = height
+			end
+
+			local fill_1, fill_2
+			--local maxy = math.min(maxp.y, math.max(water_level, height))
+			local ivm = area:index(x, maxp.y, z)
+			--local t_yloop = os.clock()
+			for y = maxp.y, minp.y, -1 do
+				if not off then
+					if replace[data[ivm] ] then
+						off = y
+						surface.top = off
+						if data[ivm] == n_water then
+							surface.underwater = true
+						end
+					elseif (y == minp.y and y == height) then
+						off = y
+						if data[ivm] == n_water then
+							surface.underwater = true
+						end
+					end
+
+					if off then
+						fill_1 = off - depth_top
+						fill_2 = fill_1 - depth_filler
+					end
+				end
+
+				if data[ivm] == n_air and y > height and y <= water_level then
+					if y > water_level - wtd then
+						data[ivm] = wt
+					else
+						data[ivm] = ww
+					end
+					p2data[ivm] = 0
+					surface.underwater = true
+				elseif data[ivm] == n_water and heat < 30 then
+					data[ivm] = n_ice
+				elseif data[ivm] == n_water and in_desert then
+					data[ivm] = n_air
+				elseif y >= height - 1 and data[ivm] == n_clay and in_desert then
+					data[ivm] = n_sand
+				elseif not off or y > off then
+					-- nop
+				elseif data[ivm] == n_cobble and hu2_check then
+					data[ivm] = n_mossy
+				elseif not replace[data[ivm]] then
+					-- nop
+				elseif depth_top < 1 and y >= height then
+					-- a minimal, pseudo-erosion
+					data[ivm] = n_air
+				elseif fill_1 and y > fill_1 then
+					-- topping up
+					data[ivm] = top
+					p2data[ivm] = grass_p2
+				elseif filler and fill_2 and y > fill_2 then
+					-- filling
+					data[ivm] = filler
+					p2data[ivm] = 0
+				else
+					-- Otherwise, it's stoned.
+					if stone_layers and in_desert then
+						data[ivm] = stone_layers[y % 30 + 1]
+						p2data[ivm] = 0
+					end
+					--p2data[ivm] = 0
+				end
+
+				ivm = ivm - ystride
+			end
+
+			--layers_mod.time_y_loop = (layers_mod.time_y_loop or 0) + os.clock() - t_yloop
 
 			index = index + 1
 		end
@@ -567,6 +557,159 @@ do
 		layers_mod.time_ponds = (layers_mod.time_ponds or 0) + os.clock() - t_ponds
 	end
 --]]
+end
+
+
+-- This is a simple, breadth-first search, for checking whether
+-- a depression in the ground is enclosed (for placing ponds).
+-- It is cpu-intensive, but also easy to code.
+local function height_search(params, ri)
+	local csize = params.csize
+	local minp = params.isect_minp
+
+	params.share.propagate_shadow = true
+
+	if ri < 1 or ri > csize.z * csize.x then
+		return
+	end
+
+	local rx = ri % csize.x
+	local rz = math.floor(ri / csize.x)
+	local height_ri = params.share.surface[rz + minp.z][rx + minp.x].top
+
+	local s = {}
+	local q = {}
+	s[ri] = true
+	q[#q+1] = ri
+
+	while #q > 0 do
+		local ci = q[#q]
+		q[#q] = nil
+		local cx = ci % csize.x
+		local cz = math.floor(ci / csize.x)
+		if ((cx <= 1 or cx >= csize.x - 2) or (cz <= 1 or cz >= csize.z - 2)) then
+			return
+		end
+		for zo = -1, 1 do
+			for xo = -1, 1 do
+				if zo ~= xo then
+					local ni = ci + (zo * csize.x) + xo
+					local height_ni = params.share.surface[cz + zo + minp.z][cx + xo + minp.x].top
+					if not s[ni] and height_ni <= height_ri then
+						s[ni] = true
+						q[#q+1] = ni
+					end
+				end
+			end
+		end
+	end
+	return height_ri
+end
+
+
+function mod.ponds(params)
+	local t_ponds = os.clock()
+	local minp, maxp = params.isect_minp, params.isect_maxp
+	local csize = params.csize
+
+	local ahu = 0
+	for z = minp.z, maxp.z do
+		for x = minp.x, maxp.x do
+			if not params.share.surface[z][x].humidity then
+				ahu = 50 * csize.z * csize.x
+				break
+			end
+			ahu = ahu + params.share.surface[z][x].humidity
+		end
+	end
+	ahu = ahu / (csize.z * csize.x)
+	if ahu < 30 then
+		return
+	end
+
+	local n_air = node['air']
+	local n_water = node['default:water_source']
+	local n_ice = node['default:ice']
+	local n_clay = node['default:clay']
+
+	local area = params.area
+	local checked = {}
+	local data = params.data
+	local lilies = {
+		['deciduous_forest'] = true,
+		['savanna'] = true,
+		['rainforest'] = true,
+	}
+
+	-- Erosion and ponds don't mix well.
+	local pond_max = params.sealevel + 75
+	--local pond_min = params.sealevel + 12
+	local pond_min = params.share.base_level
+	local ps = PcgRandom(params.chunk_seed + 93)
+
+	-- Check for depressions every eight meters.
+	for z = 4, csize.z - 5, 8 do
+		for x = 4, csize.x - 5, 8 do
+			local p = {x=x+minp.x, z=z+minp.z}
+			local index = z * csize.x + x + 1
+			local height = params.share.surface[p.z][p.x].top + 1
+			if height > pond_min and height < pond_max and height >= minp.y - 1 and height <= maxp.y + 1 then
+				local search = {}
+				local highest = 0
+				local h1 = height_search(params, index)
+				-- If a depression is there, look at all the adjacent squares.
+				if h1 then
+					for zo = -6, 6 do
+						for xo = -6, 6 do
+							local subindex = index + zo * csize.x + xo
+							if not checked[subindex] then
+								h1 = height_search(params, subindex)
+								-- Mark this as already searched.
+								checked[subindex] = true
+								if h1 then
+									if h1 > highest then
+										highest = h1
+									end
+									-- Store depressed positions.
+									search[#search+1] = {x=x+xo, z=z+zo, h=h1}
+								end
+							end
+						end
+					end
+
+					for _, p2 in ipairs(search) do
+						p2.x = p2.x + minp.x
+						p2.z = p2.z + minp.z
+
+						local biome = params.share.surface[p2.z][p2.x].biome or {}
+						local heat = params.share.surface[p2.z][p2.x].heat or 60
+
+						params.share.surface[p2.z][p2.x].pond = true
+
+						-- Place water and lilies.
+						local ivm = area:index(p2.x, p2.h-1, p2.z)
+						data[ivm] = n_clay
+						for h = p2.h, highest do
+							ivm = ivm + area.ystride
+							data[ivm] = node[biome.node_water_top] or n_water
+							if not params.share.disable_icing
+							and data[ivm] == n_water
+							and heat < 30 and highest - h < 3 then
+								data[ivm] = n_ice
+							end
+						end
+						ivm = ivm + area.ystride
+						if lilies[biome.name] and ps:next(1, 13) == 1 then
+							data[ivm] = node['flowers:waterlily']
+						else
+							data[ivm] = n_air
+						end
+					end
+				end
+			end
+		end
+	end
+	layers_mod.time_ponds = (layers_mod.time_ponds or 0) + os.clock() - t_ponds
 end
 
 

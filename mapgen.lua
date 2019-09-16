@@ -84,12 +84,12 @@ function mod.dust(params)
 
 			local biome = params.share.biome or surface.biome or {}
 
-			local node_dust
+			local n_dust
 			if biome then
-				node_dust = biome.node_dust
+				n_dust = mod.node[biome.node_dust]
 			end
 
-			if node_dust and data[ivm] == n_air then
+			if n_dust and data[ivm] == n_air then
 				local yc
 				for y = maxp.y - 0, minp.y + 0, -1 do
 					if y >= height and data[ivm] ~= n_air and data[ivm] ~= n_ignore then
@@ -109,7 +109,7 @@ function mod.dust(params)
 						and (n.walkable ~= false or (n.groups and n.groups.leaves))
 					) then
 						ivm = ivm + area.ystride
-						data[ivm] = node_dust
+						data[ivm] = n_dust
 						p2data[ivm] = 0
 					end
 				end

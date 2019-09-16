@@ -3,38 +3,18 @@
 -- Distributed under the LGPLv2.1 (https://www.gnu.org/licenses/old-licenses/lgpl-2.1.en.html)
 
 
-local mod, layers_mod
-if minetest.get_modpath('realms') then
-	layers_mod = realms
-	mod = floaters
-else
-	layers_mod = mapgen
-	mod = mapgen
-end
-
+local mod, layers_mod = mapgen, mapgen
 local mod_name = mod.mod_name
-
 local max_height = 31000
 local VN = vector.new
 
 
-local node
-if layers_mod.mod_name == 'mapgen' then
-	node = layers_mod.node
-	clone_node = layers_mod.clone_node
-else
-	dofile(mod.path .. '/functions.lua')
-	node = mod.node
-	clone_node = mod.clone_node
-end
-
-
+local node = layers_mod.node
+local clone_node = layers_mod.clone_node
 local carpetable, box_names, sides
 
 
 do
-	local clone_node = layers_mod.clone_node
-
 	minetest.register_node(mod_name..':broken_door', {
 		description = 'Broken Door',
 		tiles = {'broken_door.png'},
