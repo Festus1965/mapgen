@@ -140,12 +140,11 @@ Geomorph.__index = Geomorph
 Geomorph.action_names = action_names
 
 
-function Geomorph.new(mgen, description, bound)
+function Geomorph.new(mgen, description)
 	local self = setmetatable({
 	}, Geomorph)
 
 	self.area = mgen.area
-	self.bound = bound
 	self.csize = mgen.csize
 	self.data = mgen.data
 	self.gpr = mgen.gpr
@@ -345,47 +344,6 @@ function Geomorph:write_shape(shape, rot)
 end
 
 
-function Geomorph:minmax(shape, bound, rot)
-	-- The bound cube indicates what part of the geomorph
-	-- will be projected onto what part of the chunk.
-	-- Bounding the top of the plan draws that part onto
-	-- the bottom of the chunk and vice versa.
-	-- This only works in the Y-axis at the moment.
-
-	local min, max = rotate_coords(shape, rot, self.csize)
-
-	-- This check causes problems at boundaries. The only
-	--  fix may be to check that y is in range at every node,
-	--  which is probably slower.
-	--[[
-	local bmin, bmax = mod.cube_intersect(bound, {
-		minp = min,
-		maxp = max,
-	})
-	if not bmin then
-		return
-	end
-	--]]
-
-	if not bound then
-		return min, max
-	end
-
-	-- Move up or down to match the bounds required.
-	local adj
-	if bound.minp.y == 0 then
-		adj = self.csize.y - bound.maxp.y - 1
-	else
-		adj = - bound.minp.y
-	end
-
-	min.y = min.y + adj
-	max.y = max.y + adj
-
-	return min, max
-end
-
-
 function mod.get_p2(shape, rot)
 	-- This gets the rotated p2 value without disrupting
 	-- color data in the more significant bits.
@@ -424,9 +382,7 @@ end
 
 
 function Geomorph:write_cube(shape, rot)
-	local bound = self.bound
-
-	local min, max = self:minmax(shape, bound, rot)
+	local min, max = rotate_coords(shape, rot, self.csize)
 	if not min then
 		return
 	end
@@ -543,9 +499,7 @@ end
 
 
 function Geomorph:write_sphere(shape, rot)
-	local bound = self.bound
-
-	local min, max = self:minmax(shape, bound, rot)
+	local min, max = rotate_coords(shape, rot, self.csize)
 	if not min then
 		return
 	end
@@ -627,9 +581,7 @@ function Geomorph:write_cylinder(shape, rot)
 		return
 	end
 
-	local bound = self.bound
-
-	local min, max = self:minmax(shape, bound, rot)
+	local min, max = rotate_coords(shape, rot, self.csize)
 	if not min then
 		return
 	end
@@ -755,9 +707,7 @@ function Geomorph:write_stair(shape, rot)
 		return
 	end
 
-	local bound = self.bound
-
-	local min, max = self:minmax(shape, bound, rot)
+	local min, max = rotate_coords(shape, rot, self.csize)
 	if not min then
 		return
 	end
@@ -839,9 +789,7 @@ end
 
 
 function Geomorph:write_ladder(shape, rot)
-	local bound = self.bound
-
-	local min, max = self:minmax(shape, bound, rot)
+	local min, max = rotate_coords(shape, rot, self.csize)
 	if not min then
 		return
 	end

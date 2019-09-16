@@ -168,6 +168,7 @@ function mod.bm_default_biomes(params)
 
 	local replace = {
 		[ n_stone ] = true,
+		[ n_clay ] = true,
 		[ n_ignore ] = true,
 		[ n_placeholder_lining ] = true,
 	}
@@ -280,7 +281,7 @@ function mod.bm_default_biomes(params)
 			local top = node[biome.node_top] or n_air
 			local ww = node[biome.node_water] or node['default:water_source']
 			local wt = node[biome.node_water_top]
-			local in_desert = biome.name:find('desert') or humidity < 30
+			local in_desert = biome.name:find('desert')
 
 			-- depths
 			local depth_top = biome.depth_top or 0  -- 1?
@@ -338,14 +339,10 @@ function mod.bm_default_biomes(params)
 					if replace[data[ivm] ] then
 						off = y
 						surface.top = off
-						if data[ivm] == n_water then
-							surface.underwater = true
-						end
 					elseif (y == minp.y and y == height) then
 						off = y
-						if data[ivm] == n_water then
-							surface.underwater = true
-						end
+					elseif data[ivm] == n_water then
+						surface.underwater = true
 					end
 
 					if off then
@@ -366,13 +363,15 @@ function mod.bm_default_biomes(params)
 					data[ivm] = n_ice
 				elseif data[ivm] == n_water and in_desert then
 					data[ivm] = n_air
-				elseif y >= height - 1 and data[ivm] == n_clay and in_desert then
+				elseif y >= height and data[ivm] == n_clay and in_desert then
 					data[ivm] = n_sand
 				elseif not off or y > off then
 					-- nop
 				elseif data[ivm] == n_cobble and hu2_check then
 					data[ivm] = n_mossy
 				elseif not replace[data[ivm]] then
+					-- nop
+				elseif height > water_level and surface.underwater then
 					-- nop
 				elseif depth_top < 1 and y >= height then
 					-- a minimal, pseudo-erosion
@@ -641,9 +640,9 @@ function mod.ponds(params)
 		['rainforest'] = true,
 	}
 
-	-- Erosion and ponds don't mix well.
-	local pond_max = params.sealevel + 75
-	--local pond_min = params.sealevel + 12
+	local pond_max = params.sealevel + 175
+	-- Setting min higher causes problems with the bottoms
+	--  of low-lying ponds.
 	local pond_min = params.share.base_level
 	local ps = PcgRandom(params.chunk_seed + 93)
 
@@ -689,6 +688,7 @@ function mod.ponds(params)
 						-- Place water and lilies.
 						local ivm = area:index(p2.x, p2.h-1, p2.z)
 						data[ivm] = n_clay
+						params.share.surface[p2.z][p2.x].top = p2.h - 1
 						for h = p2.h, highest do
 							ivm = ivm + area.ystride
 							data[ivm] = node[biome.node_water_top] or n_water

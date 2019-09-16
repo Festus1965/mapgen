@@ -146,17 +146,9 @@ end
 local bts = {}
 -- check
 function mod.generate_moria(params)
-	local minp, maxp = params.isect_minp, params.isect_maxp
-
-	local c = vector.divide(vector.add(minp, 32), 80)
-	if c.x ~= math.floor(c.x) or c.y ~= math.floor(c.y) or c.z ~= math.floor(c.z) then
-		return
-	end
-
-	if params.csize.x ~= 80 or params.csize.y ~= 80 or params.csize.z ~= 80 then
-		return
-	end
-
+	local minp, maxp = params.chunk_minp, params.chunk_maxp
+	local csize = params.chunk_csize
+	local chunk = vector.floor(vector.divide(vector.add(minp, 32), 80))
 
 	if params.share.height_min and params.share.height_min < params.realm_maxp.y then
 		return
@@ -197,7 +189,6 @@ function mod.generate_moria(params)
 	end
 
 	local nofill
-	local minp, maxp = params.isect_minp, params.isect_maxp
 	local water_level = params.sealevel
 
 	--[[
@@ -207,98 +198,25 @@ function mod.generate_moria(params)
 	end
 	--]]
 
-	local box_type_top, box_type_bot
-	do
-		-- Getting a seed for each chunk so the top and bottom of each
-		-- geomorph are the same. It's confusing, but top and bottom
-		-- here are the opposite of top and bottom below. Here it refers
-		-- to the top and bottom of the chunk; below, of the geomorph
-		-- (which spans two, and hopefully only two, chunks).
-
-		local bp = table.copy(minp)
-		bp.y = math.floor((params.realm_maxp.y - bp.y) / 80)
-		local bb = vector.floor(vector.divide(vector.add(minp, 32), 80))
-		local box_seed = bb.z * 10000 + bb.y * 100 + bb.x + 150
-		local bgpr = PcgRandom(box_seed)
-		box_type_top = box_names[bgpr:next(1, #box_names)]
-		bgpr = PcgRandom(box_seed - 100)
-		box_type_bot = box_names[bgpr:next(1, #box_names)]
-		--[[
-		print('box type top', minp.x, minp.y, minp.z, box_type_top)
-		print('box type bot', minp.x, minp.y, minp.z, box_type_bot)
-		--]]
-		bts[minp.x..','..minp.y..','..minp.z..'t'] = box_type_top
-		bts[minp.x..','..minp.y..','..minp.z..'b'] = box_type_bot
-		local above = bts[minp.x..','..(minp.y + 80)..','..minp.z..'b']
-		local below = bts[minp.x..','..(minp.y - 80)..','..minp.z..'t']
-		--[[
-		if above and above ~= box_type_top then
-			print('** bad box types: '..minp.x..','..minp.y..','..minp.z..'t and '..minp.x..','..(minp.y + 80)..','..minp.z..'b')
-		end
-		if below and below ~= box_type_bot then
-			print('** bad box types: '..minp.x..','..minp.y..','..minp.z..'b and '..minp.x..','..(minp.y - 80)..','..minp.z..'t')
-		end
-		--]]
-	end
-
-	local box_top = layers_mod.registered_geomorphs[box_type_top]
-	local box_bot = layers_mod.registered_geomorphs[box_type_bot]
+	local box_seed = chunk.z * 10000 + chunk.y * 100 + chunk.x + 150
+	local bgpr = PcgRandom(box_seed)
+	local box_type = box_names[bgpr:next(1, #box_names)]
+	local box = layers_mod.registered_geomorphs[box_type]
 	--local box = layers_mod.registered_geomorphs['lake_of_fire']
 
-	local top = true
-	local bottom = true
-	--local center = vector.divide(vector.add(params.isect_minp, params.isect_maxp), 2)
-	--local adj_maxp = vector.add(center, 39.5)
-	--local adj_minp = vector.subtract(center, 39.5)
-
-	local cb = vector.floor(vector.divide(vector.add(minp, 32), 80))
-	cb = vector.subtract(vector.multiply(cb, 80), 32)
-	--print(minp.y, dump(cb))
-	cb = vector.mod(vector.subtract(cb, params.realm_maxp), 80)
-	for _, axis in pairs({'x', 'y', 'z'}) do
-		if params.realm_maxp[axis] >= 31000 then
-			cb[axis] = 0
-		end
-	end
-	--print(minp.y, dump(cb))
-
-	--print(dump(params.csize))
-	--if box.areas and box.areas:find('geomoria') and not nofill then
 	do
 		local geo = Geomorph.new(params)
 		geo:add({
 			action = 'cube',
 			node = 'default:stone',
 			location = vector.new(0, 0, 0),
-			size = table.copy(params.csize),
+			size = table.copy(csize),
 		})
 		geo:write_to_map(0)
 	end
 
-	if top and minp.y - params.realm_minp.y >= cb.y then
-		local bound1 = {
-			minp = VN(0, cb.y, 0),
-			maxp = VN(79, 79, 79),
-		}
-		--print('drawing top', minp.y, cb.y, maxp.y, params.realm_minp.y)
-		--print(dump(bound1))
-
-		local geo = Geomorph.new(params, box_bot, bound1)
-		geo:write_to_map(0)
-	end
-	if bottom and params.realm_maxp.y - minp.y >= cb.y
-	and maxp.y - params.realm_minp.y >= cb.y - 1 then
-		local bound2 = {
-			minp = VN(0, 0, 0),
-			maxp = VN(params.csize.x - 1, cb.y - 1, params.csize.z - 1),
-		}
-		--print('drawing bottom', minp.y)
-		--print(dump(bound2))
-
-		local geo = Geomorph.new(params, box_top, bound2)
-		--geo:write_to_map(self, nil, geo_replace[box_type])
-		geo:write_to_map(0)
-	end
+	local geo = Geomorph.new(params, box)
+	geo:write_to_map(0)
 
 	if not nofill then
 		mod.dungeon_decor(params)
