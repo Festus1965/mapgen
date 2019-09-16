@@ -275,21 +275,23 @@ function mod.generate_all(params)
 		mod.time_terrain = mod.time_terrain + os.clock() - t_terrain
 	end
 
-	local called_bfuncs = {}
-	for _, r_params in pairs(r_params_list) do
-		if r_params.biomefunc and not called_bfuncs[r_params.biomefunc] then
-			local t_terrain = os.clock()
-			mod.rmf[r_params.biomefunc](r_params)
-			called_bfuncs[r_params.biomefunc] = true
-			mod.time_terrain = mod.time_terrain + os.clock() - t_terrain
+	if not params.share.no_biome then
+		local called_bfuncs = {}
+		for _, r_params in pairs(r_params_list) do
+			if r_params.biomefunc and not called_bfuncs[r_params.biomefunc] then
+				local t_terrain = os.clock()
+				mod.rmf[r_params.biomefunc](r_params)
+				called_bfuncs[r_params.biomefunc] = true
+				mod.time_terrain = mod.time_terrain + os.clock() - t_terrain
+			end
 		end
-	end
 
-	if not params.no_decorations then
-		mod.place_all_decorations(params)
+		if not params.no_decorations then
+			mod.place_all_decorations(params)
 
-		if not params.share.no_dust then
-			mod.dust(params)
+			if not params.share.no_dust then
+				mod.dust(params)
+			end
 		end
 	end
 

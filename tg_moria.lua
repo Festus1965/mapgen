@@ -69,6 +69,7 @@ do
 		groups = {oddly_breakable_by_hand=1},
 	})
 
+	--[[
 	minetest.register_node(mod_name..':ruined_carpet_1', {
 		description = 'Ruined Carpet',
 		tiles = {'ruined_carpet_1.png'},
@@ -85,6 +86,7 @@ do
 		},
 		groups = {oddly_breakable_by_hand=1},
 	})
+	--]]
 
 	minetest.register_node(mod_name..':puddle_ooze', {
 		description = 'Disgusting Ooze',
@@ -179,6 +181,8 @@ function mod.generate_moria(params)
 	if params.share.height_min and params.share.height_min < params.realm_maxp.y then
 		return
 	end
+
+	params.share.no_biome = true
 
 	--print('called at minp ', params.isect_minp.y)
 	if not box_names then
