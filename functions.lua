@@ -10,6 +10,7 @@ local mod = mapgen
 local mod_name = 'mapgen'
 
 
+mod.mapgen_forced_params = {}
 mod.registered_biomes = {}
 mod.registered_cave_biomes = {}
 mod.registered_decorations = {}
@@ -529,7 +530,7 @@ function mod.register_mapfunc(name, func)
 end
 
 
-function mod.register_mapgen(name, func)
+function mod.register_mapgen(name, func, forced_params)
 	if not (name and func and type(name) == 'string' and type(func) == 'function') then
 		return
 	end
@@ -539,6 +540,8 @@ function mod.register_mapgen(name, func)
 	end
 
 	mod.registered_mapgens[name] = func
+
+	mod.mapgen_forced_params[name] = forced_params
 end
 
 

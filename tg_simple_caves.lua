@@ -10,6 +10,10 @@ local mod_name = mod.mod_name
 
 local cave_underground = 5
 function mod.generate_simple_caves(params)
+	if params.share.disruptive then
+		return
+	end
+
 	local t_caves = os.clock()
 
 	local pr = params.gpr
@@ -36,14 +40,16 @@ function mod.generate_simple_caves(params)
 			pr:next(1, 79 - size.z)
 		)
 
-		geo:add({
-			action = 'sphere',
-			intersect = 'default:stone',
-			node = layers_mod.mod_name .. ':placeholder_lining',
-			location = vector.add(pos, -2),
-			underground = cave_underground,
-			size = vector.add(size, 4),
-		})
+		if not params.share.no_biome then
+			geo:add({
+				action = 'sphere',
+				intersect = 'default:stone',
+				node = layers_mod.mod_name .. ':placeholder_lining',
+				location = vector.add(pos, -2),
+				underground = cave_underground,
+				size = vector.add(size, 4),
+			})
+		end
 
 		geo:add({
 			action = 'sphere',

@@ -195,8 +195,14 @@ function mod.generate_all(params)
 		)
 		if isect_minp and isect_maxp then
 			local r_copy = table.copy(realm)
-			r_copy.isect_minp = isect_minp
-			r_copy.isect_maxp = isect_maxp
+			local fp = mod.mapgen_forced_params[realm.mapgen]
+			if fp and fp['full_chunk'] then
+				r_copy.isect_minp = params.chunk_minp
+				r_copy.isect_maxp = params.chunk_maxp
+			else
+				r_copy.isect_minp = isect_minp
+				r_copy.isect_maxp = isect_maxp
+			end
 			table.insert(realms, r_copy)
 		end
 	end

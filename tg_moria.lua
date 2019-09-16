@@ -146,15 +146,24 @@ end
 local bts = {}
 -- check
 function mod.generate_moria(params)
-	local minp, maxp = params.chunk_minp, params.chunk_maxp
-	local csize = params.chunk_csize
+	if params.share.disruptive then
+		return
+	end
+
+	local minp, maxp = params.isect_minp, params.isect_maxp
+	local csize = params.csize
 	local chunk = vector.floor(vector.divide(vector.add(minp, 32), 80))
 
 	if params.share.height_min and params.share.height_min < params.realm_maxp.y then
 		return
 	end
 
+	-- You really don't want cave biomes in geomoria...
 	params.share.no_biome = true
+
+	if params.disruptive then
+		params.share.disruptive = true
+	end
 
 	--print('called at minp ', params.isect_minp.y)
 	if not box_names then
@@ -278,7 +287,7 @@ dofile(mod.path .. '/plans.lua')
 -- Define the noises.
 --layers_mod.register_noise( 'dflat_ground', { offset = 0, scale = 100, seed = 4382, spread = {x = 320, y = 320, z = 320}, octaves = 6, persist = 0.5, lacunarity = 2.0} )
 
-layers_mod.register_mapgen('tg_moria', mod.generate_moria)
+layers_mod.register_mapgen('tg_moria', mod.generate_moria, { full_chunk = true })
 if layers_mod.register_spawn then
 	--layers_mod.register_spawn('tg_moria', mod.get_spawn_level)
 end

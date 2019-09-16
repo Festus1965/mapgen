@@ -12,6 +12,10 @@ local ground_c
 
 
 function mod.generate_intersect(params)
+	if params.share.disruptive then
+		return
+	end
+
 				--local t_yloop = os.clock()
 	local t_caves = os.clock()
 
@@ -148,7 +152,7 @@ function mod.generate_intersect(params)
 							params.share.intersected = true
 						end
 					end
-				elseif n3 and n4 then
+				elseif n3 and n4 and not params.share.no_biome then
 					local skip
 					if close or y > height_max then
 						local depth = height - y
