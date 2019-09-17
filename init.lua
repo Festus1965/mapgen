@@ -69,3 +69,48 @@ minetest.register_on_shutdown(function()
   print('Total Time: '..math.floor(1000 * mod.time_all / mod.chunks))
   print('chunks: '..mod.chunks)
 end)
+
+
+mod.midnight_sun = minetest.setting_getbool('mapgen_midnight_sun')
+if mod.midnight_sun == nil then
+	mod.midnight_sun = true
+end
+if mod.midnight_sun then
+	local NIGHT_LIGHT = 0.3
+	local DAWN, DUSK = 0.2, 0.8
+	local night_time
+	minetest.register_globalstep(function(dtime)
+		local clock = minetest.get_timeofday()
+		if clock > DAWN and clock < DUSK then
+			if night_time then
+				night_time = nil
+			else
+				return
+			end
+		else
+			if night_time then
+				return
+			else
+				night_time = NIGHT_LIGHT
+			end
+		end
+
+		local players = minetest.get_connected_players()
+		if not (players and type(players) == 'table') then
+			return
+		end
+
+		for i = 1, #players do
+			local player = players[i]
+			player:override_day_night_ratio(night_time)
+			--print('override', night_time)
+		end
+	end)
+
+	minetest.register_on_joinplayer(function(player)
+		local clock = minetest.get_timeofday()
+		if clock <= DAWN or clock >= DUSK then
+			player:override_day_night_ratio(NIGHT_LIGHT)
+		end
+	end)
+end
