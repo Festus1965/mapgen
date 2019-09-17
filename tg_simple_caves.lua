@@ -3,9 +3,10 @@
 -- Distributed under the LGPLv2.1 (https://www.gnu.org/licenses/old-licenses/lgpl-2.1.en.html)
 
 
+tg_simple_caves = {}
+local mod, layers_mod = tg_simple_caves, mapgen
+local mod_name = 'tg_simple_caves'
 local VN = vector.new
-local mod, layers_mod = mapgen, mapgen
-local mod_name = mod.mod_name
 
 
 local cave_underground = 5

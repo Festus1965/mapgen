@@ -3,42 +3,15 @@
 -- Distributed under the LGPLv2.1 (https://www.gnu.org/licenses/old-licenses/lgpl-2.1.en.html)
 
 
-local mod, layers_mod
-if minetest.get_modpath('realms') then
-	layers_mod = realms
-	mod = floaters
-else
-	layers_mod = mapgen
-	mod = mapgen
-end
-
-local mod_name = mod.mod_name
+tg_flat_caves = {}
+local mod, layers_mod = tg_flat_caves, mapgen
+local mod_name = 'tg_flat_caves'
 local nodes_name = 'mapgen'
 
 local max_height = 31000
 local VN = vector.new
-
-
-local node
-if layers_mod.mod_name == 'mapgen' then
-	node = layers_mod.node
-	clone_node = layers_mod.clone_node
-else
-	dofile(mod.path .. '/functions.lua')
-	node = mod.node
-	clone_node = mod.clone_node
-end
-
-
-local floor_dirty_nodes = {
-	'default:stone',
-	'default:sandstone',
-	nodes_name .. ':stone_with_lichen',
-	nodes_name .. ':stone_with_algae',
-	nodes_name .. ':stone_with_moss',
-	nodes_name .. ':basalt',
-	nodes_name .. ':granite',
-}
+local node = layers_mod.node
+local replace
 
 
 function mod.generate_flat_caves(params)
@@ -46,30 +19,27 @@ function mod.generate_flat_caves(params)
 
 	params.share.propagate_shadow = true
 
-	if not mod.floor_dirty then
-		mod.floor_dirty = {}
-		for _, v in pairs(floor_dirty_nodes) do
-			local n = node[v]
-			mod.floor_dirty[n] = true
-		end
-	end
-
 	local minp, maxp = params.isect_minp, params.isect_maxp
 	local area, data, p2data = params.area, params.data, params.vmparam2
 
 	local csize = vector.add(vector.subtract(maxp, minp), 1)
 	local ystride = area.ystride
+	local ps = PcgRandom(params.chunk_seed + 7712)
 	params.csize = csize
 
 	local n_stone = node['default:stone']
 	local n_air = node['air']
 	local n_water = node['default:water_source']
-	local n_lava = node['default:lava_source']
-	local n_ice = node['default:ice']
 	local n_ignore = node['ignore']
-	local n_wall = 9999
+	local n_placeholder_lining = node[layers_mod.mod_name .. ':placeholder_lining']
 
-	local ps = PcgRandom(params.chunk_seed + 7712)
+	if not replace then
+		replace = {
+			[ n_stone ] = true,
+			[ n_placeholder_lining ] = true,
+			[ n_ignore ] = true,
+		}
+	end
 
 	params.share.no_dust = true
 
@@ -122,19 +92,24 @@ function mod.generate_flat_caves(params)
 		local water_level = cl.water_level
 		local center = vector.divide(vector.add(cl.minp, cl.maxp), 2)
 		params.share.wet_cave = cl.wet
-		params.biome_height_offset = water_level
+		params.share.intersected = true
+		--params.biome_height_offset = water_level
 
 		-- just a few 2d noises
 		local seedb = cl.minp.y % 1137
-		local ground_noise_map = layers_mod.get_noise2d('flat_caves_terrain', nil, seedb, nil, {x=csize.x, y=csize.z}, { x = minp.x, y = minp.z })
+		local ground_noise_map = layers_mod.get_noise2d({
+			name = 'flat_caves_terrain',
+			seed = seedb,
+			pos = { x = minp.x, y = minp.z },
+			size = {x=csize.x, y=csize.z},
+		})
 
-		local surface = {}
+		local surface = params.share.surface or {}
 
 		local index = 1
 		local min_y = math.max(minp.y, cl.minp.y)
 		local max_y = math.min(maxp.y, cl.maxp.y)
 		for z = minp.z, maxp.z do
-			surface[z] = {}
 			for x = minp.x, maxp.x do
 				-- These calculations are very touchy.
 				local ground = ground_noise_map[index]
@@ -154,88 +129,46 @@ function mod.generate_flat_caves(params)
 				local diff = math.abs(ground) * cl.height / 40
 				local floor = math.floor(cl.minp.y + diff + 5.5)
 
-				surface[z][x] = {
-					top = floor,
-					cave_floor = floor,
-					cave_ceiling = math.ceil(center.y + (center.y - floor)),
-				}
-
-				index = index + 1
-			end
-		end
-
-		-- Let realms do the biomes.
-		params.share.surface = surface
-		params.share.cave_layer = cl
-		if params.biomefunc then
-			layers_mod.rmf[params.biomefunc](params)
-		end
-
-
-		local csize = params.csize
-
-		-- Loop through every horizontal space.
-		local index = 1
-		for z = minp.z, maxp.z do
-			for x = minp.x, maxp.x do
-				local surface = surface[z][x]
-				local ground = center.y - surface.top
-
-				local biome = surface.biome or {}
-				local n_b_stone = biome.node_stone or n_stone
-				local n_ceiling = biome.node_ceiling or biome.node_lining
-				local n_floor = biome.node_floor or biome.node_lining
-				local n_fluid = biome.node_cave_liquid or n_water
-				local surface_depth = biome.surface_depth or 1
-				local n_gas = biome.node_air or n_air
-
-				if (not n_floor or mod.floor_dirty[n_floor])
-				and ps:next(1, 8) == 1 then
-					n_floor = node['default:dirt']
+				if not surface[z][x] then
+					surface[z][x] = {}
 				end
+				surface[z][x].cave_floor = params.realm_minp.y
+				surface[z][x].cave_ceiling = params.realm_maxp.y
+
+				local ground = center.y - floor
 
 				local ivm = area:index(x, min_y, z)
 				for y = min_y, max_y do
 					local diff = math.abs(center.y - y)
-					if diff >= ground and diff < ground + surface_depth then
-						if y < center.y then
-							data[ivm] = n_floor or n_b_stone
-							p2data[ivm] = 0
-							--p2data[ivm] = stone_color
-						else
-							data[ivm] = n_ceiling or n_b_stone
-							p2data[ivm] = 0
-							--p2data[ivm] = stone_color
-						end
+					if not replace[data[ivm]] then
+						-- nop
+					elseif diff >= ground + 3 then
+						-- nop
+					elseif not params.share.no_biome and diff >= ground then
+						data[ivm] = n_placeholder_lining
+						p2data[ivm] = 0
+						--[[
 					elseif diff < ground then
-						if n_fluid and y <= water_level then
-							data[ivm] = n_fluid
-							p2data[ivm] = 0
-						else
-							data[ivm] = n_gas
+						if y <= water_level then
+							data[ivm] = n_air
 							p2data[ivm] = 0
 						end
 					elseif data[ivm] == n_air then
 						if diff < 10 then
-							data[ivm] = n_floor or n_b_stone
+							--data[ivm] = n_air
 						else
-							data[ivm] = n_b_stone
+							--data[ivm] = n_air
 						end
 						p2data[ivm] = 0
+						--]]
+					else
+						data[ivm] = n_air
 					end
 
 					ivm = ivm + ystride
 				end
 
 				index = index + 1
-			end
-		end
-
-		if layers_mod.place_all_decorations then
-			layers_mod.place_all_decorations(params, true)
-
-			if not params.share.no_dust and layers_mod.dust then
-				layers_mod.dust(params)
 			end
 		end
 	end
@@ -261,11 +194,7 @@ function mod.generate_flat_caves(params)
 		end
 	end
 
-	if layers_mod.simple_ore then
-		layers_mod.simple_ore(params)
-	end
-
-	mod.time_caves = mod.time_caves + os.clock() - t_caves
+	layers_mod.time_caves = layers_mod.time_caves + os.clock() - t_caves
 end
 
 

@@ -43,14 +43,22 @@ local default_sources = {
 	['fun_caves'] = true,
 }
 
-local chunk_heat_noise = PerlinNoise(layers_mod.registered_noises['heat'])
-local chunk_humidity_noise = PerlinNoise(layers_mod.registered_noises['humidity'])
+local floor_dirty_nodes = {
+	'default:stone',
+	'default:sandstone',
+	layers_mod.mod_name .. ':stone_with_lichen',
+	layers_mod.mod_name .. ':stone_with_algae',
+	layers_mod.mod_name .. ':stone_with_moss',
+	layers_mod.mod_name .. ':basalt',
+	layers_mod.mod_name .. ':granite',
+}
+
 
 function mod.bm_fun_caves_biomes(params)
 				--local t_yloop = os.clock()
-	local minp, maxp = params.isect_minp, params.isect_maxp
+	local minp, maxp = params.chunk_minp, params.chunk_maxp
 	local area, data, p2data = params.area, params.data, params.p2data
-	local csize = params.csize
+	local csize = params.chunk_csize
 	local ystride = area.ystride
 	local biomes_i = {}
 	local pr = params.gpr
@@ -62,10 +70,21 @@ function mod.bm_fun_caves_biomes(params)
 	local n_sand = node['default:sand']
 	local n_placeholder_lining = node[layers_mod.mod_name .. ':placeholder_lining']
 
+	local chunk_heat_noise = PerlinNoise(layers_mod.registered_noises['fun_caves_heat'])
+	local chunk_humidity_noise = PerlinNoise(layers_mod.registered_noises['fun_caves_humidity'])
+
 	local empty = {
 		[n_air] = true,
 		[n_ignore] = true,
 	}
+
+	if not mod.floor_dirty then
+		mod.floor_dirty = {}
+		for _, v in pairs(floor_dirty_nodes) do
+			local n = node[v]
+			mod.floor_dirty[n] = true
+		end
+	end
 
 	if not params.share.biomes_here then
 		params.share.biomes_here = {}
@@ -79,7 +98,8 @@ function mod.bm_fun_caves_biomes(params)
 	end
 
 	local cl_min_y, seedb, heat_map, humidity_map
-	if params.share.cave_layer then
+	--[[
+	if false and params.share.cave_layer then
 		cl_min_y = params.share.cave_layer.minp.y
 		seedb = cl_min_y % 1137
 		heat_map = layers_mod.get_noise2d({
@@ -95,6 +115,8 @@ function mod.bm_fun_caves_biomes(params)
 			size = {x=csize.x, y=csize.z},
 		})
 	else
+	--]]
+	do
 		local heat = chunk_heat_noise:get_3d({ x = minp.x, y = minp.y, z = minp.z })
 		local humidity = chunk_humidity_noise:get_3d({ x = minp.x, y = minp.y, z = minp.z })
 		local biome = mod.get_biome(biomes_i, heat, humidity, minp.y)
@@ -156,7 +178,7 @@ function mod.bm_fun_caves_biomes(params)
 					elseif data[ivm] == n_placeholder_lining then
 						if n_floor == n_sand and empty[data[ivm - ystride]] then
 							data[ivm] = n_ceiling
-						elseif pr:next(1, DIRT_CHANCE) == 1 then
+						elseif mod.floor_dirty[n_floor] and pr:next(1, DIRT_CHANCE) == 1 then
 							data[ivm] = n_dirt
 						else
 							data[ivm] = n_floor

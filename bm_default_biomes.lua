@@ -231,10 +231,6 @@ function mod.bm_default_biomes(params)
 		size = {x=csize.x, y=csize.z},
 	})
 
-	if not (params.no_ponds or params.share.no_ponds) then
-		mod.ponds(params)
-	end
-
 	local index = 1
 	for z = minp.z, maxp.z do
 		local heat_base
@@ -381,6 +377,8 @@ function mod.bm_default_biomes(params)
 				elseif depth_top < 1 and y >= height then
 					-- a minimal, pseudo-erosion
 					data[ivm] = n_air
+					surface.top = surface.top - 1
+					surface.cave_in = true
 				elseif fill_1 and y > fill_1 then
 					-- topping up
 					data[ivm] = top
@@ -405,6 +403,10 @@ function mod.bm_default_biomes(params)
 
 			index = index + 1
 		end
+	end
+
+	if not (params.no_ponds or params.share.no_ponds) then
+		mod.ponds(params)
 	end
 end
 
@@ -588,7 +590,11 @@ local function height_search(params, ri)
 			for xo = -1, 1 do
 				if zo ~= xo then
 					local ni = ci + (zo * csize.x) + xo
-					local height_ni = params.share.surface[cz + zo + minp.z][cx + xo + minp.x].top
+					local osur = params.share.surface[cz + zo + minp.z][cx + xo + minp.x]
+					if osur.cave_in then
+						return
+					end
+					local height_ni = osur.top
 					if not s[ni] and height_ni <= height_ri then
 						s[ni] = true
 						q[#q+1] = ni

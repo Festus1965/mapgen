@@ -6,9 +6,11 @@
 --  but it's been through a couple of mods since.
 
 
-local mod, layers_mod = mapgen, mapgen
-local mod_name = mod.mod_name
+tg_intersect = {}
+local mod, layers_mod = tg_intersect, mapgen
+local mod_name = 'tg_intersect'
 local ground_c
+local replace
 
 
 function mod.generate_intersect(params)
@@ -26,7 +28,16 @@ function mod.generate_intersect(params)
 	local node = layers_mod.node
 	local n_air = node['air']
 	local n_stone = node['default:stone']
+	local n_ignore = node['ignore']
 	local n_placeholder_lining = node[layers_mod.mod_name .. ':placeholder_lining']
+
+	if not replace then
+		replace = {
+			[ n_stone ] = true,
+			[ n_placeholder_lining ] = true,
+			[ n_ignore ] = true,
+		}
+	end
 
 	if not ground_c then
 		ground_c = {
@@ -133,6 +144,7 @@ function mod.generate_intersect(params)
 				local n4 = (math.abs(cave_noise_2[index3d]) < 0.09)
 
 				if n1 and n2 then
+					surface[z][x].cave_in = true
 					local skip
 					if close or y > height_max then
 						local depth = height - y
@@ -144,7 +156,7 @@ function mod.generate_intersect(params)
 						end
 					end
 
-					if data[ivm] == n_stone and not skip then
+					if replace[data[ivm]] and not skip then
 						data[ivm] = n_air
 						p2data[ivm] = 0
 
@@ -161,7 +173,7 @@ function mod.generate_intersect(params)
 						end
 					end
 
-					if data[ivm] == n_stone and not skip then
+					if replace[data[ivm]] and not skip then
 						data[ivm] = n_placeholder_lining
 						p2data[ivm] = 0
 
@@ -177,7 +189,7 @@ function mod.generate_intersect(params)
 		end
 	end
 
-	mod.time_caves = mod.time_caves + os.clock() - t_caves
+	layers_mod.time_caves = layers_mod.time_caves + os.clock() - t_caves
 
 				--layers_mod.time_y_loop = (layers_mod.time_y_loop or 0) + os.clock() - t_yloop
 end

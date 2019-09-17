@@ -3,16 +3,17 @@
 -- Distributed under the LGPLv2.1 (https://www.gnu.org/licenses/old-licenses/lgpl-2.1.en.html)
 
 
+tg_dflat = {}
+local mod, layers_mod = tg_dflat, mapgen
+local mod_name = 'tg_dflat'
+local max_height = 31000
+local node = layers_mod.node
+
+
 local altitude_cutoff_high = 30
 local altitude_cutoff_low = -10
 local altitude_cutoff_low_2 = 63
 local water_diff = 8
-
-
-local mod, layers_mod = mapgen, mapgen
-local mod_name = mod.mod_name
-local max_height = 31000
-local node = layers_mod.node
 
 
 function mod.generate_dflat(params)
