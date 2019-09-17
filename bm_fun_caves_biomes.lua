@@ -31,8 +31,10 @@ function mod.get_biome(biomes_i, heat, humidity, height)
 			end
 		end
 	end
+
 	biome = biome or layers_mod.registered_biomes['stone']
 	--biome = layers_mod.registered_biomes['basalt_lava']
+
 	return biome
 end
 
@@ -105,7 +107,8 @@ function mod.bm_fun_caves_biomes(params)
 	for z = minp.z, maxp.z do
 		for x = minp.x, maxp.x do
 			local surface = params.share.surface[z][x]
-			local height = surface.top
+			local height = surface.top or 33000
+			local bottom = surface.bottom or -33000
 			local biome
 
 			if heat_map and humidity_map then
@@ -141,7 +144,7 @@ function mod.bm_fun_caves_biomes(params)
 				local ivm = area:index(x, minp.y, z)
 				for y = minp.y, maxp.y do
 					local depth = height - y
-					if y > height - 20 then
+					if y > height - 20 or y < bottom + 20 then
 						if data[ivm] == n_placeholder_lining then
 							if pr:next(1, DIRT_CHANCE) == 1 then
 								data[ivm] = n_dirt
@@ -159,7 +162,7 @@ function mod.bm_fun_caves_biomes(params)
 							data[ivm] = n_floor
 						end
 						p2data[ivm] = 0
-					elseif data[ivm] == n_stone and depth > 20 then
+					elseif data[ivm] == n_stone and depth > 20 and y > bottom + 20 then
 						data[ivm] = n_b_stone
 						p2data[ivm] = 0
 					end

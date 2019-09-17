@@ -441,14 +441,8 @@ function Geomorph:write_cube(shape, rot)
 				end
 			end
 
-			local height
-			local surf = self.params.share.surface[minp.z + z]
-			if surf then
-				surf = surf[minp.x + x]
-				if surf then
-					height = surf.top
-				end
-			end
+			local height = self.params.share.surface[minp.z + z][minp.x + x].top
+			height = height or -33000
 
 			local ivm = self.area:index(minp.x + x, minp.y + min.y, minp.z + z)
 			for y = min.y, top_y do
@@ -534,14 +528,9 @@ function Geomorph:write_sphere(shape, rot)
 		local zv = (z - center.z) / proportions.z
 		local zvs = zv * zv
 		for x = min.x, max.x do
-			local height
-			local surface = self.params.share.surface[minp.z + z]
-			if surface then
-				surface = surface[minp.x + x]
-				if surface then
-					height = surface.top
-				end
-			end
+			local height = self.params.share.surface[minp.z + z][minp.x + x].top
+			height = height or -33000
+
 			local ivm = area:index(minp.x + x, minp.y + min.y, minp.z + z)
 			local top_y = max.y
 
@@ -636,16 +625,9 @@ function Geomorph:write_cylinder(shape, rot)
 			local ivm = area:index(minp.x + x, minp.y + min.y, minp.z + z)
 			local top_y = max.y
 
-			--[[
-			if underground then
-				local height = self.params.share.surface[z][x] - minp.y
-				if height then
-					top_y = math.min(max.y, height - underground)
-				--elseif min.y > -32 then
-				--	top_y = min.y - 1
-				end
-			end
-			--]]
+			local height = self.params.share.surface[minp.z + z][minp.x + x].top
+			height = height or -33000
+
 			if do_radius.x then
 				xv = (x - center.x) / proportions.x
 				xvs = xv * xv
@@ -733,14 +715,8 @@ function Geomorph:write_stair(shape, rot)
 		for x = min.x, max.x do
 			local top_y = max.y
 
-			--[[
-			if underground then
-				local height = self.params.share.surface[z][x] - minp.y
-				if height then
-					top_y = math.min(max.y, height - underground)
-				end
-			end
-			--]]
+			local height = self.params.share.surface[minp.z + z][minp.x + x].top
+			height = height or -33000
 
 			local dy
 			if p2 == 0 then
@@ -818,7 +794,7 @@ function Geomorph:write_ladder(shape, rot)
 			local top_y = max.y
 
 			if underground then
-				local height = self.params.share.surface[z][x] - minp.y
+				local height = self.params.share.surface[minp.z + z][minp.x + x].top
 				if height then
 					top_y = math.min(max.y, height - underground)
 				end

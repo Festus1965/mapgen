@@ -3,6 +3,11 @@
 -- Distributed under the LGPLv2.1 (https://www.gnu.org/licenses/old-licenses/lgpl-2.1.en.html)
 
 
+-- Prevents errors from indexing nested tables
+--  that may or may not exist.
+debug.setmetatable(nil, { __index=function () end })
+
+
 mapgen = {}
 local mod = mapgen
 mod.mod_name = 'mapgen'

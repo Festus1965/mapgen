@@ -735,8 +735,7 @@ do
 			biomes = desc.biomes,
 			decoration = mod_name .. ':' .. desc.stalac,
 			name = desc.stalac,
-			flags = 'all_ceilings',
-			y_max = 0,
+			flags = 'all_ceilings, underground',
 		})
 
 		minetest.register_decoration({
@@ -747,8 +746,7 @@ do
 			biomes = desc.biomes,
 			decoration = mod_name .. ':' .. desc.stalag,
 			name = desc.stalag,
-			flags = 'all_floors',
-			y_max = 0,
+			flags = 'all_floors, underground',
 		})
 	end
 	--[[
@@ -804,8 +802,7 @@ do
 		biomes = { 'stone', 'algae', 'lichen', },
 		schematic = huge_mushroom_sch,
 		name = 'huge_mushroom',
-		flags = 'all_floors',
-		y_max = 0,
+		flags = 'all_floors, underground',
 	})
 
 	minetest.register_decoration({
@@ -823,8 +820,7 @@ do
 		biomes = { 'stone', 'algae', 'lichen', },
 		schematic = giant_mushroom_sch,
 		name = 'giant_mushroom',
-		flags = 'all_floors',
-		y_max = 0,
+		flags = 'all_floors, underground',
 	})
 
 	minetest.register_node(mod_name .. ':glow_worm', {
@@ -861,7 +857,7 @@ do
 		biomes = { 'stone', 'algae', 'lichen', },
 		decoration = mod_name .. ':glow_worm',
 		name = 'glow_worm',
-		flags = 'all_ceilings',
+		flags = 'all_ceilings, underground',
 	})
 
 	minetest.register_decoration({
@@ -937,8 +933,7 @@ do
 		decoration = 'default:lava_source',
 		name = 'lava_flow',
 		place_offset_y = -1,  -- This fails in C.
-		flags = 'all_ceilings, force_placement',
-		y_max = 0,
+		flags = 'all_ceilings, force_placement, underground',
 	})
 
 	--[[
@@ -970,8 +965,7 @@ do
 		biomes = { 'coal', },
 		decoration = 'fire:permanent_flame',
 		name = 'Gas Flame',
-		flags = 'all_floors',
-		y_max = 0,
+		flags = 'all_floors, underground',
 	})
 
 	minetest.register_decoration({
@@ -1001,7 +995,7 @@ do
 			mod_name .. ':hot_spike_5',
 		},
 		name = 'Hot Spike',
-		flags = 'all_floors',
+		flags = 'all_floors, underground',
 	})
 
 	--[[
@@ -1033,7 +1027,7 @@ do
 		biomes = { 'granite_lava', 'hot' },
 		decoration = mod_name .. ':pretty_crystal',
 		name = 'Pretty Crystal',
-		flags = 'all_ceilings, all_floors, random_color_floor_ceiling',
+		flags = 'all_ceilings, all_floors, random_color_floor_ceiling, underground',
 	})
 end
 

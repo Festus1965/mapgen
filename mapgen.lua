@@ -290,6 +290,17 @@ function mod.generate_all(params)
 				called_bfuncs[r_params.biomefunc] = true
 				mod.time_terrain = mod.time_terrain + os.clock() - t_terrain
 			end
+
+			-- a special case to handle floaters' caves
+			if r_params.cave_biomes then
+				local nm = 'bm_fun_caves_biomes'
+				if mod.rmf[nm] and not called_bfuncs[nm] then
+					local t_terrain = os.clock()
+					mod.rmf[nm](r_params)
+					called_bfuncs[nm] = true
+					mod.time_terrain = mod.time_terrain + os.clock() - t_terrain
+				end
+			end
 		end
 
 		if not params.no_decorations then
@@ -302,7 +313,6 @@ function mod.generate_all(params)
 	end
 
 	mod.save_map(params)
-
 	mod.chunks = mod.chunks + 1
 end
 
@@ -629,6 +639,17 @@ function mod.place_deco(params, ps, deco)
 						by = surface.biome_height or surface.top or by
 					end
                 end
+
+				if y and surface.cave_floor and surface.cave_ceiling then
+					local in_cave = (y >= surface.cave_floor - 2 and y <= surface.cave_ceiling + 2)
+					if deco.underground and not in_cave then
+						y = nil
+					--elseif not deco.underground and in_cave then
+					--	y = nil
+					end
+				elseif y and deco.underground and surface.top and y > surface.top - 2 then
+					y = nil
+				end
 
 				if y then
 					local biome

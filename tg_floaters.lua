@@ -3,31 +3,15 @@
 -- Distributed under the LGPLv2.1 (https://www.gnu.org/licenses/old-licenses/lgpl-2.1.en.html)
 
 
-local mod, layers_mod
-if minetest.get_modpath('realms') then
-	layers_mod = realms
-	mod = floaters
-else
-	layers_mod = mapgen
-	mod = mapgen
-end
-
+local mod, layers_mod = mapgen, mapgen
 local mod_name = mod.mod_name
-
 local falling = {}
 local max_height = 31000
 local shell_thick = 30
 
 
-local node
-if layers_mod.mod_name == 'mapgen' then
-	node = layers_mod.node
-	clone_node = layers_mod.clone_node
-else
-	dofile(mod.path .. '/functions.lua')
-	node = mod.node
-	clone_node = mod.clone_node
-end
+local node = layers_mod.node
+local clone_node = layers_mod.clone_node
 
 
 -- floater-specific nodes
@@ -44,22 +28,18 @@ function mod.generate_floaters(params)
 	local minp, maxp = params.isect_minp, params.isect_maxp
 	local water_level = params.sealevel
 	local area, data, p2data = params.area, params.data, params.vmparam2
+	local csize = params.csize
+	local ystride = area.ystride
+	local ps = PcgRandom(params.chunk_seed + 7712)
 
 	params.share.propagate_shadow = false
-
-	--local chunksize = tonumber(minetest.settings:get('chunksize') or 5)
-	--local chunk_offset = math.floor(chunksize / 2) * 16;
-
-	local csize = vector.add(vector.subtract(maxp, minp), 1)
-
-	local ystride = area.ystride
+	params.share.no_ponds = true
 
 	local n_stone = node['default:stone']
 	local n_air = node['air']
 	local n_water = node['default:water_source']
 	local n_glass = node[mod_name..':airy_barrier']
-
-	local ps = PcgRandom(params.chunk_seed + 7712)
+	local n_placeholder_lining = node[layers_mod.mod_name .. ':placeholder_lining']
 
 	-- Find all falling nodes.
 	if not falling[node['default:sand'] ] then
@@ -71,15 +51,28 @@ function mod.generate_floaters(params)
 	end
 
 	-- just a few 2d noises
-	local ground_noise_map = layers_mod.get_noise2d('floaters_over', nil, nil, nil, {x=csize.x, y=csize.z}, { x = minp.x, y = minp.z })
-	local under_noise_map = layers_mod.get_noise2d('floaters_under', nil, nil, nil, {x=csize.x, y=csize.z}, { x = minp.x, y = minp.z })
-	local base_noise_map = layers_mod.get_noise2d('floaters_base', nil, nil, nil, {x=csize.x, y=csize.z}, { x = minp.x, y = minp.z })
+	local ground_noise_map = layers_mod.get_noise2d({
+		name = 'floaters_over',
+		pos = { x = minp.x, y = minp.z },
+		size = {x=csize.x, y=csize.z},
+	})
+	local under_noise_map = layers_mod.get_noise2d({
+		name = 'floaters_under',
+		pos = { x = minp.x, y = minp.z },
+		size = {x=csize.x, y=csize.z},
+	})
+	local base_noise_map = layers_mod.get_noise2d({
+		name = 'floaters_base',
+		pos = { x = minp.x, y = minp.z },
+		size = {x=csize.x, y=csize.z},
+	})
 
 	local base_base_level = water_level + 63
 
 	local height_min = max_height
 	local height_max = max_height
 	local surface = {}
+	params.share.surface = surface
 
 	-- terrain height calculations
 	local index = 1
@@ -102,14 +95,6 @@ function mod.generate_floaters(params)
 			local cave_high = math.min(height - shell_thick, maxp.y - pheight)
 			local cave_low = math.max(depth + shell_thick, minp.y + pheight)
 
-			-- Using surface instead of flat maps results in about
-			-- 128 Mb of memory used on the same chunks that take
-			-- only 92 Mb with flat maps. Memory could be an issue,
-			-- especially with luajit.
-			-- However, having all the data for that point in one
-			-- table makes it easier to keep track of.
-			-- The first rule of optimizing is: Don't.
-
 			surface[z][x] = {
 				top = height,
 				bottom = depth,
@@ -126,98 +111,23 @@ function mod.generate_floaters(params)
 			height_max = math.max(ground_1, height_max)
 			height_min = math.min(ground_1, height_min)
 
-			index = index + 1
-		end
-	end
-
-	-- Let realms do the biomes.
-	params.share.surface=surface
-	if params.biomefunc then
-		layers_mod.rmf[params.biomefunc](params)
-	end
-
-	-- Loop through every horizontal space.
-	local index = 1
-	for z = minp.z, maxp.z do
-		for x = minp.x, maxp.x do
-			local surface = params.share.surface[z][x]
-			local height = surface.top
-			local depth = surface.bottom
-			local biome = surface.biome or {}
-
-			-- depths
-			local depth_top = surface.top_depth or biome.depth_top or 0  -- 1?
-			local depth_filler = surface.filler_depth or biome.depth_filler or 0  -- 6?!
-			--local depth_top = biome.top_depth or 0  -- 1?
-			--local depth_filler = biome.filler_depth or 0  -- 6?!
-			local wtd = biome.node_water_top_depth or 0
-			local grass_p2 = surface.grass_p2 or 0
-
-			local fill_1 = height - depth_top
-			local fill_2 = fill_1 - math.max(0, depth_filler)
-
-			-- biome-determined nodes
-			local stone = biome.node_stone or n_stone
-			local filler = biome.node_filler or n_air
-			local top = biome.node_top or n_air
-			local riverbed = biome.node_riverbed
-			local ww = biome.node_water or node['default:water_source']
-			local wt = biome.node_water_top
-
 			local min_y = depth
 			local min_y_chunk = math.max(minp.y, min_y)
-			local cave_high = surface.cave_ceiling
-			local cave_low = surface.cave_floor
 
 			-- Start at the bottom and fill up.
 			local ivm = area:index(x, min_y_chunk, z)
 			for y = min_y_chunk, maxp.y do
 				if y < min_y then
 					-- below the terrain
-				elseif y > height and y <= water_level then
-					-- rivers or lakes (There are none.)
-					if y > water_level - wtd then
-						data[ivm] = wt
-					else
-						data[ivm] = ww
-					end
-					p2data[ivm] = 0
-				elseif y == height and y <= water_level then
-					-- river/lakebeds (none)
-					data[ivm] = riverbed
-					p2data[ivm] = 0
-				elseif y <= height and y > fill_1 then
-					-- topping up
-
-					-- Check for sand where it might fall
-					--  (and crash the server).
-					if y == min_y and falling[top] then
-						data[ivm] = n_stone
-					else
-						data[ivm] = top
-					end
-
-					-- decorate
-					if biome.decorate and y == height then
-						biome.decorate(x,y+1,z, biome, params)
-					end
-
-					p2data[ivm] = grass_p2 --  + 0
-				elseif filler and y <= height and y > fill_2 then
-					-- filling
-
-					-- Again, no falling sand.
-					if y == min_y and falling[filler] then
-						data[ivm] = n_stone
-					else
-						data[ivm] = filler
-					end
-					p2data[ivm] = 0
 				elseif y <= cave_high and y >= cave_low then
 					-- This is a cave.
+				elseif params.cave_biomes and not params.share.no_biome
+				and y <= cave_high + 3 and y >= cave_low - 3 then
+					data[ivm] = n_placeholder_lining
+					p2data[ivm] = 0
 				elseif y <= height then
 					-- Otherwise, it's stoned.
-					data[ivm] = stone
+					data[ivm] = n_stone
 					p2data[ivm] = 0
 				end
 

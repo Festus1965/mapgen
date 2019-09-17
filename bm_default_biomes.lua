@@ -140,7 +140,10 @@ function mod.get_biome(biomes_i, heat, humidity, height)
 			end
 		end
 	end
-	--return mapgen.registered_biomes['desert']
+
+	biome = biome or layers_mod.registered_biomes['stone']
+	--biome = mapgen.registered_biomes['desert']
+
 	return biome
 end
 
@@ -228,7 +231,7 @@ function mod.bm_default_biomes(params)
 		size = {x=csize.x, y=csize.z},
 	})
 
-	if not params.no_ponds then
+	if not (params.no_ponds or params.share.no_ponds) then
 		mod.ponds(params)
 	end
 
@@ -240,10 +243,11 @@ function mod.bm_default_biomes(params)
 		end
 		for x = minp.x, maxp.x do
 			local surface = params.share.surface[z][x]
-			local height = (surface.top or minp.y - 2) - water_level - offset + 1
+			local height = (surface.top or minp.y - 2)
 			local heat, heat_blend, humidity, humidity_blend
 
-			surface.biome_height = height
+			local b_height = height - water_level - offset + 1
+			surface.biome_height = b_height
 
 			if params.geographic_heat then
 				heat = heat_base
@@ -257,8 +261,8 @@ function mod.bm_default_biomes(params)
 			heat = heat + heat_blend
 			humidity = humidity + humidity_blend
 
-			if height > 25 then
-				local h2 = height - 25
+			if b_height > 25 then
+				local h2 = b_height - 25
 				heat = heat - h2 * h2 * 0.005
 			end
 
@@ -271,7 +275,7 @@ function mod.bm_default_biomes(params)
 			grass_p2 = (7 - math.min(7, math.max(0, grass_p2))) * 32
 			surface.grass_p2 = grass_p2
 
-			local biome = mod.get_biome(biomes_i, heat, humidity, height)
+			local biome = mod.get_biome(biomes_i, heat, humidity, b_height)
 			surface.biome = biome
 			params.share.biomes_here[biome.name] = (params.share.biomes_here[biome.name] or 0) + 1
 
@@ -289,7 +293,7 @@ function mod.bm_default_biomes(params)
 			local wtd = biome.node_water_top_depth or 0
 
 			do
-				local h_factor = BASE_EROSION * height
+				local h_factor = BASE_EROSION * b_height
 				if sandy_nodes[top] then
 					h_factor = h_factor * 3
 				end
@@ -351,7 +355,8 @@ function mod.bm_default_biomes(params)
 					end
 				end
 
-				if data[ivm] == n_air and y > height and y <= water_level then
+				local above_bottom = (not surface.bottom or y >= surface.bottom)
+				if data[ivm] == n_air and y > height and y <= water_level and above_bottom then
 					if y > water_level - wtd then
 						data[ivm] = wt
 					else
@@ -359,7 +364,7 @@ function mod.bm_default_biomes(params)
 					end
 					p2data[ivm] = 0
 					surface.underwater = true
-				elseif data[ivm] == n_water and heat < 30 then
+				elseif data[ivm] == n_water and heat < 30 and above_bottom then
 					data[ivm] = n_ice
 				elseif data[ivm] == n_water and in_desert then
 					data[ivm] = n_air
@@ -546,16 +551,6 @@ do
 
 	--rereg = nil
 	--]]
-
-	--[[
-
-	-- Let realms do the biomes.
-	if not params.no_ponds then
-		local t_ponds = os.clock()
-		mod.ponds(params)
-		layers_mod.time_ponds = (layers_mod.time_ponds or 0) + os.clock() - t_ponds
-	end
---]]
 end
 
 
@@ -643,7 +638,7 @@ function mod.ponds(params)
 	local pond_max = params.sealevel + 175
 	-- Setting min higher causes problems with the bottoms
 	--  of low-lying ponds.
-	local pond_min = params.share.base_level
+	local pond_min = params.share.base_level or (params.sealevel + 8)
 	local ps = PcgRandom(params.chunk_seed + 93)
 
 	-- Check for depressions every eight meters.
@@ -651,7 +646,7 @@ function mod.ponds(params)
 		for x = 4, csize.x - 5, 8 do
 			local p = {x=x+minp.x, z=z+minp.z}
 			local index = z * csize.x + x + 1
-			local height = params.share.surface[p.z][p.x].top + 1
+			local height = (params.share.surface[p.z][p.x].top or -33000) + 1
 			if height > pond_min and height < pond_max and height >= minp.y - 1 and height <= maxp.y + 1 then
 				local search = {}
 				local highest = 0
