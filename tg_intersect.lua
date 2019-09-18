@@ -35,6 +35,8 @@ function mod.generate_intersect(params)
 		replace = {
 			[ n_stone ] = true,
 			[ n_placeholder_lining ] = true,
+			[ node['doors:door_wood_a'] ] = true,
+			[ node['doors:door_wood_b'] ] = true,
 			[ n_ignore ] = true,
 		}
 	end
@@ -156,7 +158,8 @@ function mod.generate_intersect(params)
 						end
 					end
 
-					if replace[data[ivm]] and not skip then
+					--if replace[data[ivm]] and not skip then
+					if not skip then
 						data[ivm] = n_air
 						p2data[ivm] = 0
 

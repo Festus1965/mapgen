@@ -31,8 +31,8 @@ function mod.generate_simple_ores(params)
 			f_alt = f_alt - params.sealevel
 		end
 
-		f_alt = math.max(0, - math.floor((f_alt + chunk_offset) / (chunksize * 16)))
-		f_alt = f_alt + math.max(0, pr:next(-12, 4) + pr:next(-12, 4))
+		f_alt = math.max(0, - math.floor((f_alt + chunk_offset) / (chunksize * 16)) - 1)
+		f_alt = f_alt + math.max(0, pr:next(-6, 3) + pr:next(-6, 3))
 		--f_alt = math.max(f_alt, math.floor(math.max(math.abs(minp.x), math.abs(minp.z)) / 3000))
 	end
 

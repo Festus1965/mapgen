@@ -119,3 +119,16 @@ if mod.midnight_sun then
 		end
 	end)
 end
+
+
+mod.soft_leaves = minetest.setting_getbool('mapgen_soft_leaves')
+if mod.soft_leaves == nil then
+	mod.soft_leaves = true
+end
+if mod.soft_leaves then
+	for k, v in pairs(minetest.registered_nodes) do
+		if v.groups.leaves then
+			minetest.override_item(k, { walkable = false })
+		end
+	end
+end

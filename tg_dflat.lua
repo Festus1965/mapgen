@@ -132,7 +132,7 @@ end
 
 
 function mod.get_spawn_level(realm, x, z, force)
-	local ground_noise = minetest.get_perlin(mod.registered_noises['dflat_ground'])
+	local ground_noise = minetest.get_perlin(layers_mod.registered_noises['dflat_ground'])
 	local ground_1 = ground_noise:get_2d({x=x, y=z})
 	local base_level = realm.sealevel + water_diff
 
