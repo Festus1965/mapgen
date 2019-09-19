@@ -5,11 +5,13 @@
 
 bm_fun_caves_biomes = {}
 local mod, layers_mod = bm_fun_caves_biomes, mapgen
+local mod_name = 'bm_fun_caves_biomes'
 local biomes = layers_mod.registered_biomes
 local VN = vector.new
 local CAVE_UNDERGROUND = 5
 local CAVE_STONE_DEPTH = 20
 local DIRT_CHANCE = 10
+local REMOVE_PLACEHOLDERS = false
 local node = layers_mod.node
 
 
@@ -59,7 +61,7 @@ function mod.bm_fun_caves_biomes(params)
 				--local t_yloop = os.clock()
 	local minp, maxp = params.chunk_minp, params.chunk_maxp
 	local area, data, p2data = params.area, params.data, params.p2data
-	local csize = params.chunk_csize
+	--local csize = params.chunk_csize
 	local ystride = area.ystride
 	local biomes_i = {}
 	local pr = params.gpr
@@ -248,3 +250,15 @@ layers_mod.register_noise( 'fun_caves_humidity', {
 dofile(layers_mod.path .. '/fun_caves_biomes.lua')
 
 layers_mod.register_mapfunc('bm_fun_caves_biomes', mod.bm_fun_caves_biomes)
+
+
+if REMOVE_PLACEHOLDERS then
+	minetest.register_lbm({
+		name = ':' .. mod_name .. ':handle_fucked_c_code',
+		nodenames = { layers_mod.mod_name .. ':placeholder_lining' },
+		run_at_every_load = true,
+		action = function(pos, node)
+			minetest.set_node(pos, { name = 'default:stone' })
+		end,
+	})
+end

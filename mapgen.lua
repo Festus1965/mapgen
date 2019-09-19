@@ -281,18 +281,20 @@ function mod.generate_all(params)
 		mod.time_terrain = mod.time_terrain + os.clock() - t_terrain
 	end
 
-	if not params.share.no_biome then
+	if not (params.share.no_biome or params.no_biome) then
 		local called_bfuncs = {}
+		local any_bfunc
 		for _, r_params in pairs(r_params_list) do
 			if r_params.biomefunc and not called_bfuncs[r_params.biomefunc] then
 				local t_terrain = os.clock()
 				mod.rmf[r_params.biomefunc](r_params)
 				called_bfuncs[r_params.biomefunc] = true
 				mod.time_terrain = mod.time_terrain + os.clock() - t_terrain
+				any_bfunc = true
 			end
 
 			-- a special case to handle floaters' caves
-			if r_params.cave_biomes then
+			if not any_bfunc or r_params.cave_biomes then
 				local nm = 'bm_fun_caves_biomes'
 				if mod.rmf[nm] and not called_bfuncs[nm] then
 					local t_terrain = os.clock()
@@ -1089,6 +1091,20 @@ end
 
 function mod.save_map(params)
 	local t_over = os.clock()
+
+	local area, data, node = params.area, params.data, mod.node
+	local n_stone = node['default:stone']
+	local n_placeholder_lining = node[mod_name .. ':placeholder_lining']
+	local screwed_up
+	for i = 1, #data do
+		if data[i] == n_placeholder_lining then
+			data[i] = n_stone
+			screwed_up = area:position(i)
+		end
+	end
+	if screwed_up then
+		print(mod_name .. ': Correcting for minetest voxelmanip bug at around (' .. screwed_up.x .. ',' .. screwed_up.y .. ',' .. screwed_up.z .. '). Biome data has been replaced with default nodes.')
+	end
 
 	params.vm:set_data(params.data)
 	params.vm:set_param2_data(params.p2data)
