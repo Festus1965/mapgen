@@ -8,6 +8,10 @@ local mod, layers_mod = bm_default_biomes, mapgen
 local biomes = layers_mod.registered_biomes
 local node = layers_mod.node
 local BASE_EROSION = 0.03
+local CAVE_STONE_DEPTH = 20
+local MID_TEMP = 60
+local MAX_TEMP = 100
+local MIN_TEMP = -20
 
 
 -- , st, st, st, ss, ds, st, st, ss, ss, st, st, ss, ss, ss, ds, ds, ds, st, ds, ss, ss, st, ss, ds, st, ds, ds, st, st, ss
@@ -231,11 +235,23 @@ function mod.bm_default_biomes(params)
 		size = {x=csize.x, y=csize.z},
 	})
 
+	local plat = math.pi / -15000
+
 	local index = 1
 	for z = minp.z, maxp.z do
 		local heat_base
 		if params.geographic_heat then
-			heat_base = 15 + math.abs(70 - ((((z + 1000) / 6000) * 140) % 140))
+			local tan = math.tan(z * plat)
+			if z < 0 and (z + 7500) % 15000 > 7500
+			or z > 0 and (z + 7499) % 15000 < 7500 then
+				tan = -tan
+			end
+			heat_base = (tan + 10) * MID_TEMP / 10
+			if heat_base > MID_TEMP then
+				heat_base = (heat_base - MID_TEMP) / 2 + MID_TEMP
+			end
+			heat_base = math.min(MAX_TEMP, heat_base)
+			heat_base = math.max(MIN_TEMP, heat_base)
 		end
 		for x = minp.x, maxp.x do
 			local surface = params.share.surface[z][x]
@@ -352,7 +368,9 @@ function mod.bm_default_biomes(params)
 				end
 
 				local above_bottom = (not surface.bottom or y >= surface.bottom)
-				if data[ivm] == n_air and y > height and y <= water_level and above_bottom then
+				if y < (off or height) - CAVE_STONE_DEPTH and above_bottom then
+					-- nop
+				elseif data[ivm] == n_air and y > height and y <= water_level and above_bottom then
 					if y > water_level - wtd then
 						data[ivm] = wt
 					else
@@ -391,9 +409,10 @@ function mod.bm_default_biomes(params)
 					-- Otherwise, it's stoned.
 					if stone_layers and in_desert then
 						data[ivm] = stone_layers[y % 30 + 1]
-						p2data[ivm] = 0
+					else
+						data[ivm] = stone
 					end
-					--p2data[ivm] = 0
+					p2data[ivm] = 0
 				end
 
 				ivm = ivm - ystride
@@ -710,6 +729,34 @@ function mod.ponds(params)
 			end
 		end
 	end
+
+	-- This is expensive and virtually useless.
+	local water_level = params.sealevel
+	for z = minp.z, maxp.z do
+		for x = minp.x, maxp.x do
+			local ivm = area:index(x, minp.y, z)
+			for y = minp.y, maxp.y do
+				if y > water_level then
+					if node[ivm] == n_water then
+						for zo = -1, 1 do
+							local zp = z + zo
+							for xo = -1, 1 do
+								local xp = x + xo
+								if math.abs(zo) ~= math.abs(xo) then
+									if zp >= minp.z and zp <= maxp.z
+									and xp >= minp.x and xp <= maxp.x
+									and data[ivm + zo * area.zstride + xo] == n_air then
+										node[ivm] = n_air
+									end
+								end
+							end
+						end
+					end
+				end
+			end
+		end
+	end
+
 	layers_mod.time_ponds = (layers_mod.time_ponds or 0) + os.clock() - t_ponds
 end
 

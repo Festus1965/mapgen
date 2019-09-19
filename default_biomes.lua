@@ -465,17 +465,6 @@ mod.register_biome({
 	depth_riverbed = 2,
 	depth_top = 1
 })
-mod.register_biome({
-	y_min = 47,
-	source = "default",
-	node_dust = "default:snow",
-	humidity_point = 40,
-	heat_point = 0,
-	node_riverbed = "default:gravel",
-	y_max = 31000,
-	depth_riverbed = 2,
-	name = "tundra_highland"
-})
 mod.register_decoration({
 	y_min = -1,
 	biomes = {

@@ -3,7 +3,7 @@
 -- Distributed under the LGPLv2.1 (https://www.gnu.org/licenses/old-licenses/lgpl-2.1.en.html)
 
 
-local NUM_DEPOSITS = 50
+local NUM_DEPOSITS = 30
 
 
 local mod, layers_mod = mapgen, mapgen

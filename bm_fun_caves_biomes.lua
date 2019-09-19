@@ -8,6 +8,7 @@ local mod, layers_mod = bm_fun_caves_biomes, mapgen
 local biomes = layers_mod.registered_biomes
 local VN = vector.new
 local CAVE_UNDERGROUND = 5
+local CAVE_STONE_DEPTH = 20
 local DIRT_CHANCE = 10
 local node = layers_mod.node
 
@@ -166,7 +167,7 @@ function mod.bm_fun_caves_biomes(params)
 				local ivm = area:index(x, minp.y, z)
 				for y = minp.y, maxp.y do
 					local depth = height - y
-					if y > height - 20 or y < bottom + 20 then
+					if y > height - CAVE_STONE_DEPTH or y < bottom + CAVE_STONE_DEPTH then
 						if data[ivm] == n_placeholder_lining then
 							if pr:next(1, DIRT_CHANCE) == 1 then
 								data[ivm] = n_dirt
@@ -184,7 +185,7 @@ function mod.bm_fun_caves_biomes(params)
 							data[ivm] = n_floor
 						end
 						p2data[ivm] = 0
-					elseif data[ivm] == n_stone and depth > 20 and y > bottom + 20 then
+					elseif data[ivm] == n_stone and depth > CAVE_STONE_DEPTH and y > bottom + CAVE_STONE_DEPTH then
 						data[ivm] = n_b_stone
 						p2data[ivm] = 0
 					end

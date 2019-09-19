@@ -58,6 +58,29 @@ function mod.passages(params)
 	local div_size = 4
 	local up
 
+	-- for placing dungeon decor
+	if not mod.carpetable then
+		mod.carpetable = {
+			[node['default:stone']] = true,
+			[node['default:sandstone']] = true,
+			[node['default:desert_stone']] = true,
+			[node['default:cobble']] = true,
+			[node['default:mossycobble']] = true,
+		}
+	end
+
+	-- for placing cobwebs, etc.
+	if not mod.sides then
+		mod.sides = {
+			{ i = -1, p2 = 3 },
+			{ i = 1, p2 = 2 },
+			{ i = - area.zstride, p2 = 5 },
+			{ i = area.zstride, p2 = 4 },
+			{ i = - area.ystride, p2 = 1 },
+			{ i = area.ystride, p2 = 0 },
+		}
+	end
+
 	if not params.share.treasure_chests then
 		params.share.treasure_chests = {}
 	end

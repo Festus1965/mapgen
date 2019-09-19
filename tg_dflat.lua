@@ -10,10 +10,11 @@ local max_height = 31000
 local node = layers_mod.node
 
 
-local altitude_cutoff_high = 30
+local altitude_cutoff_high = 15
 local altitude_cutoff_low = -10
 local altitude_cutoff_low_2 = 63
 local water_diff = 8
+local cliff_plat = true
 
 
 function mod.generate_dflat(params)
@@ -32,12 +33,31 @@ function mod.generate_dflat(params)
 
 	local base_level = params.sealevel + water_diff
 
+	if params.no_cliffs then
+		cliff_plat = false
+	end
+
 	-- just a few 2d noises
 	local ground_noise_map = layers_mod.get_noise2d({
-			name = 'dflat_ground',
+		name = 'dflat_ground',
+		pos = { x = minp.x, y = minp.z },
+		size = {x=csize.x, y=csize.z},
+	})
+
+	local ground_plat_map, ground_plat_level_map
+	if cliff_plat then
+		ground_plat_map = layers_mod.get_noise2d({
+			name = 'dflat_plat',
 			pos = { x = minp.x, y = minp.z },
 			size = {x=csize.x, y=csize.z},
 		})
+
+		ground_plat_level_map = layers_mod.get_noise2d({
+			name = 'dflat_plat_level',
+			pos = { x = minp.x, y = minp.z },
+			size = {x=csize.x, y=csize.z},
+		})
+	end
 
 	local height_min = max_height
 	local height_max = - max_height
@@ -45,36 +65,18 @@ function mod.generate_dflat(params)
 
 	params.share.base_level = base_level
 
-	-- for placing dungeon decor
-	if not mod.carpetable then
-		mod.carpetable = {
-			[node['default:stone']] = true,
-			[node['default:sandstone']] = true,
-			[node['default:desert_stone']] = true,
-			[node['default:cobble']] = true,
-			[node['default:mossycobble']] = true,
-		}
-	end
-
-	-- for placing cobwebs, etc.
-	if not mod.sides then
-		mod.sides = {
-			{ i = -1, p2 = 3 },
-			{ i = 1, p2 = 2 },
-			{ i = - area.zstride, p2 = 5 },
-			{ i = area.zstride, p2 = 4 },
-			{ i = - area.ystride, p2 = 1 },
-			{ i = area.ystride, p2 = 0 },
-		}
-	end
-
 	local index = 1
 	for z = minp.z, maxp.z do
 		surface[z] = {}
 		for x = minp.x, maxp.x do
 			-- terrain height calculations
 			local ground_1 = ground_noise_map[index]
-			local height = mod.terrain_height(ground_1, base_level)
+			local ground_2, ground_3
+			if cliff_plat then
+				ground_2 = ground_plat_map[index]
+				ground_3 = ground_plat_level_map[index]
+			end
+			local height = mod.terrain_height(ground_1, ground_2, ground_3, base_level)
 
 			height = math.floor(height + 0.5)
 			height_max = math.max(height, height_max)
@@ -133,10 +135,17 @@ end
 
 function mod.get_spawn_level(realm, x, z, force)
 	local ground_noise = minetest.get_perlin(layers_mod.registered_noises['dflat_ground'])
+	local ground_plat = minetest.get_perlin(layers_mod.registered_noises['dflat_plat'])
+	local ground_plat_level = minetest.get_perlin(layers_mod.registered_noises['dflat_plat_level'])
 	local ground_1 = ground_noise:get_2d({x=x, y=z})
+	local ground_2, ground_3
+	if cliff_plat then
+		ground_2 = ground_plat:get_2d({x=x, y=z})
+		ground_3 = ground_plat_level:get_2d({x=x, y=z})
+	end
 	local base_level = realm.sealevel + water_diff
 
-	local height = math.floor(mod.terrain_height(ground_1, base_level))
+	local height = math.floor(mod.terrain_height(ground_1, ground_2, ground_3, base_level))
 	if not force and height <= realm.sealevel then
 		return
 	end
@@ -145,11 +154,18 @@ function mod.get_spawn_level(realm, x, z, force)
 end
 
 
-function mod.terrain_height(ground_1, base_level, div)
+function mod.terrain_height(ground_1, ground_2, ground_3, base_level, div)
 	-- terrain height calculations
 	local height = base_level
+	local platl
+	if cliff_plat then
+		platl = math.floor(math.max(20, ground_3 + 40))
+	end
 	if ground_1 > altitude_cutoff_high then
 		height = height + (ground_1 - altitude_cutoff_high) / (div or 1)
+		if cliff_plat and ground_1 > platl and ground_2 > 0 then
+			height = ((height - platl) / (1 + ground_2)) + platl
+		end
 	elseif ground_1 < altitude_cutoff_low then
 		local g = altitude_cutoff_low - ground_1
 		if g < altitude_cutoff_low_2 then
@@ -174,8 +190,28 @@ layers_mod.register_noise( 'dflat_ground', {
 	lacunarity = 2.0
 } )
 
-layers_mod.register_noise( 'road', {
+layers_mod.register_noise( 'dflat_plat', {
 	offset = 0,
+	scale = 10,
+	seed = 3215,
+	spread = {x = 320, y = 320, z = 320},
+	octaves = 3,
+	persist = 0.5,
+	lacunarity = 2.0
+} )
+
+layers_mod.register_noise( 'dflat_plat_level', {
+	offset = 0,
+	scale = 20,
+	seed = 3785,
+	spread = {x = 320, y = 320, z = 320},
+	octaves = 3,
+	persist = 0.5,
+	lacunarity = 2.0
+} )
+
+layers_mod.register_noise( 'road', {
+	offset = 4,
 	scale = 100,
 	seed = 4382,
 	spread = {x = 320, y = 320, z = 320},

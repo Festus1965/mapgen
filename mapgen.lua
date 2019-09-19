@@ -1042,7 +1042,7 @@ function mod.spawnplayer(player)
 		return
 	end
 
-	local range = realm.spawn_range or 2000
+	local range = realm.spawn_range or 10000
 
 	local beds_here = (minetest.get_modpath('beds') and beds and beds.spawn)
 
