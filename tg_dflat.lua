@@ -191,7 +191,7 @@ layers_mod.register_noise( 'dflat_ground', {
 } )
 
 layers_mod.register_noise( 'dflat_plat', {
-	offset = 0,
+	offset = -5,
 	scale = 10,
 	seed = 3215,
 	spread = {x = 320, y = 320, z = 320},

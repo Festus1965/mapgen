@@ -36,7 +36,7 @@ function mod.get_biome(biomes_i, heat, humidity, height)
 	end
 
 	biome = biome or layers_mod.registered_biomes['stone']
-	--biome = layers_mod.registered_biomes['basalt_lava']
+	--biome = layers_mod.registered_biomes['sand']
 
 	return biome
 end
