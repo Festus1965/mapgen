@@ -20,7 +20,7 @@ function mod.generate_simple_caves(params)
 	local pr = params.gpr
 	local geo = Geomorph.new(params)
 
-	for _ = 1, pr:next(1, 50) do
+	for _ = 1, pr:next(-20, 30) do
 		local size = VN(
 			pr:next(9, 25),
 			pr:next(9, 25),

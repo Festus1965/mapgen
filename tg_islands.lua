@@ -192,6 +192,7 @@ function mod.generate_islands(params)
 --	local permapdims3d = {x = sidelen, y = sidelen, z = sidelen}
 	local permapdims3d = {x = sidelen, y = sidelen, z = 0}
 	local surface = {}
+	local height_min, height_max = 33000, -33000
 	
 	-- base terrain
 	nobj_terrain = nobj_terrain or
@@ -224,6 +225,13 @@ function mod.generate_islands(params)
 			surface[z][x] = {
 				top = height
 			}
+
+			if height > height_max then
+				height_max = height
+			end
+			if height < height_min then
+				height_min = height
+			end
 		end
 	end	
 
@@ -246,6 +254,8 @@ function mod.generate_islands(params)
 
 	params.share.surface = surface
 	params.share.no_roads = true
+	params.share.height_min = height_min
+	params.share.height_max = height_max
 end
 
 

@@ -13,6 +13,26 @@ local ground_c
 local replace
 
 
+local cave_noise_def_1 = {
+	offset = 0,
+	scale = 1,
+	seed = -8402,
+	spread = {x = 128, y = 64, z = 128},
+	octaves = 3,
+	persist = 0.5,
+	lacunarity = 2,
+}
+local cave_noise_def_2 = {
+	offset = 0,
+	scale = 1,
+	seed = 3944,
+	spread = {x = 128, y = 64, z = 128},
+	octaves = 3,
+	persist = 0.5,
+	lacunarity = 2,
+}
+
+
 function mod.generate_intersect(params)
 	if params.share.disruptive then
 		return
@@ -106,24 +126,6 @@ function mod.generate_intersect(params)
 	end
 	--]]
 
-	local cave_noise_def_1 = {
-		offset = 0,
-		scale = 1,
-		seed = -8402,
-		spread = {x = 128, y = 64, z = 128},
-		octaves = 3,
-		persist = 0.5,
-		lacunarity = 2,
-	}
-	local cave_noise_def_2 = {
-		offset = 0,
-		scale = 1,
-		seed = 3944,
-		spread = {x = 128, y = 64, z = 128},
-		octaves = 3,
-		persist = 0.5,
-		lacunarity = 2,
-	}
 	local cave_noise_1 = minetest.get_perlin_map(cave_noise_def_1, csize):get3dMap_flat(minp)
 	local cave_noise_2 = minetest.get_perlin_map(cave_noise_def_2, csize):get3dMap_flat(minp)
 
@@ -134,12 +136,12 @@ function mod.generate_intersect(params)
 	for z = minp.z, maxp.z do
 		for x = minp.x, maxp.x do
 			local height = surface[z][x].top
-			local ivm = area:index(x, minp.y, z)
+			local ivm = area:index(x, maxp.y, z)
 			local index3d = (z - minp.z) * csize.y * csize.x + (x - minp.x) + 1
-			local close = base_level and height <= base_level
+			local close = height <= (base_level or 20)
 			local border = (x == minp.x or x == maxp.x or z == minp.z or z == maxp.z)
 
-			for y = minp.y, maxp.y do
+			for y = maxp.y, minp.y, -1 do
 				local n1 = (math.abs(cave_noise_1[index3d]) < 0.07)
 				local n2 = (math.abs(cave_noise_2[index3d]) < 0.07)
 				local n3 = (math.abs(cave_noise_1[index3d]) < 0.09)
@@ -152,14 +154,18 @@ function mod.generate_intersect(params)
 						local depth = height - y
 						if depth == 1 then
 							skip = true
-						elseif height ~= base_level
+						elseif (not base_level or height ~= base_level)
 						and depth > 1 and depth <= 4 then
 							skip = true
 						end
 					end
 
 					--if replace[data[ivm]] and not skip then
-					if not skip then
+					if not skip and data[ivm] ~= n_air then
+						if surface[z][x].top == y then
+							surface[z][x].top = y - 1
+						end
+
 						data[ivm] = n_air
 						p2data[ivm] = 0
 
@@ -176,7 +182,7 @@ function mod.generate_intersect(params)
 						end
 					end
 
-					if replace[data[ivm]] and not skip then
+					if replace[data[ivm] ] and not skip then
 						data[ivm] = n_placeholder_lining
 						p2data[ivm] = 0
 
@@ -187,7 +193,7 @@ function mod.generate_intersect(params)
 				end
 
 				index3d = index3d + csize.x
-				ivm = ivm + area.ystride
+				ivm = ivm - area.ystride
 			end
 		end
 	end
