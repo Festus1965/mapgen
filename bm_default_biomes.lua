@@ -322,6 +322,8 @@ function mod.bm_default_biomes(params)
 
 			surface.top_depth = depth_top
 			surface.filler_depth = depth_filler
+			local fill_1 = height - depth_top
+			local fill_2 = fill_1 - depth_filler
 
 			if ww == n_water and surface.heat
 			and not params.share.disable_icing then
@@ -341,34 +343,12 @@ function mod.bm_default_biomes(params)
 			end
 
 			-- Start at the top and fill down.
-			local off
-			if height > maxp.y then
-				off = height
-			end
-
-			local fill_1, fill_2
 			--local maxy = math.min(maxp.y, math.max(water_level, height))
 			local ivm = area:index(x, maxp.y, z)
 			--local t_yloop = os.clock()
 			for y = maxp.y, minp.y, -1 do
-				if not off then
-					if replace[data[ivm] ] then
-						off = y
-						surface.top = off
-					elseif (y == minp.y and y == height) then
-						off = y
-					elseif data[ivm] == n_water then
-						surface.underwater = true
-					end
-
-					if off then
-						fill_1 = off - depth_top
-						fill_2 = fill_1 - depth_filler
-					end
-				end
-
 				local above_bottom = (not surface.bottom or y >= surface.bottom)
-				if y < (off or height) - CAVE_STONE_DEPTH and above_bottom then
+				if y < height - CAVE_STONE_DEPTH and above_bottom then
 					-- nop
 				elseif data[ivm] == n_air and y > height and y <= water_level and above_bottom then
 					if y > water_level - wtd then
@@ -380,11 +360,11 @@ function mod.bm_default_biomes(params)
 					surface.underwater = true
 				elseif data[ivm] == n_water and heat < 30 and above_bottom then
 					data[ivm] = n_ice
-				elseif y > water_level and data[ivm] == n_water and in_desert then
-					data[ivm] = n_air
-				elseif y >= height and data[ivm] == n_clay and in_desert then
-					data[ivm] = n_sand
-				elseif not off or y > off then
+				--elseif y > water_level and data[ivm] == n_water and in_desert then
+				--	data[ivm] = n_air
+				--elseif y >= height and data[ivm] == n_clay and in_desert then
+				--	data[ivm] = n_sand
+				elseif y > height then
 					-- nop
 				elseif data[ivm] == n_cobble and hu2_check then
 					data[ivm] = n_mossy
@@ -723,33 +703,6 @@ function mod.ponds(params)
 							data[ivm] = node['flowers:waterlily']
 						else
 							data[ivm] = n_air
-						end
-					end
-				end
-			end
-		end
-	end
-
-	-- This is expensive and virtually useless.
-	local water_level = params.sealevel
-	for z = minp.z, maxp.z do
-		for x = minp.x, maxp.x do
-			local ivm = area:index(x, minp.y, z)
-			for y = minp.y, maxp.y do
-				if y > water_level then
-					if node[ivm] == n_water then
-						for zo = -1, 1 do
-							local zp = z + zo
-							for xo = -1, 1 do
-								local xp = x + xo
-								if math.abs(zo) ~= math.abs(xo) then
-									if zp >= minp.z and zp <= maxp.z
-									and xp >= minp.x and xp <= maxp.x
-									and data[ivm + zo * area.zstride + xo] == n_air then
-										node[ivm] = n_air
-									end
-								end
-							end
 						end
 					end
 				end

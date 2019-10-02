@@ -215,13 +215,12 @@ function mod.generate_islands(params)
 	
 	for z = minp.z, maxp.z do
 		surface[z] = {}
-		base_heightmap[z-minp.z+1]={}
 		for x = minp.x, maxp.x do
 			local theight = isln_terrain[z-minp.z+1][x-minp.x+1] + (convex and isln_var[z-minp.z+1][x-minp.x+1] or 0)
 			local hheight = isln_hills[z-minp.z+1][x-minp.x+1]
 			local cheight = isln_cliffs[z-minp.z+1][x-minp.x+1]
 			local height =get_terrain_height(theight,hheight,cheight, water_level)
-			base_heightmap[z-minp.z+1][x-minp.x+1]=height
+			height = math.floor(height + 0.5)
 			surface[z][x] = {
 				top = height
 			}
@@ -234,7 +233,7 @@ function mod.generate_islands(params)
 				local vi = area:index(x, y, z)								
 				local theight = surface[z][x].top
 				
-				if theight > y then
+				if theight >= y then
 					data[vi] = c_stone
 				--elseif y==ceil(theight) then
 				--	data[vi]= y<3 and c_sand or (y<60-random(3) and c_dirt or c_snow)
