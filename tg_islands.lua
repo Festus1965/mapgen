@@ -245,7 +245,22 @@ function mod.generate_islands(params)
 	end
 
 	params.share.surface = surface
+	params.share.no_roads = true
 end
+
+
+--[[
+-- This doesn't really work...
+layers_mod.register_noise( 'road', {
+	offset = -11*mult,
+	scale = 40*mult,
+	seed = 1234,
+	spread = {x = 256*mult, y =256*mult, z = 256*mult},
+	octaves = convex and 1 or 3,
+	persist = 0.38,
+	lacunarity = 2.33,
+} )
+--]]
 
 
 function mod.get_spawn_level(realm, x, z, force)

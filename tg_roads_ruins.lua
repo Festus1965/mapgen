@@ -6,6 +6,7 @@
 local mod, layers_mod = mapgen, mapgen
 local mod_name = mod.mod_name
 local VN = vector.new
+local FLATNESS = 3
 
 local make_tracks = false
 local road_w = 3
@@ -36,10 +37,6 @@ local house_noise = PerlinNoise({
 
 
 function mod.generate_roads_ruins(params)
-	if not mod.registered_noises['road'] then
-		return
-	end
-
 	local t_ruins = os.clock()
 
 	mod.map_roads(params)
@@ -51,6 +48,7 @@ function mod.generate_roads_ruins(params)
 	local surface = params.share.surface
 	local roads = params.roads or {}
 	local tracks = params.tracks or {}
+	local water_level = params.sealevel
 
 	local index = 1
 	for z = minp.z, maxp.z do
@@ -58,7 +56,9 @@ function mod.generate_roads_ruins(params)
 			local height = surface[z][x].top
 			local ivm = area:index(x, height, z)
 
-			if tracks[index] then
+			if height <= water_level then
+				--nop
+			elseif tracks[index] then
 				if x % 5 == 0 or z % 5 == 0 then
 					data[ivm] = n_rail_power
 				else
@@ -90,11 +90,18 @@ end
 
 -- check
 function mod.map_roads(params)
+	if not mod.registered_noises['road'] then
+		params.share.has_roads = false
+		params.roads = {}
+		params.tracks = {}
+		return
+	end
+
 	local roads = {}
 	local tracks = {}
 	local minp, maxp = params.isect_minp, params.isect_maxp
-	if params.no_roads or minp.y > params.sealevel
-	or maxp.y < params.sealevel then
+	if params.no_roads or params.share.no_roads
+	or minp.y > params.sealevel or maxp.y < params.sealevel then
 		params.roads = roads
 		params.tracks = tracks
 		return
@@ -203,21 +210,16 @@ end
 
 
 function mod.mark_plots(params)
-	if not params.share.base_level then
-		minetest.log(mod_name .. ': Cannot mark plots without base_level')
-		return
-	end
-
 	local plots = {}
 	local minp, maxp = params.isect_minp, params.isect_maxp
+
 	if minp.y > params.sealevel or maxp.y < params.sealevel then
 		params.share.plots = plots
 		return
 	end
 
+	local water_level = params.sealevel
 	local csize = params.csize
-	--local base_level = (params.share.base_level or 9) + chunk_offset  -- Figure from height?
-	local base_level = params.share.base_level
 	local roads = params.roads
 	local pr = params.gpr
 
@@ -230,7 +232,9 @@ function mod.mark_plots(params)
 		size.z = size.z * scale + 9
 
 		for _ = 1, 10 do
-			local pos = VN(pr:next(2, csize.x - size.x - 3), base_level, pr:next(2, csize.z - size.z - 3))
+			local x = pr:next(2, csize.x - size.x - 3)
+			local z = pr:next(2, csize.z - size.z - 3)
+			local pos = VN(x, 20, z)
 			local good = true
 			for _, box in pairs(plots) do
 				if box.pos.x + box.size.x < pos.x
@@ -243,10 +247,20 @@ function mod.mark_plots(params)
 					break
 				end
 			end
+			local maxh, minh = -33000, 33000
 			for z = pos.z, pos.z + size.z do
 				for x = pos.x, pos.x + size.x do
 					local index = z * csize.x + x + 1
-					if roads[index] then
+					local height = params.share.surface[z + minp.z][x + minp.x].top
+					if height > maxh then
+						maxh = height
+					end
+					if height < minh then
+						minh = height
+					end
+
+					if height <= water_level + 2
+					or roads[index] then
 						good = false
 						break
 					end
@@ -255,6 +269,10 @@ function mod.mark_plots(params)
 					break
 				end
 			end
+
+			good = good and (maxh - minh < FLATNESS)
+			pos.y = math.floor((maxh + minh) / 2) - minp.y
+
 			if good then
 				pos.y = pos.y - 2
 				table.insert(plots, {
@@ -276,8 +294,6 @@ function mod.houses(params)
 	local minp = params.isect_minp
 	local plots = params.share.plots
 	local pr = params.gpr
-	--local base_level = params.share.base_level or params.sealevel + water_diff
-	local base_level = params.share.base_level
 
 	if params.no_houses or not plots then
 		return
@@ -287,19 +303,6 @@ function mod.houses(params)
 		local pos = vector.add(box.pos, -2)
 		local size = vector.add(box.size, 4)
 		local good = true
-
-		for z = pos.z, pos.z + size.z do
-			for x = pos.x, pos.x + size.x do
-				local surface = params.share.surface[minp.z + z][minp.x + x]
-				if surface.top < base_level - 1 or surface.top > base_level + 1 then
-					good = false
-					break
-				end
-			end
-			if not good then
-				break
-			end
-		end
 
 		if good then
 			local walls, roof
@@ -456,6 +459,13 @@ function mod.houses(params)
 			end
 
 			geo:write_to_map(0)
+		end
+
+		for z = box.pos.z + minp.z + 1, box.pos.z + box.size.z + minp.z - 1 do
+			for x = box.pos.x + minp.x + 1, box.pos.x + box.size.x + minp.x - 1 do
+				params.share.surface[z][x].top = box.pos.y + minp.y
+				params.share.surface[z][x].cave_in = true
+			end
 		end
 	end
 end
