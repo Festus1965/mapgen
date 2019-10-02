@@ -380,7 +380,7 @@ function mod.bm_default_biomes(params)
 					surface.underwater = true
 				elseif data[ivm] == n_water and heat < 30 and above_bottom then
 					data[ivm] = n_ice
-				elseif data[ivm] == n_water and in_desert then
+				elseif y > water_level and data[ivm] == n_water and in_desert then
 					data[ivm] = n_air
 				elseif y >= height and data[ivm] == n_clay and in_desert then
 					data[ivm] = n_sand
