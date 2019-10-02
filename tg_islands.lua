@@ -1,4 +1,5 @@
 -- Duane's mapgen tg_islands.lua
+
 -- Copied (and lightly modified) from Termos' Islands
 --  (https://github.com/TheTermos/islands/)
 -- Copyright TheTermos (??), 2019
@@ -47,12 +48,12 @@ local mult = 1.0
 
 
 local np_terrain = {
---	offset = -13,
-	offset = -11*mult,						-- ratio 2:7 or 1:4 ?
-	scale = 40*mult,
---	scale = 30,
-	spread = {x = 256*mult, y =256*mult, z = 256*mult},
---	spread = {x = 128, y =128, z = 128},
+	--	offset = -13,
+	offset = -11 * mult,						-- ratio 2:7 or 1:4 ?
+	scale = 40 * mult,
+	--	scale = 30,
+	spread = {x = 256 * mult, y = 256 * mult, z = 256 * mult},
+	--	spread = {x = 128, y = 128, z = 128},
 	seed = 1234,
 	octaves = convex and 1 or 5,
 	persist = 0.38,
@@ -62,8 +63,8 @@ local np_terrain = {
 
 local np_var = {
 	offset = 0,						
-	scale = 6*mult,
-	spread = {x = 64*mult, y =64*mult, z = 64*mult},
+	scale = 6 * mult,
+	spread = {x = 64 * mult, y = 64 * mult, z = 64 * mult},
 	seed = 567891,
 	octaves = 4,
 	persist = 0.4,
@@ -74,8 +75,8 @@ local np_var = {
 local np_hills = {
 	offset = 2.5,					-- off/scale ~ 2:3
 	scale = -3.5,
-	spread = {x = 64*mult, y =64*mult, z = 64*mult},
---	spread = {x = 32, y =32, z = 32},
+	spread = {x = 64 * mult, y = 64 * mult, z = 64 * mult},
+	--	spread = {x = 32, y = 32, z = 32},
 	seed = 2345,
 	octaves = 3,
 	persist = 0.40,
@@ -86,43 +87,43 @@ local np_hills = {
 local np_cliffs = {
 	offset = 0,					
 	scale = 0.72,
-	spread = {x = 180*mult, y =180*mult, z = 180*mult},
+	spread = {x = 180 * mult, y = 180 * mult, z = 180 * mult},
 	seed = 78901,
 	octaves = 2,
 	persist = 0.4,
 	lacunarity = 2.11,
---	flags = "absvalue"
+	--	flags = "absvalue"
 }
 
-local hills_offset = np_hills.spread.x*0.5
-local hills_thresh = floor((np_terrain.scale)*0.5)
-local shelf_thresh = floor((np_terrain.scale)*0.5) 
-local cliffs_thresh=10
+local hills_offset = np_hills.spread.x * 0.5
+local hills_thresh = floor((np_terrain.scale) * 0.5)
+local shelf_thresh = floor((np_terrain.scale) * 0.5) 
+local cliffs_thresh = 10
 
 local function max_height(noiseprm)
 	local height = 0
 	local scale = noiseprm.scale
-	for i=1,noiseprm.octaves do
-		height=height + scale
+	for i = 1,noiseprm.octaves do
+		height = height + scale
 		scale = scale * noiseprm.persist
 	end	
-	return height+noiseprm.offset
+	return height + noiseprm.offset
 end
 
 local function min_height(noiseprm)
 	local height = 0
 	local scale = noiseprm.scale
-	for i=1,noiseprm.octaves do
-		height=height - scale
+	for i = 1,noiseprm.octaves do
+		height = height - scale
 		scale = scale * noiseprm.persist
 	end	
-	return height+noiseprm.offset
+	return height + noiseprm.offset
 end
 
 local base_min = min_height(np_terrain)
 local base_max = max_height(np_terrain)
-local base_rng = base_max-base_min
-local easing_factor = 1/(base_max*base_max*4)
+local base_rng = base_max - base_min
+local easing_factor = 1 / (base_max * base_max * 4)
 local base_heightmap = {}
 
 
@@ -130,12 +131,7 @@ local base_heightmap = {}
 
 local c_sandstone = minetest.get_content_id("default:sandstone")
 local c_stone = minetest.get_content_id("default:stone")
-local c_sand = minetest.get_content_id("default:sand")
---local c_dirt = minetest.get_content_id("default:dirt_with_grass")
---local c_dirt = minetest.get_content_id("default:dirt_with_dry_grass")
-local c_dirt = minetest.get_content_id("islands:dirt_with_grass_palm")
-local c_snow = minetest.get_content_id("islands:dirt_with_snow")
-local c_water     = minetest.get_content_id("default:water_source")
+local c_water = minetest.get_content_id("default:water_source")
 
 
 -- Initialize noise object to nil. It will be created once only during the
@@ -160,25 +156,25 @@ local isln_cliffs = nil
 -- Localise data buffer table outside the loop, to be re-used for all
 -- mapchunks, therefore minimising memory use.
 
-local function get_terrain_height(theight,hheight,cheight, sealevel)
-		-- parabolic gradient
+local function get_terrain_height(theight, hheight, cheight, sealevel)
+	-- parabolic gradient
 	if theight > 0 and theight < shelf_thresh then
-		theight = theight * (theight*theight/(shelf_thresh*shelf_thresh)*0.5 + 0.5)
+		theight = theight * (theight * theight / (shelf_thresh * shelf_thresh) * 0.5 + 0.5)
 	end	
-		-- hills
+	-- hills
 	if theight > hills_thresh then
-		theight = theight + max((theight-hills_thresh) * hheight,0)
+		theight = theight + max((theight - hills_thresh) * hheight,0)
 		-- cliffs
 	elseif theight > 1 and theight < hills_thresh then 
 		local clifh = max(min(cheight,1),0) 
 		if clifh > 0 then
-			clifh = -1*(clifh-1)*(clifh-1) + 1
-			theight = theight + (hills_thresh-theight) * clifh * ((theight<2) and theight-1 or 1)
+			clifh = -1 * (clifh - 1) * (clifh - 1) + 1
+			theight = theight + (hills_thresh - theight) * clifh * ((theight<2) and theight - 1 or 1)
 		end
 	end
 	return theight + sealevel
 end
- 
+
 -- On generated function.
 
 -- 'minp' and 'maxp' are the minimum and maximum positions of the mapchunk that
@@ -189,38 +185,38 @@ function mod.generate_islands(params)
 	local water_level = params.sealevel
 
 	local sidelen = maxp.x - minp.x + 1
---	local permapdims3d = {x = sidelen, y = sidelen, z = sidelen}
+	--	local permapdims3d = {x = sidelen, y = sidelen, z = sidelen}
 	local permapdims3d = {x = sidelen, y = sidelen, z = 0}
 	local surface = {}
 	local height_min, height_max = 33000, -33000
-	
+
 	-- base terrain
 	nobj_terrain = nobj_terrain or
-		minetest.get_perlin_map(np_terrain, permapdims3d)		
-	isln_terrain=nobj_terrain:get_2d_map({x=minp.x,y=minp.z})
-	
+	minetest.get_perlin_map(np_terrain, permapdims3d)		
+	isln_terrain = nobj_terrain:get_2d_map({x = minp.x,y = minp.z})
+
 	-- base variation
 	nobj_var = nobj_var or
-		minetest.get_perlin_map(np_var, permapdims3d)		
-	isln_var=nobj_var:get_2d_map({x=minp.x,y=minp.z})
-	
+	minetest.get_perlin_map(np_var, permapdims3d)		
+	isln_var = nobj_var:get_2d_map({x = minp.x,y = minp.z})
+
 	-- hills
 	nobj_hills = nobj_hills or
-		minetest.get_perlin_map(np_hills, permapdims3d)
-	isln_hills=nobj_hills:get_2d_map({x=minp.x+hills_offset,y=minp.z+hills_offset})
-	
+	minetest.get_perlin_map(np_hills, permapdims3d)
+	isln_hills = nobj_hills:get_2d_map({x = minp.x + hills_offset,y = minp.z + hills_offset})
+
 	-- cliffs
 	nobj_cliffs = nobj_cliffs or
-		minetest.get_perlin_map(np_cliffs, permapdims3d)
-	isln_cliffs=nobj_cliffs:get_2d_map({x=minp.x,y=minp.z})
-	
+	minetest.get_perlin_map(np_cliffs, permapdims3d)
+	isln_cliffs = nobj_cliffs:get_2d_map({x = minp.x,y = minp.z})
+
 	for z = minp.z, maxp.z do
 		surface[z] = {}
 		for x = minp.x, maxp.x do
-			local theight = isln_terrain[z-minp.z+1][x-minp.x+1] + (convex and isln_var[z-minp.z+1][x-minp.x+1] or 0)
-			local hheight = isln_hills[z-minp.z+1][x-minp.x+1]
-			local cheight = isln_cliffs[z-minp.z+1][x-minp.x+1]
-			local height =get_terrain_height(theight,hheight,cheight, water_level)
+			local theight = isln_terrain[z - minp.z + 1][x - minp.x + 1] + (convex and isln_var[z - minp.z + 1][x - minp.x + 1] or 0)
+			local hheight = isln_hills[z - minp.z + 1][x - minp.x + 1]
+			local cheight = isln_cliffs[z - minp.z + 1][x - minp.x + 1]
+			local height = get_terrain_height(theight, hheight, cheight, water_level)
 			height = math.floor(height + 0.5)
 			surface[z][x] = {
 				top = height
@@ -240,11 +236,11 @@ function mod.generate_islands(params)
 			for x = minp.x, maxp.x do
 				local vi = area:index(x, y, z)								
 				local theight = surface[z][x].top
-				
+
 				if theight >= y then
 					data[vi] = c_stone
-				--elseif y==ceil(theight) then
-				--	data[vi]= y<3 and c_sand or (y<60-random(3) and c_dirt or c_snow)
+					--elseif y == ceil(theight) then
+					--	data[vi] = y<3 and c_sand or (y<60-random(3) and c_dirt or c_snow)
 				elseif y <= water_level then
 					data[vi] = c_water
 				end
@@ -262,23 +258,25 @@ end
 --[[
 -- This doesn't really work...
 layers_mod.register_noise( 'road', {
-	offset = -11*mult,
-	scale = 40*mult,
-	seed = 1234,
-	spread = {x = 256*mult, y =256*mult, z = 256*mult},
-	octaves = convex and 1 or 3,
-	persist = 0.38,
-	lacunarity = 2.33,
+offset = -11 * mult,
+scale = 40 * mult,
+seed = 1234,
+spread = {x = 256 * mult, y = 256 * mult, z = 256 * mult},
+octaves = convex and 1 or 3,
+persist = 0.38,
+lacunarity = 2.33,
 } )
 --]]
 
 
 function mod.get_spawn_level(realm, x, z, force)
 	local height = 20 + realm.sealevel
-	--local theight = isln_terrain[z-minp.z+1][x-minp.x+1] + (convex and isln_var[z-minp.z+1][x-minp.x+1] or 0)
-	--local hheight = isln_hills[z-minp.z+1][x-minp.x+1]
-	--local cheight = isln_cliffs[z-minp.z+1][x-minp.x+1]
-	--local height =get_terrain_height(theight,hheight,cheight, water_level)
+	local theight = minetest.get_perlin(np_terrain):get_2d({x=x, y=z})
+	--local isln_var_l = minetest.get_perlin(np_var):get_2d({x=x, y=z})
+	--theight = theight + (convex and isln_var_l or 0)
+	local hheight = minetest.get_perlin(np_hills):get_2d({x=x, y=z})
+	local cheight = minetest.get_perlin(np_cliffs):get_2d({x=x, y=z})
+	local height = get_terrain_height(theight, hheight, cheight, realm.sealevel)
 
 	if not force and height <= realm.sealevel then
 		return
