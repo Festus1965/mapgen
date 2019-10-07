@@ -325,8 +325,10 @@ function mod.bm_default_biomes(params)
 			local fill_1 = height - depth_top
 			local fill_2 = fill_1 - depth_filler
 
-			if ww == n_water and surface.heat
+			if surface.heat
+			and (ww == n_ice or ww == n_water)
 			and not params.share.disable_icing then
+				ww = n_water
 				if surface.heat < 30 then
 					wt = n_ice
 					wtd = math.ceil(math.max(0, (30 - surface.heat) / 3))
@@ -350,7 +352,8 @@ function mod.bm_default_biomes(params)
 				local above_bottom = (not surface.bottom or y >= surface.bottom)
 				if y < height - CAVE_STONE_DEPTH and above_bottom then
 					-- nop
-				elseif data[ivm] == n_air and y > height and y <= water_level and above_bottom then
+				elseif data[ivm] == n_air and y > height
+				and y <= water_level and above_bottom then
 					if y > water_level - wtd then
 						data[ivm] = wt
 					else
@@ -358,7 +361,8 @@ function mod.bm_default_biomes(params)
 					end
 					p2data[ivm] = 0
 					surface.underwater = true
-				elseif data[ivm] == n_water and heat < 30 and above_bottom then
+				elseif data[ivm] == n_water and heat < 30
+				and above_bottom and y > water_level - wtd then
 					data[ivm] = n_ice
 				--elseif y > water_level and data[ivm] == n_water and in_desert then
 				--	data[ivm] = n_air

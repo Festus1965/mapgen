@@ -105,6 +105,7 @@ do
 		}
 	}
 	newnode.groups = { snappy = 3, flammable = 2 }
+	newnode.walkable = false
 	minetest.register_node(mod_name..':leaves_cherry', newnode)
 
 	newnode = clone_node('default:leaves')
