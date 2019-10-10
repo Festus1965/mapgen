@@ -471,7 +471,7 @@ mod.register_decoration({
 		"rainforest",
 		"rainforest_swamp"
 	},
-	schematic = "/usr/share/minetest/games/minetest/mods/default/schematics/jungle_tree.mts",
+	schematic = mod.path.."/schematics/jungle_tree.mts",
 	y_max = 31000,
 	source = "default",
 	rotation = "random",
@@ -2826,7 +2826,7 @@ mod.register_decoration({
 		},
 		octaves = 3
 	},
-	schematic = "/usr/share/minetest/games/minetest/mods/default/schematics/large_cactus.mts",
+	schematic = mod.path .. "/schematics/large_cactus.mts",
 	rotation = "random",
 	y_max = 31000,
 	source = "default",
@@ -3771,7 +3771,7 @@ mod.register_decoration({
 		},
 		octaves = 3
 	},
-	schematic = "/usr/share/minetest/games/minetest/mods/default/schematics/acacia_bush.mts",
+	schematic = mod.path .. "/schematics/acacia_bush.mts",
 	y_max = 31000,
 	flags = "place_center_x, place_center_z",
 	name = "default:acacia_bush",
@@ -4016,7 +4016,7 @@ mod.register_decoration({
 		},
 		octaves = 3
 	},
-	schematic = "/usr/share/minetest/games/minetest/mods/default/schematics/emergent_jungle_tree.mts",
+	schematic = mod.path .. "/schematics/emergent_jungle_tree.mts",
 	rotation = "random",
 	source = "default",
 	y_max = 32,
@@ -13632,7 +13632,7 @@ mod.register_decoration({
 		},
 		octaves = 3
 	},
-	schematic = "/usr/share/minetest/games/minetest/mods/default/schematics/blueberry_bush.mts",
+	schematic = mod.path .. "/schematics/blueberry_bush.mts",
 	flags = "place_center_x, place_center_z",
 	y_max = 31000,
 	source = "default",
@@ -13753,7 +13753,7 @@ mod.register_decoration({
 		},
 		octaves = 3
 	},
-	schematic = "/usr/share/minetest/games/minetest/mods/default/schematics/small_pine_tree.mts",
+	schematic = mod.path .. "/schematics/small_pine_tree.mts",
 	y_max = 31000,
 	flags = "place_center_x, place_center_z",
 	name = "default:small_pine_tree",
@@ -15378,7 +15378,7 @@ mod.register_decoration({
 		},
 		octaves = 3
 	},
-	schematic = "/usr/share/minetest/games/minetest/mods/default/schematics/pine_bush.mts",
+	schematic = mod.path .. "/schematics/pine_bush.mts",
 	y_max = 31000,
 	flags = "place_center_x, place_center_z",
 	name = "default:pine_bush",
@@ -15624,7 +15624,7 @@ mod.register_decoration({
 		},
 		octaves = 3
 	},
-	schematic = "/usr/share/minetest/games/minetest/mods/default/schematics/aspen_tree.mts",
+	schematic = mod.path .. "/schematics/aspen_tree.mts",
 	y_max = 31000,
 	flags = "place_center_x, place_center_z",
 	name = "default:aspen_tree",
@@ -17778,7 +17778,7 @@ mod.register_decoration({
 		},
 		octaves = 3
 	},
-	schematic = "/usr/share/minetest/games/minetest/mods/default/schematics/bush.mts",
+	schematic = mod.path .. "/schematics/bush.mts",
 	y_max = 31000,
 	flags = "place_center_x, place_center_z",
 	name = "default:bush",
@@ -18245,7 +18245,7 @@ mod.register_decoration({
 		},
 		octaves = 3
 	},
-	schematic = "/usr/share/minetest/games/minetest/mods/default/schematics/apple_tree.mts",
+	schematic = mod.path .. "/schematics/apple_tree.mts",
 	rotation = "random",
 	y_max = 31000,
 	source = "default",
@@ -20288,7 +20288,7 @@ mod.register_decoration({
 		},
 		octaves = 3
 	},
-	schematic = "/usr/share/minetest/games/minetest/mods/default/schematics/pine_tree.mts",
+	schematic = mod.path .. "/schematics/pine_tree.mts",
 	y_max = 31000,
 	flags = "place_center_x, place_center_z",
 	name = "default:pine_tree",
@@ -22398,7 +22398,7 @@ mod.register_decoration({
 	},
 	y_max = 31000,
 	source = "default",
-	schematic = "/usr/share/minetest/games/minetest/mods/default/schematics/jungle_log.mts",
+	schematic = mod.path .. "/schematics/jungle_log.mts",
 	place_on = {
 		"default:dirt_with_rainforest_litter"
 	},
@@ -22556,7 +22556,7 @@ mod.register_decoration({
 		},
 		octaves = 3
 	},
-	schematic = "/usr/share/minetest/games/minetest/mods/default/schematics/acacia_log.mts",
+	schematic = mod.path .. "/schematics/acacia_log.mts",
 	source = "default",
 	place_on = {
 		"default:dirt_with_dry_grass"
@@ -22678,7 +22678,7 @@ mod.register_decoration({
 	},
 	y_max = 31000,
 	source = "default",
-	schematic = "/usr/share/minetest/games/minetest/mods/default/schematics/pine_log.mts",
+	schematic = mod.path .. "/schematics/pine_log.mts",
 	place_on = {
 		"default:dirt_with_snow",
 		"default:dirt_with_coniferous_litter"
@@ -22780,7 +22780,7 @@ mod.register_decoration({
 		},
 		octaves = 3
 	},
-	schematic = "/usr/share/minetest/games/minetest/mods/default/schematics/apple_log.mts",
+	schematic = mod.path .. "/schematics/apple_log.mts",
 	source = "default",
 	place_on = {
 		"default:dirt_with_grass"
@@ -22869,7 +22869,7 @@ mod.register_decoration({
 		},
 		octaves = 3
 	},
-	schematic = "/usr/share/minetest/games/minetest/mods/default/schematics/acacia_tree.mts",
+	schematic = mod.path .. "/schematics/acacia_tree.mts",
 	rotation = "random",
 	y_max = 31000,
 	source = "default",
@@ -26604,7 +26604,7 @@ mod.register_decoration({
 		},
 		octaves = 3
 	},
-	schematic = "/usr/share/minetest/games/minetest/mods/default/schematics/papyrus.mts",
+	schematic = mod.path .. "/schematics/papyrus.mts",
 	y_max = 0,
 	name = "default:papyrus",
 	place_on = {
@@ -26739,7 +26739,7 @@ mod.register_decoration({
 		},
 		octaves = 3
 	},
-	schematic = "/usr/share/minetest/games/minetest/mods/default/schematics/aspen_log.mts",
+	schematic = mod.path .. "/schematics/aspen_log.mts",
 	source = "default",
 	place_on = {
 		"default:dirt_with_grass"
