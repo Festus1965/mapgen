@@ -1093,17 +1093,22 @@ function mod.save_map(params)
 	local t_over = os.clock()
 
 	local area, data, node = params.area, params.data, mod.node
+
 	local n_stone = node['default:stone']
-	local n_placeholder_lining = node[mod_name .. ':placeholder_lining']
-	local screwed_up
-	for i = 1, #data do
-		if data[i] == n_placeholder_lining then
-			data[i] = n_stone
-			screwed_up = area:position(i)
+	local n_placeholder_lining
+	if minetest.registered_nodes[mod_name .. ':placeholder_lining'] then
+		n_placeholder_lining = node[mod_name .. ':placeholder_lining']
+
+		local screwed_up
+		for i = 1, #data do
+			if data[i] == n_placeholder_lining then
+				data[i] = n_stone
+				screwed_up = area:position(i)
+			end
 		end
-	end
-	if screwed_up then
-		print(mod_name .. ': Correcting for minetest voxelmanip bug at around (' .. screwed_up.x .. ',' .. screwed_up.y .. ',' .. screwed_up.z .. '). Biome data has been replaced with default nodes.')
+		if screwed_up then
+			print(mod_name .. ': Correcting for minetest voxelmanip bug at around (' .. screwed_up.x .. ',' .. screwed_up.y .. ',' .. screwed_up.z .. '). Biome data has been replaced with default nodes.')
+		end
 	end
 
 	params.vm:set_data(params.data)
