@@ -15,19 +15,19 @@ tg_floaters | -33000 | 300 | -33000 | 33000 | 500 | 33000 | 330 | bm_default_bio
 
 tg_islands | -33000 | -33000 | -33000 | 33000 | 200 | 33000 | 1 | bm_default_biomes | spawn | geographic_heat
 
-#tg_roads_ruins | -33000 | 1200 | -33000 | 33000 | 1220 | 33000 | 1200 | | 
+tg_rooms | -33000 | -33000 | -33000 | 33000 | -33 | 33000 | 1 |  |
 
-# Note that tg_moria will only run as a full chunk (80 x 80 x 80).
-tg_moria | -33000 | -500 | -33000 | 33000 | -33 | 33000 | 1 |  | no_random_teleport
-
-tg_simple_caves | -33000 | -1000 | -33000 | 33000 | -20 | 33000 | 1 | bm_fun_caves_biomes |
-
-tg_flat_caves | -33000 | -1500 | -33000 | 33000 | -1000 | 33000 | 1 | bm_fun_caves_biomes |
-
-tg_simple_caves | -33000 | -33000 | -33000 | 33000 | -1500 | 33000 | 1 | bm_fun_caves_biomes |
-
-tg_intersect | -33000 | -33000 | -33000 | 33000 | 200 | 33000 | 1 | bm_fun_caves_biomes |
-
-tg_roads_ruins | -33000 | 0 | -33000 | 33000 | 20 | 33000 | 1 | | 
+## Note that tg_moria will only run as a full chunk (80 x 80 x 80).
+#tg_moria | -33000 | -500 | -33000 | 33000 | -33 | 33000 | 1 |  | no_random_teleport
+#
+#tg_simple_caves | -33000 | -1000 | -33000 | 33000 | -20 | 33000 | 1 | bm_fun_caves_biomes |
+#
+#tg_flat_caves | -33000 | -1500 | -33000 | 33000 | -1000 | 33000 | 1 | bm_fun_caves_biomes |
+#
+#tg_simple_caves | -33000 | -33000 | -33000 | 33000 | -1500 | 33000 | 1 | bm_fun_caves_biomes |
+#
+#tg_intersect | -33000 | -33000 | -33000 | 33000 | 200 | 33000 | 1 | bm_fun_caves_biomes |
+#
+#tg_roads_ruins | -33000 | 0 | -33000 | 33000 | 20 | 33000 | 1 | | 
 
 tg_simple_ores | -33000 | -33000 | -33000 | 33000 | 500 | 33000 | 1 | | 

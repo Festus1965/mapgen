@@ -3,7 +3,7 @@
 -- Distributed under the LGPLv2.1 (https://www.gnu.org/licenses/old-licenses/lgpl-2.1.en.html)
 
 
-local DEBUG
+local DEBUG = true
 local mod = mapgen
 local mod_name = 'mapgen'
 
