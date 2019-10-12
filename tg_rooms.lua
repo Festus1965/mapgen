@@ -12,7 +12,8 @@ local VN = vector.new
 local node = layers_mod.node
 local clone_node = layers_mod.clone_node
 local schematics, carpetable, box_names, sides
-local ovg = 9
+local emergency_caltrop
+local ovg = 8
 
 
 local axes = {'x', 'y', 'z'}
@@ -55,6 +56,50 @@ function mod.generate_schematics()
 			for x = 1, 9 do
 				table.insert(s.data, {
 					param2 = 0,
+					name = 'default:stone',
+					prob = 255,
+				})
+			end
+		end
+	end
+	s.id = 'stone'
+	table.insert(schematics, s)
+
+	dofile(mod.path .. '/df01.room')
+	dofile(mod.path .. '/df02.room')
+	dofile(mod.path .. '/df03.room')
+	dofile(mod.path .. '/df04.room')
+	dofile(mod.path .. '/df05.room')
+	dofile(mod.path .. '/df06.room')
+	emergency_caltrop = schematics[#schematics]
+	dofile(mod.path .. '/df07.room')
+	dofile(mod.path .. '/df08.room')
+
+	mod.rotate_schematics()
+end
+
+
+function mod.generate_test_schematics()
+	local s
+	local center = VN(5, 5, 5)
+	local schematic_array = {
+		yslice_prob = nil,
+		data = {},
+		size = vector.new(9, 9, 9),
+		exits = {
+			x = {false, false},
+			y = {false, false},
+			z = {false, false},
+		},
+		rotate = 0,
+	}
+
+	s = table.copy(schematic_array)
+	for z = 1, 9 do
+		for y = 1, 9 do
+			for x = 1, 9 do
+				table.insert(s.data, {
+					param2 = 0,
 					name = 'air',
 					prob = 255,
 				})
@@ -68,6 +113,7 @@ function mod.generate_schematics()
 	}
 	s.id = 'air'
 	table.insert(schematics, s)
+	emergency_caltrop = schematics[#schematics]
 
 	s = table.copy(schematic_array)
 	for z = 1, 9 do
@@ -257,43 +303,54 @@ end
 function mod.rotate_schematics()
 	local news = {}
 	for _, sch in pairs(schematics) do
-		for rot = 0, 3 do
-			if sch.rotate ~= rot then
-				local cop = {}
-				for k in pairs(sch) do
-					cop[k] = sch[k]
-				end
-				cop.rotate = rot
-				cop.exits = {}
+		local sym
+		if sch.exits.x[1] and sch.exits.x[2] and sch.exits.z[1] and sch.exits.z[2] then
+			sym = 'r'
+		end
+		if (sch.exits.x[1] and sch.exits.x[2]) and not (sch.exits.z[1] or sch.exits.z[2])
+		or not (sch.exits.x[1] or sch.exits.x[2]) and (sch.exits.z[1] and sch.exits.z[2]) then
+			sym = 'b'
+		end
 
-				local drot = (rot - sch.rotate) % 4
-				if drot == 1 then
-					cop.exits.x = {
-						sch.exits.z[2],
-						sch.exits.z[1],
-					}
-					cop.exits.y = sch.exits.y
-					cop.exits.z = sch.exits.x
-				elseif drot == 2 then
-					cop.exits.x = {
-						sch.exits.x[2],
-						sch.exits.x[1],
-					}
-					cop.exits.y = sch.exits.y
-					cop.exits.z = {
-						sch.exits.z[2],
-						sch.exits.z[1],
-					}
-				elseif drot == 3 then
-					cop.exits.x = sch.exits.z
-					cop.exits.y = sch.exits.y
-					cop.exits.z = {
-						sch.exits.x[2],
-						sch.exits.x[1],
-					}
-				end
+		if sym ~= 'r' then
+			for rot = 0, 3 do
+				if sch.rotate ~= rot then
+					local cop = {}
+					for k in pairs(sch) do
+						cop[k] = sch[k]
+					end
+					cop.rotate = rot
+					cop.exits = {}
 
-				table.insert(news, cop)
+					local drot = (rot - sch.rotate) % 4
+					if drot == 1 then
+						cop.exits.x = {
+							sch.exits.z[2],
+							sch.exits.z[1],
+						}
+						cop.exits.y = sch.exits.y
+						cop.exits.z = sch.exits.x
+					elseif drot == 2 and sym ~= 'b' then
+						cop.exits.x = {
+							sch.exits.x[2],
+							sch.exits.x[1],
+						}
+						cop.exits.y = sch.exits.y
+						cop.exits.z = {
+							sch.exits.z[2],
+							sch.exits.z[1],
+						}
+					elseif drot == 3 and sym ~= 'b' then
+						cop.exits.x = sch.exits.z
+						cop.exits.y = sch.exits.y
+						cop.exits.z = {
+							sch.exits.x[2],
+							sch.exits.x[1],
+						}
+					end
+
+					table.insert(news, cop)
+				end
 			end
 		end
 	end
@@ -342,19 +399,19 @@ function mod.generate_rooms(params)
 	end
 
 	local minp, maxp = params.isect_minp, params.isect_maxp
-	local csize = params.csize
-	local chunk = vector.floor(vector.divide(vector.add(minp, 32), 80))
 
 	local tmin = maxp.y
 	if params.share.height_min then
 		tmin = params.share.height_min - 20
 	end
+	tmin = math.floor(tmin / 9) * 9
 	if tmin < minp.y then
 		return
 	end
 
-	-- You really don't want cave biomes in geomoria...
+	-- You really don't want cave biomes here...
 	params.share.no_biome = true
+	params.share.propagate_shadow = true
 
 	if params.disruptive then
 		params.share.disruptive = true
@@ -362,17 +419,9 @@ function mod.generate_rooms(params)
 
 	if not schematics then
 		schematics = {}
+		mod.room_schematics = schematics
 		mod.generate_schematics()
 	end
-
-	local nofill
-	local water_level = params.sealevel
-
-	--local box_seed = chunk.z * 10000 + chunk.y * 100 + chunk.x + 150
-	--local bgpr = PcgRandom(box_seed)
-	--local box_type = box_names[bgpr:next(1, #box_names)]
-	--local box = layers_mod.registered_geomorphs[box_type]
-	--local box = layers_mod.registered_geomorphs['lake_of_fire']
 
 	for z = minp.z - ovg, maxp.z + ovg do
 		if z % 9 == 0 then
@@ -395,6 +444,8 @@ local cpoints = {
 	VN(4, 0, 0),
 	VN(0, 0, 4),
 	VN(9, 0, 4),
+	VN(4, 0, 4),
+	VN(4, 9, 4),
 }
 function mod.place_geo(params, loc)
 	local rot = 0
@@ -423,26 +474,15 @@ function mod.place_geo(params, loc)
 			elseif pa.z == 0 then
 				ex.z[1] = true
 				tot_exits = tot_exits + 1
+			elseif hn > 0.75 and pa.y == 0 then
+				ex.y[1] = true
+				tot_exits = tot_exits + 1
+			elseif hn > 0.75 and pa.y == 9 then
+				ex.y[2] = true
+				tot_exits = tot_exits + 1
 			end
 		end
 	end
-
-	--[[
-	if (loc.x + loc.z) % 11 == 0 then
-		opt = 1
-		ex = {
-			x = {true, true},
-			y = {false, false},
-			z = {true, true},
-		}
-	else
-		ex = {
-			x = {false, false},
-			y = {false, false},
-			z = {true, true},
-		}
-	end
-	--]]
 
 	local ss = mod.match_exits(ex)
 
@@ -450,29 +490,110 @@ function mod.place_geo(params, loc)
 		print('No exit!')
 		print(dump(ex))
 		print()
-		return
+
+		ss = {emergency_caltrop}
 	end
 
-	local s = ss[math.random(#ss)]
+	local s = ss[ps:next(1, #ss)]
 	rot = s.rotate or 0
-	--print(tot_exits, s.id, s.rotate)
-	if loc.y > -100 and loc.y < -90 then
-		layers_mod.place_schematic(params, s, loc, nil, ps, rot, 0)
-	end
-
-	--[[
-	--print(dump(loc))
-	for _, pa in pairs(cpoints) do
-		local ivm = params.area:indexp(vector.add(vector.add(pa, loc), VN(0,4,0)))
-		--print(dump(vector.add(pa, loc)))
-		local hn = dung_noise:get_3d(vector.add(loc, pa))
-		if hn > 0 then
-			params.data[ivm] = layers_mod.node['default:meselamp']
-		end
-	end
-	--print('++++++++++++++++++')
-	--]]
+	layers_mod.place_schematic(params, s, loc, nil, ps, rot, 0)
 end
+
+
+minetest.register_chatcommand('clearroom', {
+	description = 'save the room you\'re in as a schematic file',
+	--privs = {privs=true}, -- Require the 'privs' privilege to run
+	func = function(name, param)
+		local pos = minetest.get_player_by_name(name):getpos()
+		local loc = vector.multiply(vector.floor(vector.divide(pos, 9)), 9)
+		local p2 = vector.add(loc, 8)
+		local vm = minetest.get_voxel_manip()
+		local emin, emax = vm:read_from_map(loc, p2)
+		local data = vm:get_data()
+		local p2data = vm:get_param2_data()
+		local a = VoxelArea:new({MinEdge = emin, MaxEdge = emax})
+
+		for z = loc.z, p2.z do
+			for y = loc.y, p2.y do
+				local ivm = a:index(loc.x, y, z)
+				for x = loc.x, p2.x do
+					data[ivm] = layers_mod.node['air']
+					p2data[ivm] = 0
+
+					ivm = ivm + 1
+				end
+			end
+		end
+
+		vm:set_data(data)
+		vm:set_param2_data(p2data)
+		vm:write_to_map()
+	end,
+})
+
+
+minetest.register_chatcommand('saveroom', {
+	params = '[filename]',
+	description = 'save the room you\'re in as a schematic file',
+	--privs = {privs=true}, -- Require the 'privs' privilege to run
+	func = function(name, param)
+		local in_filename = param
+		if not in_filename or in_filename == '' or string.find(in_filename, '[^%a%d_]') then
+			print(mod_name .. ': Specify a simple filename containing digits and letters. The suffix will be added automatically. Paths are not allowed.')
+			return
+		end
+
+		local filename = mod.world .. '/' .. in_filename .. '.room'
+		local pos = minetest.get_player_by_name(name):getpos()
+		local loc = vector.multiply(vector.floor(vector.divide(pos, 9)), 9)
+		local p2 = vector.add(loc, 8)
+		local vm = minetest.get_voxel_manip()
+		local emin, emax = vm:read_from_map(loc, p2)
+		local data = vm:get_data()
+		local p2data = vm:get_param2_data()
+		local a = VoxelArea:new({MinEdge = emin, MaxEdge = emax})
+		local schem = {
+			size = vector.add(vector.subtract(p2, loc), 1),
+			exits = {
+				x = {false, false},
+				y = {false, false},
+				z = {false, false},
+			},
+			rotate = 0,
+			id = in_filename,
+		}
+		schem.data = {}
+		for z = loc.z, p2.z do
+			for y = loc.y, p2.y do
+				local ivm = a:index(loc.x, y, z)
+				for x = loc.x, p2.x do
+					local node = {}
+					node.name = minetest.get_name_from_content_id(data[ivm])
+					--if node.name == 'air' then
+					--	node.prob = 0
+					--end
+					if p2data[ivm] ~= 0 then
+						node.param2 = p2data[ivm]
+					end
+					schem.data[#schem.data+1] = node
+
+					ivm = ivm + 1
+				end
+			end
+		end
+
+		local file = io.open(filename, 'wb')
+		if file then
+			local data = minetest.serialize(schem)
+			data = data:gsub('%}, ', '},\n')
+			data = 'local mod = mapgen\n' .. data .. '\ntable.insert(mod.room_schematics, s)'
+			--data = minetest.compress(data)
+			file:write(data)
+			file:close()
+		end
+		print(mod_name .. ' saved a schematic to \''..filename..'\'')
+	end,
+})
 
 
 -----------------------------------------------

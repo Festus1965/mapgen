@@ -3,7 +3,7 @@
 -- Distributed under the LGPLv2.1 (https://www.gnu.org/licenses/old-licenses/lgpl-2.1.en.html)
 
 
-local DEBUG = true
+local DEBUG
 local mod = mapgen
 local mod_name = 'mapgen'
 
@@ -760,6 +760,16 @@ end
 
 
 -- check
+local wallmounted
+local no_rotate = {
+	['default:stone'] = true,
+	['default:stonebrick'] = true,
+	['default:stone_block'] = true,
+	['default:desert_stonebrick'] = true,
+	['default:desert_stone_block'] = true,
+	['default:sandstonebrick'] = true,
+	['default:sandstone_block'] = true,
+}
 local rotated_schematics = {}
 for _ = 1, 21 do
 	table.insert(rotated_schematics, {})
@@ -769,6 +779,15 @@ function mod.place_schematic(params, schem, pos, flags, ps, rot, rot_z)
 	local data, p2data = params.data, params.p2data
 	local color = ps:next(1, 8)
 	local node = mod.node
+
+	if not wallmounted then
+		wallmounted = {}
+		for n, v in pairs(minetest.registered_nodes) do
+			if v.paramtype2 == 'wallmounted' then
+				wallmounted[n] = true
+			end
+		end
+	end
 
 	if not rot_z then
 		rot_z = 0
@@ -935,27 +954,37 @@ function mod.place_schematic(params, schem, pos, flags, ps, rot, rot_z)
 						data[ivm] = node[rotated_schem_2.data[isch].name]
 
 						local param2 = rotated_schem_2.data[isch].param2
-						local fdir = (param2 or 0) % 32
-						local extra = (param2 or 0) - fdir
-						for _ = 1, rot do
-							fdir = drotn[fdir]
+						if no_rotate[rotated_schem_2.data[isch].name] then
+							param2 = 0
+						elseif wallmounted[rotated_schem_2.data[isch].name] then
+							local yaw = minetest.dir_to_yaw(minetest.wallmounted_to_dir(param2))
+							for _ = 1, rot do
+								yaw = yaw + math.pi / 2
+							end
+							param2 = minetest.dir_to_wallmounted(minetest.yaw_to_dir(yaw))
+						else
+							local fdir = (param2 or 0) % 32
+							local extra = (param2 or 0) - fdir
+							for _ = 1, rot do
+								fdir = drotn[fdir]
+							end
+							if rot_z > 0 then
+								--Values range 0 - 23
+								--facedir / 4 = axis direction:
+								--0 = y+	1 = z+	2 = z-	3 = x+	4 = x-	5 = y-
+								--facedir modulo 4 = rotation around that axis
+								local za = {
+									{[0] = 12, [7] = 4, [9] = 8, [12] = 0, [18] = 20 },
+									{[0] = 20, [7] = 4, [9] = 8, [12] = 16, [18] = 12, },
+									{[0] = 16, [7] = 4, [9] = 8, [12] = 0, [18] = 20 },
+								}
+								fdir = za[rot_z][fdir] or za[rot_z][0]
+							end
+							if mod.eight_random_colors[data[ivm]] then
+								extra = color * 32
+							end
+							param2 = fdir + extra
 						end
-						if rot_z > 0 then
-							--Values range 0 - 23
-							--facedir / 4 = axis direction:
-							--0 = y+	1 = z+	2 = z-	3 = x+	4 = x-	5 = y-
-							--facedir modulo 4 = rotation around that axis
-							local za = {
-								{[0] = 12, [7] = 4, [9] = 8, [12] = 0, [18] = 20 },
-								{[0] = 20, [7] = 4, [9] = 8, [12] = 16, [18] = 12, },
-								{[0] = 16, [7] = 4, [9] = 8, [12] = 0, [18] = 20 },
-							}
-							fdir = za[rot_z][fdir] or za[rot_z][0]
-						end
-						if mod.eight_random_colors[data[ivm]] then
-							extra = color * 32
-						end
-						param2 = fdir + extra
 						p2data[ivm] = param2
 					end
 
