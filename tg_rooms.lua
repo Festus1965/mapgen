@@ -54,11 +54,19 @@ function mod.generate_schematics()
 	for z = 1, 9 do
 		for y = 1, 9 do
 			for x = 1, 9 do
-				table.insert(s.data, {
-					param2 = 0,
-					name = 'default:stone',
-					prob = 255,
-				})
+				if x == 1 or x == 9 or y == 1 or y == 9 or z == 1 or z == 9 then
+					table.insert(s.data, {
+						param2 = 0,
+						name = 'default:desert_stonebrick',
+						prob = 255,
+					})
+				else
+					table.insert(s.data, {
+						param2 = 0,
+						name = 'default:stone',
+						prob = 255,
+					})
+				end
 			end
 		end
 	end
@@ -74,227 +82,6 @@ function mod.generate_schematics()
 	emergency_caltrop = schematics[#schematics]
 	dofile(mod.path .. '/df07.room')
 	dofile(mod.path .. '/df08.room')
-
-	mod.rotate_schematics()
-end
-
-
-function mod.generate_test_schematics()
-	local s
-	local center = VN(5, 5, 5)
-	local schematic_array = {
-		yslice_prob = nil,
-		data = {},
-		size = vector.new(9, 9, 9),
-		exits = {
-			x = {false, false},
-			y = {false, false},
-			z = {false, false},
-		},
-		rotate = 0,
-	}
-
-	s = table.copy(schematic_array)
-	for z = 1, 9 do
-		for y = 1, 9 do
-			for x = 1, 9 do
-				table.insert(s.data, {
-					param2 = 0,
-					name = 'air',
-					prob = 255,
-				})
-			end
-		end
-	end
-	s.exits = {
-		x = {true, true},
-		y = {true, true},
-		z = {true, true},
-	}
-	s.id = 'air'
-	table.insert(schematics, s)
-	emergency_caltrop = schematics[#schematics]
-
-	s = table.copy(schematic_array)
-	for z = 1, 9 do
-		for y = 1, 9 do
-			for x = 1, 9 do
-				table.insert(s.data, {
-					param2 = 0,
-					name = 'default:stone',
-					prob = 255,
-				})
-			end
-		end
-	end
-	s.id = 'stone'
-	table.insert(schematics, s)
-
-	s = table.copy(schematic_array)
-	for z = 1, 9 do
-		for y = 1, 9 do
-			for x = 1, 9 do
-				local sub= 'default:stone'
-				local p = VN(x, y, z)
-				local d = vector.abs(vector.subtract(center, p))
-				if (d.x < 2 and d.z < 2) or (d.y < 2 and d.z < 2) or (d.x < 2 and d.y < 2) then
-					sub = 'air'
-				end
-
-				table.insert(s.data, {
-					param2 = 0,
-					name = sub,
-					prob = 255,
-				})
-			end
-		end
-	end
-	s.exits = {
-		x = {true, true},
-		y = {true, true},
-		z = {true, true},
-	}
-	s.id = 'caltrop'
-	table.insert(schematics, s)
-
-	s = table.copy(schematic_array)
-	for z = 1, 9 do
-		for y = 1, 9 do
-			for x = 1, 9 do
-				local sub= 'default:stone'
-				local p = VN(x, y, z)
-				local d = vector.abs(vector.subtract(center, p))
-				if (d.y < 2 and d.z < 2) or (d.x < 2 and d.y < 2) then
-					sub = 'air'
-				end
-
-				table.insert(s.data, {
-					param2 = 0,
-					name = sub,
-					prob = 255,
-				})
-			end
-		end
-	end
-	s.exits = {
-		x = {true, true},
-		y = {false, false},
-		z = {true, true},
-	}
-	s.id = 'cross'
-	table.insert(schematics, s)
-
-	s = table.copy(schematic_array)
-	for z = 1, 9 do
-		for y = 1, 9 do
-			for x = 1, 9 do
-				local sub= 'default:stone'
-				local p = VN(x, y, z)
-				local dp = vector.subtract(center, p)
-				local d = vector.abs(dp)
-				if (d.y < 2 and d.z < 2 and dp.x < 2) or (d.x < 2 and d.y < 2 and dp.z < 2) then
-					sub = 'air'
-				end
-
-				table.insert(s.data, {
-					param2 = 0,
-					name = sub,
-					prob = 255,
-				})
-			end
-		end
-	end
-	s.exits = {
-		x = {false, true},
-		y = {false, false},
-		z = {false, true},
-	}
-	s.id = 'L'
-	table.insert(schematics, s)
-
-	s = table.copy(schematic_array)
-	for z = 1, 9 do
-		for y = 1, 9 do
-			for x = 1, 9 do
-				local sub= 'default:stone'
-				local p = VN(x, y, z)
-				local dp = vector.subtract(center, p)
-				local d = vector.abs(dp)
-				if (d.y < 2 and d.z < 2) then
-					sub = 'air'
-				end
-
-				table.insert(s.data, {
-					param2 = 0,
-					name = sub,
-					prob = 255,
-				})
-			end
-		end
-	end
-	s.exits = {
-		x = {true, true},
-		y = {false, false},
-		z = {false, false},
-	}
-	s.id = 'straight'
-	table.insert(schematics, s)
-
-	s = table.copy(schematic_array)
-	for z = 1, 9 do
-		for y = 1, 9 do
-			for x = 1, 9 do
-				local sub= 'default:stone'
-				local p = VN(x, y, z)
-				local dp = vector.subtract(center, p)
-				local d = vector.abs(dp)
-				if (d.y < 2 and d.z < 2) or (d.x < 2 and d.y < 2 and dp.z < 2) then
-					sub = 'air'
-				end
-
-				table.insert(s.data, {
-					param2 = 0,
-					name = sub,
-					prob = 255,
-				})
-			end
-		end
-	end
-	s.exits = {
-		x = {true, true},
-		y = {false, false},
-		z = {false, true},
-	}
-	s.id = 'T'
-	table.insert(schematics, s)
-
-	s = table.copy(schematic_array)
-	for z = 1, 9 do
-		for y = 1, 9 do
-			for x = 1, 9 do
-				local sub= 'default:stone'
-				local p = VN(x, y, z)
-				local dp = vector.subtract(center, p)
-				local d = vector.abs(dp)
-				if (d.y < 2 and d.z < 3 and d.x < 3) or (d.y < 2 and d.x < 2 and dp.z < 2) then
-					sub = 'air'
-				end
-
-				table.insert(s.data, {
-					param2 = 0,
-					name = sub,
-					prob = 255,
-				})
-			end
-		end
-	end
-	s.exits = {
-		x = {false, false},
-		y = {false, false},
-		z = {false, true},
-	}
-	s.id = 'vault'
-	table.insert(schematics, s)
 
 	mod.rotate_schematics()
 end
@@ -586,6 +373,7 @@ minetest.register_chatcommand('saveroom', {
 		if file then
 			local data = minetest.serialize(schem)
 			data = data:gsub('%}, ', '},\n')
+			data = data:gsub('return', 'local s = ')
 			data = 'local mod = mapgen\n' .. data .. '\ntable.insert(mod.room_schematics, s)'
 			--data = minetest.compress(data)
 			file:write(data)
