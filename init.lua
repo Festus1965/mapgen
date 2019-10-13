@@ -132,3 +132,14 @@ if mod.soft_leaves then
 		end
 	end
 end
+
+
+do
+	local defc = minetest.registered_nodes['default:chest']
+	local oldr = defc.on_rightclick
+	defc.on_rightclick = function(pos, node, clicker, itemstack, pointed_thing)
+		if mod.chest_rightclick(pos, node, clicker, itemstack, pointed_thing) then
+			oldr(pos, node, clicker, itemstack, pointed_thing)
+		end
+	end
+end

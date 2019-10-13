@@ -12,27 +12,178 @@ local VN = vector.new
 local node = layers_mod.node
 local clone_node = layers_mod.clone_node
 local schematics, carpetable, box_names, sides
-local emergency_caltrop
+local emergency_caltrop, gpr
 local ovg = 8
-
-
 local axes = {'x', 'y', 'z'}
-function vector.abs(a)
-	local b = table.copy(a)
-	for _, axis in pairs(axes) do
-		if b[axis] < 0 then
-			b[axis] = - b[axis]
+
+local mob_names = {
+	'nmobs:cave_bear',
+	'nmobs:boulder',
+	'nmobs:cockatrice',
+	'nmobs:giant_lizard',
+	'nmobs:rat',
+	'nmobs:scorpion',
+	'nmobs:skeleton',
+	'nmobs:green_slime',
+	'nmobs:deep_spider',
+	'nmobs:goblin',
+	'nmobs:goblin_basher',
+}
+
+
+--[[
+do
+	-- This special node handles traps and mob generation.
+	-- The mob generation should be more efficient, since
+	--  they only appear near players.
+	-- About 75% of these blocks will be inert and untimed.
+	-- This still means over 200 active timers per chunk...
+
+	local n = layers_mod.clone_node('default:desert_stonebrick')
+
+	n.on_construct = function(pos)
+		local sr = math.random(50)
+		local tm = minetest.get_node_timer(pos)
+		local mt = minetest.get_meta(pos)
+		local fun
+		if not (tm and mt) then
+			return
+		end
+
+		if sr < 5 then
+		elseif sr < 10 then
+		elseif sr < 50 then
+			fun = 'summon'
+			tm:set(180, math.random(90) + 90)
+		end
+
+		mt:set_string('fun', fun)
+	end
+
+	n.on_timer = function(pos, elapsed)
+		local mt = minetest.get_meta(pos)
+		if not mt then
+			return true
+		end
+		local fun = mt:get_string('fun')
+
+		if fun == 'pitfall' then
+			-- nop
+		elseif fun == 'summon' then
+			if elapsed < 150 then
+				--print('elapsed error:', elapsed)
+				return true
+			end
+
+			local close
+			for _, player in pairs(minetest.get_connected_players()) do
+				local p = player:get_pos()
+				local rd = vector.abs(vector.subtract(p, pos))
+				if rd.x * rd.x + rd.z * rd.z + 5 * rd.y * rd.y < 2500 then
+					close = true
+				end
+			end
+
+			if not close then
+				return true
+			end
+
+			local ct = 0
+			local mob_count = 0
+			for _, o in pairs(minetest.luaentities) do
+				if vector.distance(o.object:get_pos(), pos) < 300 then
+					ct = ct + 1
+				end
+				mob_count = mob_count + 1
+			end
+
+			if ct > 30 then
+				return true
+			end
+
+			local p = table.copy(pos)
+			p.y = p.y + 2
+			local name = mob_names[math.random(#mob_names)]
+			minetest.add_entity(p, name)
+
+			return true
+		end
+	end
+	n.drop = 'default:desert_stonebrick'
+
+	minetest.register_node(mod_name .. ':fun_brick', n)
+	layers_mod.add_construct(mod_name .. ':fun_brick')
+end
+
+do
+	local n = layers_mod.clone_node('default:desert_stonebrick')
+	n.walkable = false
+	minetest.register_node(mod_name .. ':false_brick', n)
+end
+--]]
+
+
+function mod.generate_rooms(params)
+	if params.share.disruptive then
+		return
+	end
+
+	local minp, maxp = params.isect_minp, params.isect_maxp
+	local data, p2data, area = params.data, params.p2data, params.area
+	local node = layers_mod.node
+	local n_air = node['air']
+
+	params.share.treasure_chest_handler = mod.handle_chest
+	gpr = params.gpr  -- handy for treasure function
+
+	local tmin = maxp.y
+	if params.share.height_min then
+		tmin = params.share.height_min - 20
+	end
+	tmin = math.floor(tmin / 9) * 9
+	if tmin < minp.y then
+		return
+	end
+
+	for z = minp.z, maxp.z do
+		for y = minp.y, math.min(maxp.y, tmin) do
+			local ivm = area:index(minp.x, y, z)
+			for x = minp.x, maxp.x do
+				data[ivm] = n_air
+				p2data[ivm] = 0
+				ivm = ivm + 1
+			end
 		end
 	end
 
-	return b
+	-- You really don't want cave biomes here...
+	params.share.no_biome = true
+	params.share.propagate_shadow = true
+
+	if params.disruptive then
+		params.share.disruptive = true
+	end
+
+	if not schematics then
+		schematics = {}
+		mod.room_schematics = schematics
+		mod.generate_schematics()
+	end
+
+	for z = minp.z - ovg, maxp.z + ovg do
+		if z % 9 == 0 then
+			for y = minp.y - ovg, maxp.y + ovg do
+				if y % 9 == 0 and y + 9 < tmin then
+					for x = minp.x - ovg, maxp.x + ovg do
+						if x % 9 == 0 then
+							mod.place_geo(params, VN(x, y, z))
+						end
+					end
+				end
+			end
+		end
+	end
 end
---[[
-local a = vector.abs(VN(-1, -1.5, 3))
-assert(a.x == 1)
-assert(a.y == 1.5)
-assert(a.z == 3)
---]]
 
 
 function mod.generate_schematics()
@@ -84,6 +235,119 @@ function mod.generate_schematics()
 	dofile(mod.path .. '/df08.room')
 
 	mod.rotate_schematics()
+end
+
+
+function mod.handle_chest(pos)
+	local meta = minetest.get_meta(pos)
+	local sr = gpr:next(1, 1000)
+
+	if sr < 25 then
+		meta:set_int('mapgen_pitfall', 6)
+	else
+		local inv = meta:get_inventory()
+		local invsz = inv:get_size("main")
+		if invsz > 0 then
+			layers_mod.populate_chest(pos, gpr)
+		end
+	end
+end
+
+
+function mod.match_exits(e)
+	local out = {}
+
+	for _, s in pairs(schematics) do
+		local good = true
+
+		for _, axis in pairs(axes) do
+			for i = 1, 2 do
+				if e[axis][i] ~= s.exits[axis][i] then
+					good = false
+				end
+			end
+		end
+
+		if good then
+			table.insert(out, s)
+		end
+	end
+
+	return out
+end
+
+
+-- These are the points around the current room
+--  to check noise, to determine available exits.
+-- Only do this horizontally -- noise-based stairs
+--  are unreliable and get bizarre sometimes.
+local cpoints = {
+	{ VN(4, 0, 0), 'z', 1, },
+	{ VN(4, 0, 9), 'z', 2, },
+	{ VN(0, 0, 4), 'x', 1, },
+	{ VN(9, 0, 4), 'x', 2, },
+}
+local stair_dist = 7 * 9
+function mod.place_geo(params, loc)
+	local rot = 0
+	local ps = params.gpr
+	local dung_noise = PerlinNoise(layers_mod.registered_noises['rooms_connections'])
+	local data, p2data, area = params.data, params.p2data, params.area
+
+	-- Todo: make this a bit more random.
+	local ex_up = (loc.x % stair_dist == 0 and loc.z % stair_dist == 0)
+	local ex_down = (loc.x % stair_dist == 0 and loc.z % stair_dist == 0)
+	local ex = {
+		x = {false, false},
+		y = {ex_down, ex_up},
+		z = {false, false},
+	}
+
+	local tot_exits = 0
+	for _, cset in pairs(cpoints) do
+		local pa, caxis, cdir = cset[1], cset[2], cset[3]
+		local hn = dung_noise:get_3d(vector.add(loc, pa))
+		if hn > 0 then
+			ex[caxis][cdir] = true
+			tot_exits = tot_exits + 1
+		end
+	end
+
+	local ss = mod.match_exits(ex)
+
+	if #ss < 1 then
+		--print('No exit!')
+		--print(dump(ex))
+		--print()
+		ss = {emergency_caltrop}
+	end
+
+	-- Try to make the room choice repeatable.
+	local hran = minetest.hash_node_position(loc) + 3706
+	math.randomseed(hran)
+	local s = ss[math.random(1, #ss)]
+	rot = s.rotate or 0
+
+	----------------------------------------
+	-- This is extremely slow, but the game function
+	--  ignores param2...
+	layers_mod.place_schematic(params, s, loc, nil, ps, rot, 0)
+	----------------------------------------
+
+	if not (ex.y[1] or ex.y[2]) then
+		if s.id == 'vault' then
+			if not params.share.treasure_chests then
+				params.share.treasure_chests = {}
+			end
+
+			if math.random(math.max(2, 5 - #ss)) == 1 then
+				local p = vector.add(loc, VN(4, 1, 4))
+				local ivm = area:indexp(p)
+				data[ivm] = layers_mod.node['default:chest']
+				table.insert(params.share.treasure_chests, p)
+			end
+		end
+	end
 end
 
 
@@ -145,145 +409,6 @@ function mod.rotate_schematics()
 	for _, sch in pairs(news) do
 		table.insert(schematics, sch)
 	end
-end
-
-
-function mod.match_exits(e)
-	local out = {}
-
-	for _, s in pairs(schematics) do
-		local good = true
-		for _, axis in pairs(axes) do
-			for i = 1, 2 do
-				if e[axis][i] ~= s.exits[axis][i] then
-					good = false
-				end
-			end
-		end
-
-		if good then
-			table.insert(out, s)
-		end
-	end
-
-	--[[
-	print('match_exits:')
-	print(dump(e))
-	for _, s in pairs(out) do
-		print(s.id, s.rotate)
-		print(dump(s.exits))
-	end
-	print('--------------------')
-	--]]
-
-	return out
-end
-
-
-function mod.generate_rooms(params)
-	if params.share.disruptive then
-		return
-	end
-
-	local minp, maxp = params.isect_minp, params.isect_maxp
-
-	local tmin = maxp.y
-	if params.share.height_min then
-		tmin = params.share.height_min - 20
-	end
-	tmin = math.floor(tmin / 9) * 9
-	if tmin < minp.y then
-		return
-	end
-
-	-- You really don't want cave biomes here...
-	params.share.no_biome = true
-	params.share.propagate_shadow = true
-
-	if params.disruptive then
-		params.share.disruptive = true
-	end
-
-	if not schematics then
-		schematics = {}
-		mod.room_schematics = schematics
-		mod.generate_schematics()
-	end
-
-	for z = minp.z - ovg, maxp.z + ovg do
-		if z % 9 == 0 then
-			for y = minp.y - ovg, maxp.y + ovg do
-				if y % 9 == 0 and y + 9 < tmin then
-					for x = minp.x - ovg, maxp.x + ovg do
-						if x % 9 == 0 then
-							mod.place_geo(params, VN(x, y, z))
-						end
-					end
-				end
-			end
-		end
-	end
-end
-
-
-local cpoints = {
-	VN(4, 0, 9),
-	VN(4, 0, 0),
-	VN(0, 0, 4),
-	VN(9, 0, 4),
-	VN(4, 0, 4),
-	VN(4, 9, 4),
-}
-function mod.place_geo(params, loc)
-	local rot = 0
-	local ps = params.gpr
-	local dung_noise = PerlinNoise(layers_mod.registered_noises['rooms_connections'])
-
-	local ex = {
-		x = {false, false},
-		y = {false, false},
-		z = {false, false},
-	}
-
-	local tot_exits = 0
-	for _, pa in pairs(cpoints) do
-		local hn = dung_noise:get_3d(vector.add(loc, pa))
-		if hn > 0 then
-			if pa.x == 9 then
-				ex.x[2] = true
-				tot_exits = tot_exits + 1
-			elseif pa.x == 0 then
-				ex.x[1] = true
-				tot_exits = tot_exits + 1
-			elseif pa.z == 9 then
-				ex.z[2] = true
-				tot_exits = tot_exits + 1
-			elseif pa.z == 0 then
-				ex.z[1] = true
-				tot_exits = tot_exits + 1
-			elseif hn > 0.75 and pa.y == 0 then
-				ex.y[1] = true
-				tot_exits = tot_exits + 1
-			elseif hn > 0.75 and pa.y == 9 then
-				ex.y[2] = true
-				tot_exits = tot_exits + 1
-			end
-		end
-	end
-
-	local ss = mod.match_exits(ex)
-
-	if #ss < 1 then
-		print('No exit!')
-		print(dump(ex))
-		print()
-
-		ss = {emergency_caltrop}
-	end
-
-	local s = ss[ps:next(1, #ss)]
-	rot = s.rotate or 0
-	layers_mod.place_schematic(params, s, loc, nil, ps, rot, 0)
 end
 
 

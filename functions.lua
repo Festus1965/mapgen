@@ -19,6 +19,7 @@ mod.registered_mapgens = {}
 mod.registered_noises = {}
 mod.registered_spawns = {}
 mod.rmf = mod.registered_mapfuncs
+mod.pit_depth = 12
 
 
 local axes = { 'x', 'y', 'z' }
@@ -63,6 +64,18 @@ function math.xor(a, b)
 	return r
 end
 assert(math.xor(60, 13) == 49)
+
+
+function vector.abs(a)
+	local b = table.copy(a)
+	for _, axis in pairs(axes) do
+		if b[axis] < 0 then
+			b[axis] = - b[axis]
+		end
+	end
+
+	return b
+end
 
 
 function vector.contains(minp, maxp, x, y, z)
@@ -152,6 +165,29 @@ function mod.add_group(node_name, groups)
 end
 
 
+function mod.chest_rightclick(pos, node, clicker, itemstack, pointed_thing)
+	local meta = minetest.get_meta(pos)
+
+	if meta:contains('mapgen_summon_mob') then
+	elseif meta:contains('mapgen_pitfall') then
+		local depth = meta:get_int('mapgen_pitfall') or 21
+		meta:from_table(nil)
+		minetest.remove_node(pos)
+
+		pos = clicker:getpos()
+		if not pos then
+			return
+		end
+
+		mod.disintigrate({x = pos.x - 1, y = pos.y - depth, z = pos.z - 1}, {x = pos.x + 1, y = pos.y + 2, z = pos.z + 1})
+
+		return
+	end
+
+	return true
+end
+
+
 function mod.clone_node(name)
 	if not (name and type(name) == 'string') then
 		return
@@ -177,6 +213,38 @@ function mod.cube_intersect(r1, r2)
 		end
 	end
 	return minp, maxp
+end
+
+
+function mod.disintigrate(minp, maxp)
+	if not (minp and maxp) then
+		return
+	end
+	minp = vector.round(minp)
+	maxp = vector.round(maxp)
+
+	local air = minetest.get_content_id('air')
+	local vm = minetest.get_voxel_manip()
+	if not vm then
+		return
+	end
+
+	local emin, emax = vm:read_from_map(minp, maxp)
+	local area = VoxelArea:new({MinEdge = emin, MaxEdge = emax})
+	local data = vm:get_data()
+	local p = {}
+	for z = minp.z, maxp.z do
+		for y = minp.y, maxp.y do
+			local ivm = area:index(minp.x, y, z)
+			for x = minp.x, maxp.x do
+				data[ivm] = air
+				ivm = ivm + 1
+			end
+		end
+	end
+	vm:set_data(data)
+	vm:write_to_map()
+	vm:update_map()
 end
 
 
@@ -301,6 +369,12 @@ function mod.node_string_or_table(n)
     end
 
     return o
+end
+
+
+function mod.populate_chest(pos, ps)
+	-- Relying on this closed function is getting annoying...
+	dungeon_loot.populate_chest(pos, ps)
 end
 
 

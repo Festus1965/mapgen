@@ -16,6 +16,12 @@ if minetest.get_modpath('realms') then
 end
 
 
+local dir_to_yaw = minetest.dir_to_yaw
+local dir_to_wallmounted = minetest.dir_to_wallmounted
+local wallmounted_to_dir = minetest.wallmounted_to_dir
+local yaw_to_dir = minetest.yaw_to_dir
+local math_pi = math.pi
+
 mod.buildable_to = {}
 mod.grass_nodes = {}
 mod.liquids = {}
@@ -23,10 +29,40 @@ mod.registered_realms = {}
 
 local m_data = {}
 local m_p2data = {}
+local wallmounted
 
+-- blocks that are completely symmetrical
+mod.no_rotate = {
+	['default:stone'] = true,
+	['default:stonebrick'] = true,
+	['default:stone_block'] = true,
+	['default:desert_stonebrick'] = true,
+	['default:desert_stone_block'] = true,
+	['default:sandstonebrick'] = true,
+	['default:sandstone_block'] = true,
+}
+local no_rotate = mod.no_rotate
+
+--------------------------------------------------------------
+--Values range 0 - 23
+--facedir / 4 = axis direction:
+--0 = y+	1 = z+	2 = z-	3 = x+	4 = x-	5 = y-
 
 -- tables of rotation values for rotating schematics
 local drotn = {[0]=3, 0, 1, 2, 19, 16, 17, 18, 15, 12, 13, 14, 7, 4, 5, 6, 11, 8, 9, 10, 21, 22, 23, 20}
+
+--facedir modulo 4 = rotation around that axis
+local z_rots = {
+	{[0] = 12, [7] = 4, [9] = 8, [12] = 0, [18] = 20 },
+	{[0] = 20, [7] = 4, [9] = 8, [12] = 16, [18] = 12, },
+	{[0] = 16, [7] = 4, [9] = 8, [12] = 0, [18] = 20 },
+}
+
+local rotated_schematics = {}
+for _ = 1, 21 do
+	table.insert(rotated_schematics, {})
+end
+--------------------------------------------------------------
 
 
 mod.ores = {
@@ -760,25 +796,15 @@ end
 
 
 -- check
-local wallmounted
-local no_rotate = {
-	['default:stone'] = true,
-	['default:stonebrick'] = true,
-	['default:stone_block'] = true,
-	['default:desert_stonebrick'] = true,
-	['default:desert_stone_block'] = true,
-	['default:sandstonebrick'] = true,
-	['default:sandstone_block'] = true,
-}
-local rotated_schematics = {}
-for _ = 1, 21 do
-	table.insert(rotated_schematics, {})
-end
 function mod.place_schematic(params, schem, pos, flags, ps, rot, rot_z)
 	local area = params.area
 	local data, p2data = params.data, params.p2data
 	local color = ps:next(1, 8)
 	local node = mod.node
+	local eight_random_colors = mod.eight_random_colors
+
+	rot_z = rot_z or 0
+	rot = rot or 0
 
 	if not wallmounted then
 		wallmounted = {}
@@ -789,14 +815,6 @@ function mod.place_schematic(params, schem, pos, flags, ps, rot, rot_z)
 		end
 	end
 
-	if not rot_z then
-		rot_z = 0
-	end
-
-	if not rot then
-		rot = 0
-	end
-
 	if not (pos and schem and type(schem) == 'table') then
 		return
 	end
@@ -805,7 +823,8 @@ function mod.place_schematic(params, schem, pos, flags, ps, rot, rot_z)
 	local yslice = {}  -- true if the slice should be removed
 	if schem.yslice_prob then
 		for _, ys in pairs(schem.yslice_prob) do
-			yslice[ys.ypos] = ((ys.prob or 255) <= ps:next(1, 255))
+			local prob = ys.prob or 254
+			yslice[ys.ypos] = (prob < 254 and prob <= ps:next(1, 254))
 
 			if rot_z == 2 and yslice[ys.ypos] then
 				yslice_offset = yslice_offset + 1
@@ -818,7 +837,7 @@ function mod.place_schematic(params, schem, pos, flags, ps, rot, rot_z)
 	if rotated_schematics[rot+1 + rot_z * 4][schem] then
 		rotated_schem_1 = rotated_schematics[rot+1][schem]
 	else
-		if rot == 0 or rot == 2 then
+		if rot == 2 then
 			rotated_schem_1 = mod.schematic_array(schem.size.x, schem.size.y, schem.size.z)
 		elseif rot == 1 or rot == 3 then
 			rotated_schem_1 = mod.schematic_array(schem.size.z, schem.size.y, schem.size.x)
@@ -933,15 +952,18 @@ function mod.place_schematic(params, schem, pos, flags, ps, rot, rot_z)
 		pos.x = pos.x - rotated_schem_2.size.x
 	end
 
+	-- Place the rotated schematic on the data array.
+	local ystride = area.ystride
 	for z = 0, rotated_schem_2.size.z-1 do
 		for x = 0, rotated_schem_2.size.x-1 do
-			local ycount = 1
-			for y = 0, rotated_schem_2.size.y-1 do
-				local ivm = area:index(pos.x + x, pos.y + yslice_offset + ycount - 1, pos.z + z)
-				local isch = z * rotated_schem_2.size.y * rotated_schem_2.size.x + y * rotated_schem_2.size.x + x + 1
+			local sch_ystride = rotated_schem_2.size.x
+			local ivm = area:index(pos.x + x, pos.y + yslice_offset, pos.z + z)
+			local isch = z * rotated_schem_2.size.y * rotated_schem_2.size.x + x + 1
 
+			for y = 0, rotated_schem_2.size.y-1 do
 				if not yslice[y] then
-					local prob = rotated_schem_2.data[isch].prob or rotated_schem_2.data[isch].param1 or 255
+					local rdi = rotated_schem_2.data[isch]
+					local prob = rdi.prob or rdi.param1 or 255
 					local force
 
 					if prob > 127 then
@@ -949,38 +971,30 @@ function mod.place_schematic(params, schem, pos, flags, ps, rot, rot_z)
 						force = true
 					end
 
-					if prob >= ps:next(1, 126)
+					if (prob == 127 or prob >= ps:next(1, 126))
 					and (force or mod.buildable_to[data[ivm]]) then
-						data[ivm] = node[rotated_schem_2.data[isch].name]
+						local name = rdi.name
+						data[ivm] = node[name]
 
-						local param2 = rotated_schem_2.data[isch].param2
-						if no_rotate[rotated_schem_2.data[isch].name] then
+						local param2 = rdi.param2 or 0
+						if no_rotate[name] then
 							param2 = 0
-						elseif wallmounted[rotated_schem_2.data[isch].name] then
-							local yaw = minetest.dir_to_yaw(minetest.wallmounted_to_dir(param2))
+						elseif wallmounted[name] then
+							local yaw = dir_to_yaw(wallmounted_to_dir(param2))
 							for _ = 1, rot do
-								yaw = yaw + math.pi / 2
+								yaw = yaw + math_pi / 2
 							end
-							param2 = minetest.dir_to_wallmounted(minetest.yaw_to_dir(yaw))
+							param2 = dir_to_wallmounted(yaw_to_dir(yaw))
 						else
-							local fdir = (param2 or 0) % 32
-							local extra = (param2 or 0) - fdir
+							local fdir = param2 % 32
+							local extra = param2 - fdir
 							for _ = 1, rot do
 								fdir = drotn[fdir]
 							end
 							if rot_z > 0 then
-								--Values range 0 - 23
-								--facedir / 4 = axis direction:
-								--0 = y+	1 = z+	2 = z-	3 = x+	4 = x-	5 = y-
-								--facedir modulo 4 = rotation around that axis
-								local za = {
-									{[0] = 12, [7] = 4, [9] = 8, [12] = 0, [18] = 20 },
-									{[0] = 20, [7] = 4, [9] = 8, [12] = 16, [18] = 12, },
-									{[0] = 16, [7] = 4, [9] = 8, [12] = 0, [18] = 20 },
-								}
-								fdir = za[rot_z][fdir] or za[rot_z][0]
+								fdir = z_rots[rot_z][fdir] or z_rots[rot_z][0]
 							end
-							if mod.eight_random_colors[data[ivm]] then
+							if eight_random_colors[data[ivm]] then
 								extra = color * 32
 							end
 							param2 = fdir + extra
@@ -988,8 +1002,9 @@ function mod.place_schematic(params, schem, pos, flags, ps, rot, rot_z)
 						p2data[ivm] = param2
 					end
 
-					ycount = ycount + 1
+					ivm = ivm + ystride
 				end
+				isch = isch + sch_ystride
 			end
 		end
 	end
@@ -1182,10 +1197,15 @@ function mod.save_map(params)
 		for _, v in ipairs(params.share.treasure_chests or {}) do
 			local n = minetest.get_node_or_nil(v)
 			if n and dungeon_loot and dungeon_loot.populate_chest then
-				local inv = minetest.get_meta(v):get_inventory()
-				local listsz = inv:get_size("main")
-				if listsz > 0 then
-					dungeon_loot.populate_chest(v, ps)
+				if params.share.treasure_chest_handler then
+					params.share.treasure_chest_handler(v)
+				else
+					local meta = minetest.get_meta(v)
+					local inv = meta:get_inventory()
+					local listsz = inv:get_size("main")
+					if listsz > 0 then
+						mod.populate_chest(v, ps)
+					end
 				end
 			end
 		end
