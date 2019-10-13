@@ -230,6 +230,9 @@ function mod.generate_schematics()
 	emergency_caltrop = schematics[#schematics]
 	dofile(mod.path .. '/df07.room')
 	dofile(mod.path .. '/df08.room')
+	dofile(mod.path .. '/df31.room')
+	dofile(mod.path .. '/df32.room')
+	--dofile(mod.path .. '/df33.room')
 
 	mod.rotate_schematics()
 end
@@ -251,7 +254,7 @@ function mod.handle_chest(pos)
 end
 
 
-function mod.match_exits(e)
+function mod.match_exits(e, rares)
 	local out = {}
 
 	for _, s in pairs(schematics) do
@@ -265,7 +268,7 @@ function mod.match_exits(e)
 			end
 		end
 
-		if good then
+		if good and (rares or not s.rare) then
 			table.insert(out, s)
 		end
 	end
@@ -310,7 +313,11 @@ function mod.place_geo(params, loc)
 		end
 	end
 
-	local ss = mod.match_exits(ex)
+	-- Try to make the room choice repeatable.
+	local hran = minetest.hash_node_position(loc) % 16378 + 3706
+	math.randomseed(hran)
+
+	local ss = mod.match_exits(ex, (math.random(10) == 1))
 
 	if #ss < 1 then
 		--print('No exit!')
@@ -319,9 +326,6 @@ function mod.place_geo(params, loc)
 		ss = {emergency_caltrop}
 	end
 
-	-- Try to make the room choice repeatable.
-	local hran = minetest.hash_node_position(loc) + 3706
-	math.randomseed(hran)
 	local s = ss[math.random(1, #ss)]
 	rot = s.rotate or 0
 

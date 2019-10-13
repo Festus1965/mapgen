@@ -390,7 +390,7 @@ end
 
 
 function mod.generate_block_seed(minp)
-	local seed = mod.map_seed
+	local seed = tonumber(mod.map_seed)
 	local data = {}
 
 	while seed > 0 do
