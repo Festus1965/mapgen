@@ -169,7 +169,7 @@ function mod.generate_rooms(params)
 
 	for z = minp.z - ovg, maxp.z + ovg do
 		if z % 9 == 0 then
-			for y = minp.y, max_y do
+			for y = minp.y - ovg, max_y + 8 do
 				if y % 9 == 0 then
 					for x = minp.x - ovg, maxp.x + ovg do
 						if x % 9 == 0 then
