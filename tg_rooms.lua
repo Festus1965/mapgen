@@ -136,17 +136,14 @@ function mod.generate_rooms(params)
 	params.share.treasure_chest_handler = mod.handle_chest
 	gpr = params.gpr  -- handy for treasure function
 
-	local tmin = maxp.y
+	local max_y = math.floor((params.realm_maxp.y - ovg) / 9) * 9
 	if params.share.height_min then
-		tmin = params.share.height_min - 20
+		max_y = math.min(max_y, math.floor((params.share.height_min - ovg) / 9) * 9)
 	end
-	tmin = math.floor(tmin / 9) * 9
-	if tmin < minp.y then
-		return
-	end
+	max_y = math.min(maxp.y + ovg, max_y)
 
 	for z = minp.z, maxp.z do
-		for y = minp.y, math.min(maxp.y, tmin) do
+		for y = minp.y, max_y + 8 do
 			local ivm = area:index(minp.x, y, z)
 			for x = minp.x, maxp.x do
 				data[ivm] = n_air
@@ -172,8 +169,8 @@ function mod.generate_rooms(params)
 
 	for z = minp.z - ovg, maxp.z + ovg do
 		if z % 9 == 0 then
-			for y = minp.y - ovg, maxp.y + ovg do
-				if y % 9 == 0 and y + 9 < tmin then
+			for y = minp.y, max_y do
+				if y % 9 == 0 then
 					for x = minp.x - ovg, maxp.x + ovg do
 						if x % 9 == 0 then
 							mod.place_geo(params, VN(x, y, z))
