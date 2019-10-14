@@ -330,7 +330,7 @@ function mod.get_loot(avg_value)
 				num = math.random(num, it.number.max)
 				it_str = it_str .. ' ' .. num
 				if tool then
-					it_str = it_str .. ' ' .. math.floor(65000 * math.random(10) / 10)
+					it_str = it_str .. ' ' .. math.floor(65000 * (math.random(10) + 5) / 20)
 				end
 			end
 			table.insert(loot, it_str)
@@ -1039,14 +1039,24 @@ minetest.after(0, function()
 	--options['booty:philosophers_stone']  =  {  1,  10,  nil   }
 	--options['booty:unobtainium']         =  {  1,  10,  nil   }
 	options['bucket:bucket_empty']       =  {  1,  3,    2     }
+	options['bucket:bucket_lava']      =  {  1,  5,   nil     }
+	options['bucket:bucket_water']      =  {  1,  4,   nil     }
+	options['carts:rail']      =  {  1,  4,   nil     }
 	options['default:acacia_wood']       =  {  1,  1,    10    }
 	options['default:apple']             =  {  1,  1,    10    }
+	options['default:axe_diamond']      =  {  1,  6,   nil     }
 	options['default:book']              =  {  1,  3,    10    }
+	options['default:cactus']      =  {  1,  1,   5     }
 	options['default:coal_lump']         =  {  1,  2,    10    }
+	options['default:desert_cobble']      =  {  1,  1,   20     }
+	options['default:desert_sand']      =  {  1,  1,   20     }
 	options['default:diamond']           =  {  1,  5,   5     }
+	options['default:dirt']      =  {  1,  1,   20     }
+	options['default:flint']      =  {  1,  2,   5     }
 	options['default:glass']             =  {  1,  3,    5     }
 	options['default:gold_ingot']        =  {  1,  4,   5     }
 	options['default:junglewood']        =  {  1,  1,    10    }
+	options['default:mese']      =  {  1,  7,   5     }
 	options['default:mese_crystal']      =  {  1,  6,   nil   }
 	options['default:meselamp']          =  {  1,  7,   nil   }
 	options['default:obsidian']          =  {  1,  6,   nil   }
@@ -1058,7 +1068,9 @@ minetest.after(0, function()
 	options['default:pick_steel']      =  {  1,  4,   nil   }
 	options['default:pick_stone']      =  {  1,  2,   nil   }
 	options['default:pick_wood']      =  {  1,  1,   nil   }
+	options['default:sand']      =  {  1,  1,   20     }
 	options['default:steel_ingot']       =  {  1,  3,    5     }
+	options['default:stick']      =  {  1,  1,   20     }
 	options['default:sword_diamond']     =  {  1,  6,   nil   }
 	options['default:sword_mese']        =  {  1,  7,   nil   }
 	options['default:sword_steel']      =  {  1,  4,   nil   }
@@ -1087,6 +1099,8 @@ minetest.after(0, function()
 	options['farming:flour']             =  {  1,  1,    10    }
 	options['farming:seed_cotton']       =  {  1,  1,    10    }
 	options['farming:seed_wheat']        =  {  1,  1,    10    }
+	options['farming:string']      =  {  1,  2,   5     }
+	options['farming:wheat']      =  {  1,  1,   20     }
 	options['fire:permanent_flame']      =  {  1,  4,   nil   }
 	options['fun_tools:flare_gun']        =  { 1, 4, nil }
 	options['fun_tools:molotov_cocktail'] =  { 1, 4, 5 }
@@ -1096,6 +1110,7 @@ minetest.after(0, function()
 	--options['mapgen:moonstone']       =  {  1,  5,   nil   }
 	options['map:mapping_kit']            =  { 1, 4, nil }
 	options['tnt:gunpowder']              =  { 1, 3, 10 }
+	options['vessels:glass_fragments']      =  {  1,  2,   5     }
 	options['wooden_bucket:bucket_wood_empty']       =  {  1,  3,    nil     }
 	options['wool:white']                =  {  1,  1,    nil     }
 
