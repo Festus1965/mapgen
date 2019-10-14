@@ -14,6 +14,7 @@ mod.mapgen_forced_params = {}
 mod.registered_biomes = {}
 mod.registered_cave_biomes = {}
 mod.registered_decorations = {}
+mod.registered_loot = {}
 mod.registered_mapfuncs = {}
 mod.registered_mapgens = {}
 mod.registered_noises = {}
@@ -169,6 +170,28 @@ function mod.chest_rightclick(pos, node, clicker, itemstack, pointed_thing)
 	local meta = minetest.get_meta(pos)
 
 	if meta:contains('mapgen_summon_mob') then
+	elseif meta:contains('mapgen_poisoned')
+	and minetest.global_exists('status_mod')
+	and status_mod.set_status then
+		local player_name = clicker:get_player_name()
+		if not player_name or player_name == '' then
+			return
+		end
+		minetest.chat_send_player(player_name, minetest.colorize('#FF0000', 'You\'ve been poisoned!'))
+		status_mod.set_status(player_name, 'booty_poisoned', 2 ^ math.random(8), {damage = 1})
+
+		meta:set_string('mapgen_poisoned', '')
+		return
+	elseif meta:contains('mapgen_tnt_trap')
+	and minetest.registered_items['tnt:tnt_burning'] then
+		meta:from_table(nil)
+		minetest.set_node(pos, {name = 'tnt:tnt_burning'})
+		local timer = minetest.get_node_timer(pos)
+		if timer then
+			timer:start(3)
+		end
+		minetest.sound_play('default_dig_crumbly', {pos = pos, gain = 0.5, max_hear_distance = 10})
+		return
 	elseif meta:contains('mapgen_pitfall') then
 		local depth = meta:get_int('mapgen_pitfall') or 21
 		meta:from_table(nil)
@@ -245,6 +268,77 @@ function mod.disintigrate(minp, maxp)
 	vm:set_data(data)
 	vm:write_to_map()
 	vm:update_map()
+end
+
+
+function mod.fill_chest(pos)
+	local value = math.random(20)
+	if pos.y < -100 then
+		local depth = math.log(pos.y / -100)
+		depth = depth * depth * depth * 10
+		value = value + math.floor(depth)
+	end
+	local loot = mod.get_loot(value)
+
+	local inv = minetest.get_inventory({ type = 'node', pos = pos })
+	if inv then
+		for _, it in pairs(loot) do
+			if inv:room_for_item('main', it) then
+				inv:add_item('main', it)
+			end
+		end
+	end
+end
+
+
+function mod.get_loot(avg_value)
+	local value = avg_value or 10
+	local loot = {}
+	local jump = 3
+
+	if avg_value > 100 then
+		jump = 4
+	end
+
+	while value > 0 do
+		local r = 1
+		local its = {}
+
+		for i = 1, 12 do
+			if math.random(5) < jump then
+				r = r + 1
+			else
+				break
+			end
+		end
+
+		while #its < 1 do
+			for _, tr in pairs(mod.registered_loot) do
+				if tr.rarity == r then
+					table.insert(its, tr)
+				end
+			end
+			r = r - 1
+		end
+
+		if #its > 0 then
+			local it = its[math.random(#its)]
+			local it_str = it.name
+			local num = it.number.min
+			local tool = minetest.registered_tools[it.name] ~= nil
+			if tool or it.number.max > num then
+				num = math.random(num, it.number.max)
+				it_str = it_str .. ' ' .. num
+				if tool then
+					it_str = it_str .. ' ' .. math.floor(65000 * math.random(10) / 10)
+				end
+			end
+			table.insert(loot, it_str)
+			value = value - 3 ^ r
+		end
+	end
+
+	return loot
 end
 
 
@@ -372,12 +466,6 @@ function mod.node_string_or_table(n)
 end
 
 
-function mod.populate_chest(pos, ps)
-	-- Relying on this closed function is getting annoying...
-	dungeon_loot.populate_chest(pos, ps)
-end
-
-
 function mod.register_biome(def, source)
 	if not def.name then
 		minetest.log(mod_name .. ': No-name biome: ' .. dump(def))
@@ -450,58 +538,6 @@ function mod.register_decoration(def)
 
 	if deco.deco_type == 'schematic' then
 		deco = mod.translate_schematic(deco)
-	end
-
-	return deco
-end
-
-
-function mod.translate_schematic(deco)
-	if deco.deco_type ~= 'schematic' then
-		return
-	end
-
-	if deco.schematic and type(deco.schematic) == 'string' then
-		local s = deco.schematic
-		local f = io.open(s, 'r')
-		if f then
-			f:close()
-			local sch = minetest.serialize_schematic(s, 'lua', {})
-			sch = minetest.deserialize('return {'..sch..'}')
-			sch = sch.schematic
-			deco.schematic_array = sch
-		else
-			print(mod_name .. ': ** Error opening: '..deco.schematic)
-		end
-
-		--print(dump(deco.schematic_array))
-		if not deco.schematic_array then
-			print(mod_name .. ': ** Error opening: '..deco.name)
-		end
-	end
-
-	if not deco.schematic_array and deco.schematic and type(deco.schematic) == 'table' then
-		deco.schematic_array = deco.schematic
-	end
-
-	if deco.schematic_array then
-		-- Force air placement to 0 probability.
-		-- This is usually correct.
-		for _, v in pairs(deco.schematic_array.data) do
-			if v.name == 'air' then
-				v.prob = 0
-				if v.param1 then
-					v.param1 = 0
-				end
-			elseif v.name:find('leaves') or v.name:find('needles') then
-				if v.prob and v.prob > 127 then
-					v.prob = v.prob - 128
-				end
-			end
-		end
-	else
-		print('FAILed to translate schematic: ' .. deco.name)
-		deco.bad_schem = true
 	end
 
 	return deco
@@ -591,6 +627,33 @@ function mod.register_flower(name, source, desc, biomes, seed, groups)
 end
 
 
+function mod.register_loot(def, force)
+	if not def.name or not def.rarity
+	or not minetest.registered_items[def.name]
+	or (not force and mod.registered_loot[def.name]) then
+		print(mod_name .. ': not (re)registering ' .. (def.name or 'nil'))
+		--print(dump(def))
+		return
+	end
+
+	if not def.level then
+		def.level = 1
+	end
+
+	if not def.number then
+		def.number = {}
+	end
+	if not def.number.min then
+		def.number.min = 1
+	end
+	if not def.number.max then
+		def.number.max = def.number.min
+	end
+
+	mod.registered_loot[def.name] = def
+end
+
+
 function mod.register_mapfunc(name, func)
 	if not (name and func and type(name) == 'string' and type(func) == 'function') then
 		return
@@ -665,7 +728,7 @@ function mod.schematic_array(width, height, depth)
 			for x = 0,width-1 do
 				local i = z*width*height + y*width + x + 1
 				s.data[i] = {}
-				s.data[i].name = "air"
+				s.data[i].name = 'air'
 				s.data[i].param1 = 000
 			end
 		end
@@ -674,6 +737,58 @@ function mod.schematic_array(width, height, depth)
 	s.yslice_prob = {}
 
 	return s
+end
+
+
+function mod.translate_schematic(deco)
+	if deco.deco_type ~= 'schematic' then
+		return
+	end
+
+	if deco.schematic and type(deco.schematic) == 'string' then
+		local s = deco.schematic
+		local f = io.open(s, 'r')
+		if f then
+			f:close()
+			local sch = minetest.serialize_schematic(s, 'lua', {})
+			sch = minetest.deserialize('return {'..sch..'}')
+			sch = sch.schematic
+			deco.schematic_array = sch
+		else
+			print(mod_name .. ': ** Error opening: '..deco.schematic)
+		end
+
+		--print(dump(deco.schematic_array))
+		if not deco.schematic_array then
+			print(mod_name .. ': ** Error opening: '..deco.name)
+		end
+	end
+
+	if not deco.schematic_array and deco.schematic and type(deco.schematic) == 'table' then
+		deco.schematic_array = deco.schematic
+	end
+
+	if deco.schematic_array then
+		-- Force air placement to 0 probability.
+		-- This is usually correct.
+		for _, v in pairs(deco.schematic_array.data) do
+			if v.name == 'air' then
+				v.prob = 0
+				if v.param1 then
+					v.param1 = 0
+				end
+			elseif v.name:find('leaves') or v.name:find('needles') then
+				if v.prob and v.prob > 127 then
+					v.prob = v.prob - 128
+				end
+			end
+		end
+	else
+		print('FAILed to translate schematic: ' .. deco.name)
+		deco.bad_schem = true
+	end
+
+	return deco
 end
 
 
@@ -691,13 +806,13 @@ do
 		table.remove(minetest.registered_abms, found_it)
 
 		minetest.register_abm({
-			label = "Grass spread",
-			nodenames = {"default:dirt"},
+			label = 'Grass spread',
+			nodenames = {'default:dirt'},
 			neighbors = {
-				"air",
-				"group:grass",
-				"group:dry_grass",
-				"default:snow",
+				'air',
+				'group:grass',
+				'group:dry_grass',
+				'default:snow',
 			},
 			interval = 6,
 			chance = 50,
@@ -711,7 +826,7 @@ do
 				end
 
 				-- Look for spreading dirt-type neighbours
-				local p2 = minetest.find_node_near(pos, 1, "group:spreading_dirt_type")
+				local p2 = minetest.find_node_near(pos, 1, 'group:spreading_dirt_type')
 				if p2 then
 					local n3 = minetest.get_node(p2)
 					minetest.set_node(pos, {name = n3.name, param2 = n3.param2})
@@ -721,13 +836,13 @@ do
 				-- Else, any seeding nodes on top?
 				local name = minetest.get_node(above).name
 				-- Snow check is cheapest, so comes first
-				if name == "default:snow" then
-					minetest.set_node(pos, {name = "default:dirt_with_snow"})
+				if name == 'default:snow' then
+					minetest.set_node(pos, {name = 'default:dirt_with_snow'})
 				-- Most likely case first
-				elseif minetest.get_item_group(name, "grass") ~= 0 then
-					minetest.set_node(pos, {name = "default:dirt_with_grass"})
-				elseif minetest.get_item_group(name, "dry_grass") ~= 0 then
-					minetest.set_node(pos, {name = "default:dirt_with_dry_grass"})
+				elseif minetest.get_item_group(name, 'grass') ~= 0 then
+					minetest.set_node(pos, {name = 'default:dirt_with_grass'})
+				elseif minetest.get_item_group(name, 'dry_grass') ~= 0 then
+					minetest.set_node(pos, {name = 'default:dirt_with_dry_grass'})
 				end
 			end
 		})
@@ -908,5 +1023,129 @@ do
 	minetest.clear_registered_biomes = function ()
 		mod.biomes = {}
 		old_clear_registered_biomes()
+	end
+end
+
+
+minetest.after(0, function()
+	local options = {}
+	-- 1 wood / stone
+	-- 2 coal
+	-- 3 iron
+	-- 4 gold
+	-- 5 diamond
+	-- 6 mese
+	--options['booty:flaming_sword']       =  {  1,  10,   nil   }
+	--options['booty:philosophers_stone']  =  {  1,  10,  nil   }
+	--options['booty:unobtainium']         =  {  1,  10,  nil   }
+	options['bucket:bucket_empty']       =  {  1,  3,    2     }
+	options['default:acacia_wood']       =  {  1,  1,    10    }
+	options['default:apple']             =  {  1,  1,    10    }
+	options['default:book']              =  {  1,  3,    10    }
+	options['default:coal_lump']         =  {  1,  2,    10    }
+	options['default:diamond']           =  {  1,  5,   5     }
+	options['default:glass']             =  {  1,  3,    5     }
+	options['default:gold_ingot']        =  {  1,  4,   5     }
+	options['default:junglewood']        =  {  1,  1,    10    }
+	options['default:mese_crystal']      =  {  1,  6,   nil   }
+	options['default:meselamp']          =  {  1,  7,   nil   }
+	options['default:obsidian']          =  {  1,  6,   nil   }
+	options['default:obsidian_glass']    =  {  1,  6,   5     }
+	options['default:obsidian_shard']    =  {  1,  5,    nil   }
+	options['default:paper']             =  {  1,  2,    10    }
+	options['default:pick_diamond']      =  {  1,  6,   nil   }
+	options['default:pick_mese']         =  {  1,  7,   nil   }
+	options['default:pick_steel']      =  {  1,  4,   nil   }
+	options['default:pick_stone']      =  {  1,  2,   nil   }
+	options['default:pick_wood']      =  {  1,  1,   nil   }
+	options['default:steel_ingot']       =  {  1,  3,    5     }
+	options['default:sword_diamond']     =  {  1,  6,   nil   }
+	options['default:sword_mese']        =  {  1,  7,   nil   }
+	options['default:sword_steel']      =  {  1,  4,   nil   }
+	options['default:sword_stone']      =  {  1,  2,   nil   }
+	options['default:sword_wood']      =  {  1,  1,   nil   }
+	options['default:wood']              =  {  1,  1,    10    }
+	options['dinv:bag_large']             =  { 1, 5, nil }
+	options['dinv:bag_medium']            =  { 1, 4, nil }
+	options['dinv:bag_small']             =  { 1, 3, nil }
+	options['dinv:boots']                 =  { 1, 3, nil }
+	options['dinv:chain_armor']           =  { 1, 6, nil }
+	options['dinv:fur_cloak']             =  { 1, 3, nil }
+	options['dinv:leather_armor']         =  { 1, 4, nil }
+	options['dinv:leather_cap']           =  { 1, 4, nil }
+	options['dinv:plate_armor']           =  { 1, 8, nil }
+	options['dinv:ring_breath']           =  { 1, 6, nil }
+	options['dinv:ring_leap']             =  { 1, 5, nil }
+	options['dinv:ring_protection_9']     =  { 1, 5, nil }
+	options['dinv:steel_shield']          =  { 1, 5, nil }
+	options['dinv:wood_shield']           =  { 1, 3, nil }
+	options['dpies:apple_pie']           =  {  1,  3,   10    }
+	options['dpies:blueberry_pie']        =  {  1,   3,   nil   }
+	options['dpies:meat_pie']            =  {  1,  3,   10    }
+	options['dpies:onion']               =  {  1,  1,    10    }
+	options['farming:cotton']            =  {  1,  1,    10    }
+	options['farming:flour']             =  {  1,  1,    10    }
+	options['farming:seed_cotton']       =  {  1,  1,    10    }
+	options['farming:seed_wheat']        =  {  1,  1,    10    }
+	options['fire:permanent_flame']      =  {  1,  4,   nil   }
+	options['fun_tools:flare_gun']        =  { 1, 4, nil }
+	options['fun_tools:molotov_cocktail'] =  { 1, 4, 5 }
+	options['fun_tools:naptha']           =  { 1, 3, 5 }
+	options['mapgen:moon_glass']      =  {  1,  4,   5     }
+	--options['mapgen:moon_juice']      =  {  1,  4,   5     }
+	--options['mapgen:moonstone']       =  {  1,  5,   nil   }
+	options['map:mapping_kit']            =  { 1, 4, nil }
+	options['tnt:gunpowder']              =  { 1, 3, 10 }
+	options['wooden_bucket:bucket_wood_empty']       =  {  1,  3,    nil     }
+	options['wool:white']                =  {  1,  1,    nil     }
+
+	for name, d in pairs(options) do
+		if minetest.registered_items[name] then
+			local def = {
+				level = d[1],
+				rarity = d[2],
+				name = name,
+				number = {
+					min = 1,
+					max = d[3] or 1,
+				},
+			}
+			mod.register_loot(def, true)
+		end
+	end
+
+	for name, desc in pairs(minetest.registered_items) do
+		if name:find('^wool:') then
+			local def = {
+				level = 1,
+				rarity = 100,
+				name = name,
+				number = {
+					min = 1,
+					max = 10,
+				},
+			}
+		end
+	end
+end)
+
+do
+	local orig_loot_reg = dungeon_loot.register
+	dungeon_loot.register = function(def)
+		if not def or def.chance <= 0 then
+			return
+		end
+
+		mod.register_loot({
+			name = def.name,
+			rarity = math.ceil(1 / 2 / def.chance),
+			level = def.level or 1,
+			number = {
+				min = def.count[1] or 1,
+				max = def.count[2] or 1,
+			},
+		})
+
+		orig_loot_reg(def)
 	end
 end

@@ -9,11 +9,13 @@ local max_height = 31000
 local VN = vector.new
 
 
+local RES = 9
+
 local node = layers_mod.node
 local clone_node = layers_mod.clone_node
 local schematics, carpetable, box_names, sides
 local emergency_caltrop, gpr
-local ovg = 8
+local ovg = (80 % RES == 0) and 0 or (RES - 1)
 local axes = {'x', 'y', 'z'}
 
 local mob_names = {
@@ -136,14 +138,14 @@ function mod.generate_rooms(params)
 	params.share.treasure_chest_handler = mod.handle_chest
 	gpr = params.gpr  -- handy for treasure function
 
-	local max_y = math.floor((params.realm_maxp.y - ovg) / 9) * 9
+	local max_y = math.floor((params.realm_maxp.y - ovg) / RES) * RES
 	if params.share.height_min then
-		max_y = math.min(max_y, math.floor((params.share.height_min - ovg) / 9) * 9)
+		max_y = math.min(max_y, math.floor((params.share.height_min - ovg) / RES) * RES)
 	end
 	max_y = math.min(maxp.y + ovg, max_y)
 
 	for z = minp.z, maxp.z do
-		for y = minp.y, max_y + 8 do
+		for y = minp.y, max_y + ovg do
 			local ivm = area:index(minp.x, y, z)
 			for x = minp.x, maxp.x do
 				data[ivm] = n_air
@@ -168,11 +170,11 @@ function mod.generate_rooms(params)
 	end
 
 	for z = minp.z - ovg, maxp.z + ovg do
-		if z % 9 == 0 then
-			for y = minp.y - ovg, max_y + 8 do
-				if y % 9 == 0 then
+		if z % RES == 0 then
+			for y = minp.y - ovg, max_y + ovg do
+				if y % RES == 0 then
 					for x = minp.x - ovg, maxp.x + ovg do
-						if x % 9 == 0 then
+						if x % RES == 0 then
 							mod.place_geo(params, VN(x, y, z))
 						end
 					end
@@ -189,7 +191,7 @@ function mod.generate_schematics()
 	local schematic_array = {
 		yslice_prob = nil,
 		data = {},
-		size = vector.new(9, 9, 9),
+		size = vector.new(RES, RES, RES),
 		exits = {
 			x = {false, false},
 			y = {false, false},
@@ -199,10 +201,10 @@ function mod.generate_schematics()
 	}
 
 	s = table.copy(schematic_array)
-	for z = 1, 9 do
-		for y = 1, 9 do
-			for x = 1, 9 do
-				if x == 1 or x == 9 or y == 1 or y == 9 or z == 1 or z == 9 then
+	for z = 1, RES do
+		for y = 1, RES do
+			for x = 1, RES do
+				if x == 1 or x == RES or y == 1 or y == RES or z == 1 or z == RES then
 					table.insert(s.data, {
 						param2 = 0,
 						name = 'default:desert_stonebrick',
@@ -241,14 +243,30 @@ end
 function mod.handle_chest(pos)
 	local meta = minetest.get_meta(pos)
 	local sr = gpr:next(1, 1000)
+	local fill = true
+
+	-- Clear the metadata, if we're overgenerating.
+	-- This avoids two traps on a chest (and double-filling).
+	if ovg > 0 then
+		meta:from_table(nil)
+		minetest.registered_nodes['default:chest'].on_construct(pos)
+	end
 
 	if sr < 25 then
 		meta:set_int('mapgen_pitfall', 6)
-	else
+		fill = false
+	elseif sr < 50 then
+		meta:set_string('mapgen_poisoned', 'poison')
+	elseif sr < 75 then
+		meta:set_string('mapgen_tnt_trap', 'tnt')
+		fill = false
+	end
+
+	if fill then
 		local inv = meta:get_inventory()
-		local invsz = inv:get_size("main")
+		local invsz = inv:get_size('main')
 		if invsz > 0 then
-			layers_mod.populate_chest(pos, gpr)
+			layers_mod.fill_chest(pos, gpr)
 		end
 	end
 end
@@ -283,11 +301,11 @@ end
 --  are unreliable and get bizarre sometimes.
 local cpoints = {
 	{ VN(4, 0, 0), 'z', 1, },
-	{ VN(4, 0, 9), 'z', 2, },
+	{ VN(4, 0, RES), 'z', 2, },
 	{ VN(0, 0, 4), 'x', 1, },
-	{ VN(9, 0, 4), 'x', 2, },
+	{ VN(RES, 0, 4), 'x', 2, },
 }
-local stair_dist = 7 * 9
+local stair_dist = 7 * RES
 function mod.place_geo(params, loc)
 	local rot = 0
 	local ps = params.gpr
@@ -413,13 +431,49 @@ function mod.rotate_schematics()
 end
 
 
+local status_mod_path = minetest.get_modpath('status')
+if status_mod_path and status_mod and status_mod.register_status then
+	status_mod.register_status({
+		name = 'booty_poisoned',
+		during = function(player)
+			if not player then
+				return
+			end
+			local player_name = player:get_player_name()
+			if not player_name or player_name == '' then
+				return
+			end
+
+			local damage = 1
+			if status_mod.db.status[player_name]['booty_poisoned']['damage'] then
+				damage = tonumber(status_mod.db.status[player_name]['booty_poisoned']['damage'])
+			end
+
+			local hp = player:get_hp()
+			if hp then
+				hp = hp - damage
+				player:set_hp(hp)
+			end
+		end,
+		terminate = function(player)
+			if not player then
+				return
+			end
+
+			local player_name = player:get_player_name()
+			minetest.chat_send_player(player_name, 'Your sickness ebbs away.')
+		end,
+	})
+end
+
+
 minetest.register_chatcommand('clearroom', {
 	description = 'save the room you\'re in as a schematic file',
 	--privs = {privs=true}, -- Require the 'privs' privilege to run
 	func = function(name, param)
 		local pos = minetest.get_player_by_name(name):getpos()
-		local loc = vector.multiply(vector.floor(vector.divide(pos, 9)), 9)
-		local p2 = vector.add(loc, 8)
+		local loc = vector.multiply(vector.floor(vector.divide(pos, RES)), RES)
+		local p2 = vector.add(loc, (RES - 1))
 		local vm = minetest.get_voxel_manip()
 		local emin, emax = vm:read_from_map(loc, p2)
 		local data = vm:get_data()
@@ -458,8 +512,8 @@ minetest.register_chatcommand('saveroom', {
 
 		local filename = mod.world .. '/' .. in_filename .. '.room'
 		local pos = minetest.get_player_by_name(name):getpos()
-		local loc = vector.multiply(vector.floor(vector.divide(pos, 9)), 9)
-		local p2 = vector.add(loc, 8)
+		local loc = vector.multiply(vector.floor(vector.divide(pos, RES)), RES)
+		local p2 = vector.add(loc, (RES - 1))
 		local vm = minetest.get_voxel_manip()
 		local emin, emax = vm:read_from_map(loc, p2)
 		local data = vm:get_data()
@@ -515,7 +569,7 @@ minetest.register_chatcommand('saveroom', {
 -----------------------------------------------
 
 -- Define the noises.
-layers_mod.register_noise( 'rooms_connections', { offset = 0, scale = 1, seed = 384, spread = {x = 9, y = 9, z = 9}, octaves = 6, persist = 0.5, lacunarity = 2.0} )
+layers_mod.register_noise( 'rooms_connections', { offset = 0, scale = 1, seed = 384, spread = {x = RES, y = RES, z = RES}, octaves = 6, persist = 0.5, lacunarity = 2.0} )
 
 layers_mod.register_mapgen('tg_rooms', mod.generate_rooms, { full_chunk = true })
 if layers_mod.register_spawn then
