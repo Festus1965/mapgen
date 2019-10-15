@@ -21,6 +21,8 @@ mod.registered_noises = {}
 mod.registered_spawns = {}
 mod.rmf = mod.registered_mapfuncs
 mod.pit_depth = 12
+mod.chunksize = tonumber(minetest.settings:get('chunksize') or 5)
+mod.chunk_offset = math.floor(mod.chunksize / 2) * 16;
 
 
 local axes = { 'x', 'y', 'z' }
@@ -38,6 +40,19 @@ mod.node = setmetatable({}, {
 	end
 })
 local node = mod.node
+
+
+-- This table looks up wallmounted nodes that aren't already stored.
+mod.wallmounted = setmetatable({}, {
+	__index = function(t, k)
+		if not (t and k and type(t) == 'table') then
+			return
+		end
+
+		t[k] = minetest.registered_nodes[k].paramtype2 == 'wallmounted'
+		return t[k]
+	end
+})
 
 
 local fnv_offset = 2166136261
@@ -913,8 +928,8 @@ minetest.register_chatcommand('chunk', {
 			return
 		end
 
-		local chunksize = tonumber(minetest.settings:get('chunksize') or 5)
-		local chunk_offset = math.floor(chunksize / 2) * 16;
+		local chunksize = mod.chunksize
+		local chunk_offset = mod.chunk_offset
 		local csize = { x=chunksize * 16, y=chunksize * 16, z=chunksize * 16 }
 
 		local chunk = vector.floor(vector.divide(vector.add(pos, chunk_offset), csize.z))

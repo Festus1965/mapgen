@@ -21,6 +21,7 @@ local dir_to_wallmounted = minetest.dir_to_wallmounted
 local wallmounted_to_dir = minetest.wallmounted_to_dir
 local yaw_to_dir = minetest.yaw_to_dir
 local math_pi = math.pi
+local wallmounted = mod.wallmounted
 
 mod.buildable_to = {}
 mod.grass_nodes = {}
@@ -29,17 +30,21 @@ mod.registered_realms = {}
 
 local m_data = {}
 local m_p2data = {}
-local wallmounted
 
 -- blocks that are completely symmetrical
 mod.no_rotate = {
-	['default:stone'] = true,
-	['default:stonebrick'] = true,
-	['default:stone_block'] = true,
-	['default:desert_stonebrick'] = true,
+	['default:cobble'] = true,
 	['default:desert_stone_block'] = true,
-	['default:sandstonebrick'] = true,
+	['default:desert_stonebrick'] = true,
+	['default:lava_source'] = true,
+	['default:mossycobble'] = true,
+	['default:obsidian'] = true,
 	['default:sandstone_block'] = true,
+	['default:sandstonebrick'] = true,
+	['default:stone_block'] = true,
+	['default:stonebrick'] = true,
+	['default:stone'] = true,
+	['default:water_source'] = true,
 }
 local no_rotate = mod.no_rotate
 
@@ -805,15 +810,6 @@ function mod.place_schematic(params, schem, pos, flags, ps, rot, rot_z)
 
 	rot_z = rot_z or 0
 	rot = rot or 0
-
-	if not wallmounted then
-		wallmounted = {}
-		for n, v in pairs(minetest.registered_nodes) do
-			if v.paramtype2 == 'wallmounted' then
-				wallmounted[n] = true
-			end
-		end
-	end
 
 	if not (pos and schem and type(schem) == 'table') then
 		return

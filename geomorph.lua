@@ -160,6 +160,7 @@ function Geomorph.new(mgen, description)
 		self.areas = description.areas
 		self.base_heat = description.base_heat
 		self.base_humidity = description.base_humidity
+		self.csize = description.size or self.csize
 		self.name = description.name
 
 		if description.data then
@@ -260,7 +261,7 @@ function Geomorph:add(t, n)
 end
 
 
-function Geomorph:write_to_map(rot, replace)
+function Geomorph:write_to_map(rot, replace, loc)
 	if not self.gpr then
 		return
 	end
@@ -287,7 +288,7 @@ function Geomorph:write_to_map(rot, replace)
 			--copy.stain = copy.stain or cobble
 			copy.hollow = 5
 			copy.treasure = nil
-			self:write_shape(copy, rot)
+			self:write_shape(copy, rot, loc)
 		end
 
 		if shape.floor
@@ -307,55 +308,70 @@ function Geomorph:write_to_map(rot, replace)
 			copy.node = shape.floor
 			--copy.potholes = potholes and potholes
 			--copy.stain = copy.stain or cobble
-			self:write_shape(copy, rot)
+			self:write_shape(copy, rot, loc)
 		end
 
 		if replace and replace[shape.node] then
 			copy = table.copy(shape)
 			copy.node = replace[shape.node]
-			self:write_shape(copy, rot)
+			self:write_shape(copy, rot, loc)
 		else
-			self:write_shape(shape, rot)
+			self:write_shape(shape, rot, loc)
 		end
 	end
 end
 
 
-function Geomorph:write_shape(shape, rot)
+function Geomorph:write_shape(shape, rot, loc)
 	if not rot or type(rot) ~= 'number' then
 		minetest.log(mod_name .. ': can\'t write without rotation.')
 	end
 
 	if shape.action == 'cube' then
-		self:write_cube(shape, rot)
+		self:write_cube(shape, rot, loc)
 	elseif shape.action == 'cylinder' then
-		self:write_cylinder(shape, rot)
+		self:write_cylinder(shape, rot, loc)
 	elseif shape.action == 'ladder' then
-		self:write_ladder(shape, rot)
+		self:write_ladder(shape, rot, loc)
 	elseif shape.action == 'sphere' then
-		self:write_sphere(shape, rot)
+		self:write_sphere(shape, rot, loc)
 	elseif shape.action == 'stair' then
-		self:write_stair(shape, rot)
+		self:write_stair(shape, rot, loc)
 	elseif shape.action == 'puzzle' then
-		self:write_puzzle(shape, rot)
+		self:write_puzzle(shape, rot, loc)
 	else
 		minetest.log(mod_name .. ': can\'t create a ' .. shape.action)
 	end
 end
 
 
+local wallmounted = mod.wallmounted
 function mod.get_p2(shape, rot)
 	-- This gets the rotated p2 value without disrupting
 	-- color data in the more significant bits.
 
 	local p2 = shape.param2
-	if p2 then
-		local rp2 = p2 % 32
-		local extra = math.floor(p2 / 32)
-		if rot ~= 0 then
-			rp2 = (rp2 + rot) % 4
+
+	if mod.no_rotate[shape.node] then
+		return p2
+	end
+
+	if p2 and rot ~= 0 then
+		if wallmounted[shape.node] then
+			local yaw = minetest.dir_to_yaw(minetest.wallmounted_to_dir(p2))
+			yaw = yaw + math.pi
+			for _ = 1, rot do
+				yaw = yaw + math.pi / 2
+			end
+			p2 = minetest.dir_to_wallmounted(minetest.yaw_to_dir(yaw))
+		else
+			local rp2 = p2 % 4
+			local extra = math.floor(p2 / 4)
+			if rot ~= 0 then
+				rp2 = (rp2 + rot) % 4
+			end
+			p2 = rp2 + extra * 4
 		end
-		p2 = rp2 + extra * 32
 	end
 
 	return p2
@@ -381,10 +397,15 @@ function mod.pattern_match(pattern, x, y, z)
 end
 
 
-function Geomorph:write_cube(shape, rot)
+function Geomorph:write_cube(shape, rot, loc)
 	local min, max = rotate_coords(shape, rot, self.csize)
 	if not min then
 		return
+	end
+
+	if loc then
+		min = vector.add(min, loc)
+		max = vector.add(max, loc)
 	end
 
 	local p2 = mod.get_p2(shape, rot)
@@ -492,10 +513,15 @@ function Geomorph:write_cube(shape, rot)
 end
 
 
-function Geomorph:write_sphere(shape, rot)
+function Geomorph:write_sphere(shape, rot, loc)
 	local min, max = rotate_coords(shape, rot, self.csize)
 	if not min then
 		return
+	end
+
+	if loc then
+		min = vector.add(min, loc)
+		max = vector.add(max, loc)
 	end
 
 	local p2 = mod.get_p2(shape, rot)
@@ -564,7 +590,7 @@ function Geomorph:write_sphere(shape, rot)
 end
 
 
-function Geomorph:write_cylinder(shape, rot)
+function Geomorph:write_cylinder(shape, rot, loc)
 	if not shape.axis then
 		minetest.log(mod_name .. ': can\'t create a cylinder without an axis')
 		return
@@ -573,6 +599,11 @@ function Geomorph:write_cylinder(shape, rot)
 	local min, max = rotate_coords(shape, rot, self.csize)
 	if not min then
 		return
+	end
+
+	if loc then
+		min = vector.add(min, loc)
+		max = vector.add(max, loc)
 	end
 
 	local p2 = mod.get_p2(shape, rot)
@@ -683,7 +714,7 @@ function Geomorph:write_cylinder(shape, rot)
 end
 
 
-function Geomorph:write_stair(shape, rot)
+function Geomorph:write_stair(shape, rot, loc)
 	if not shape.param2 then
 		minetest.log(mod_name .. ': can\'t make a stair with no p2')
 		return
@@ -692,6 +723,11 @@ function Geomorph:write_stair(shape, rot)
 	local min, max = rotate_coords(shape, rot, self.csize)
 	if not min then
 		return
+	end
+
+	if loc then
+		min = vector.add(min, loc)
+		max = vector.add(max, loc)
 	end
 
 	local p2 = mod.get_p2(shape, rot)
@@ -764,10 +800,15 @@ function Geomorph:write_stair(shape, rot)
 end
 
 
-function Geomorph:write_ladder(shape, rot)
+function Geomorph:write_ladder(shape, rot, loc)
 	local min, max = rotate_coords(shape, rot, self.csize)
 	if not min then
 		return
+	end
+
+	if loc then
+		min = vector.add(min, loc)
+		max = vector.add(max, loc)
 	end
 
 	local area = self.area
@@ -815,30 +856,30 @@ function Geomorph:write_ladder(shape, rot)
 end
 
 
-function Geomorph:write_puzzle(shape, rot)
+function Geomorph:write_puzzle(shape, rot, loc)
 	local chance = shape.chance or 20
 	if self.gpr:next(1, math.max(1, chance)) == 1 then
-		self:write_match_three(shape, rot)
+		self:write_match_three(shape, rot, loc)
 
 		local l = vector.add(shape.location, vector.floor(vector.divide(shape.size, 2)))
 		l.y = shape.location.y
-		self:write_chest(l, rot)
+		self:write_chest(l, rot, loc)
 	end
 end
 
 
-function Geomorph:write_chest(location, rot)
+function Geomorph:write_chest(location, rot, loc)
 	local s = {
 		action = 'cube',
 		location = location,
 		node = 'default:chest',
 		size = vector.new(1, 1, 1)
 	}
-	self:write_cube(s, rot)
+	self:write_cube(s, rot, loc)
 end
 
 
-function Geomorph:write_match_three(shape, rot)
+function Geomorph:write_match_three(shape, rot, loc)
 	--local width = shape.size.z - 4
 	local p1
 
@@ -848,18 +889,18 @@ function Geomorph:write_match_three(shape, rot)
 	p.size = vector.add(p.size, 4)
 	p.size.y = p.size.y - 6 + (shape.clear_up or 0)
 	p.node = 'air'
-	self:write_cube(p, rot)
+	self:write_cube(p, rot, loc)
 
 	p = table.copy(shape)
 	p.node = 'match_three:top'
 	p.location.y = p.location.y + shape.size.y - 2
 	p.size.y = 1
-	self:write_cube(p, rot)
+	self:write_cube(p, rot, loc)
 
 	p1 = table.copy(p)
 	p1.node = 'match_three:clear_scrith'
 	p1.location.y = shape.location.y - 1
-	self:write_cube(p1, rot)
+	self:write_cube(p1, rot, loc)
 
 	p = table.copy(p)
 	p.location.x = p.location.x + 1
@@ -867,7 +908,7 @@ function Geomorph:write_match_three(shape, rot)
 	p.size.x = p.size.x - 2
 	p.size.z = p.size.z - 2
 	p.node = 'match_three:clear_scrith'
-	self:write_cube(p, rot)
+	self:write_cube(p, rot, loc)
 end
 
 
