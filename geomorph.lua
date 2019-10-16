@@ -387,10 +387,16 @@ function mod.pattern_match(pattern, x, y, z)
 		if pattern == 1 and math.floor(z / 2) % 2 == 1 then
 			return
 		end
+		if pattern == 2 and math.floor(z / 4) % 4 == 1 then
+			return
+		end
 	end
 
 	if x then
 		if pattern == 1 and math.floor(x / 2) % 2 == 1 then
+			return
+		end
+		if pattern == 2 and math.floor(x / 4) % 4 == 1 then
 			return
 		end
 	end

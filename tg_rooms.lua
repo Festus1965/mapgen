@@ -34,20 +34,6 @@ local cpoints = {
 }
 local stair_dist = 7 * RES
 
-local mob_names = {
-	'nmobs:cave_bear',
-	'nmobs:boulder',
-	'nmobs:cockatrice',
-	'nmobs:giant_lizard',
-	'nmobs:rat',
-	'nmobs:scorpion',
-	'nmobs:skeleton',
-	'nmobs:green_slime',
-	'nmobs:deep_spider',
-	'nmobs:goblin',
-	'nmobs:goblin_basher',
-}
-
 
 do
 	local newnode
@@ -61,93 +47,14 @@ do
 	newnode.liquid_alternative_flowing = mod_name..':weightless_lava'
 	newnode.liquid_alternative_source = mod_name..':weightless_lava'
 	minetest.register_node(mod_name..':weightless_lava', newnode)
+
+	newnode = layers_mod.clone_node('air')
+	newnode.light_source = 14
+	minetest.register_node(mod_name..':glow_air', newnode)
 end
 
 
 --[[
-do
-	-- This special node handles traps and mob generation.
-	-- The mob generation should be more efficient, since
-	--  they only appear near players.
-	-- About 75% of these blocks will be inert and untimed.
-	-- This still means over 200 active timers per chunk...
-
-	local n = layers_mod.clone_node('default:desert_stonebrick')
-
-	n.on_construct = function(pos)
-		local sr = math.random(50)
-		local tm = minetest.get_node_timer(pos)
-		local mt = minetest.get_meta(pos)
-		local fun
-		if not (tm and mt) then
-			return
-		end
-
-		if sr < 5 then
-		elseif sr < 10 then
-		elseif sr < 50 then
-			fun = 'summon'
-			tm:set(180, math.random(90) + 90)
-		end
-
-		mt:set_string('fun', fun)
-	end
-
-	n.on_timer = function(pos, elapsed)
-		local mt = minetest.get_meta(pos)
-		if not mt then
-			return true
-		end
-		local fun = mt:get_string('fun')
-
-		if fun == 'pitfall' then
-			-- nop
-		elseif fun == 'summon' then
-			if elapsed < 150 then
-				--print('elapsed error:', elapsed)
-				return true
-			end
-
-			local close
-			for _, player in pairs(minetest.get_connected_players()) do
-				local p = player:get_pos()
-				local rd = vector.abs(vector.subtract(p, pos))
-				if rd.x * rd.x + rd.z * rd.z + 5 * rd.y * rd.y < 2500 then
-					close = true
-				end
-			end
-
-			if not close then
-				return true
-			end
-
-			local ct = 0
-			local mob_count = 0
-			for _, o in pairs(minetest.luaentities) do
-				if vector.distance(o.object:get_pos(), pos) < 300 then
-					ct = ct + 1
-				end
-				mob_count = mob_count + 1
-			end
-
-			if ct > 30 then
-				return true
-			end
-
-			local p = table.copy(pos)
-			p.y = p.y + 2
-			local name = mob_names[math.random(#mob_names)]
-			minetest.add_entity(p, name)
-
-			return true
-		end
-	end
-	n.drop = 'default:desert_stonebrick'
-
-	minetest.register_node(mod_name .. ':fun_brick', n)
-	layers_mod.add_construct(mod_name .. ':fun_brick')
-end
-
 do
 	local n = layers_mod.clone_node('default:desert_stonebrick')
 	n.walkable = false
@@ -171,9 +78,15 @@ function mod.generate_big_rooms()
 		action = 'cube',
 		node = 'default:stone',
 		location = VN(0, 0, 0),
-		size = VN(40, 11, 40),
+		size = VN(40, 10, 40),
 	})
-	for y = 10, 30, 10 do
+	table.insert(b.data, {
+		action = 'cube',
+		node = 'default:desert_stonebrick',
+		location = VN(0, 10, 0),
+		size = VN(40, 1, 40),
+	})
+	for y = 20, 30, 10 do
 		table.insert(b.data, {
 			action = 'cube',
 			node = 'default:desert_stonebrick',
@@ -188,6 +101,63 @@ function mod.generate_big_rooms()
 		})
 	end
 	b.id = 'big_empty'
+	table.insert(big_rooms, b)
+
+	-- Open Sky
+	b = table.copy(desc)
+	table.insert(b.data, {
+		action = 'cube',
+		node = 'default:dirt',
+		location = VN(0, 0, 0),
+		size = VN(40, 10, 40),
+	})
+	table.insert(b.data, {
+		action = 'cube',
+		node = 'default:steelblock',
+		location = VN(0, 39, 0),
+		size = VN(40, 1, 40),
+	})
+	table.insert(b.data, {
+		action = 'cube',
+		node = 'default:meselamp',
+		location = VN(0, 39, 0),
+		random = 100,
+		size = VN(40, 1, 40),
+	})
+	for y = 10, 30, 10 do
+		table.insert(b.data, {
+			action = 'cube',
+			node = 'default:desert_stonebrick',
+			location = VN(0, y, 0),
+			size = VN(40, 1, 40),
+		})
+		if y == 10 then
+			table.insert(b.data, {
+				action = 'cube',
+				node = 'default:dirt_with_grass',
+				location = VN(5, y, 5),
+				size = VN(30, 1, 30),
+			})
+		else
+			table.insert(b.data, {
+				action = 'cube',
+				node = 'air',
+				location = VN(5, y, 5),
+				size = VN(30, 1, 30),
+			})
+		end
+		for o = 0, 10, 5 do
+			table.insert(b.data, {
+				action = 'cube',
+				node = mod_name .. ':glow_air',
+				--node = 'fun_tools:flare_air',
+				--node = 'default:meselamp',
+				location = VN(5 + o, y + 3, 5 + o),
+				size = VN(30 - 2 * o, 1, 30 - 2 * o),
+			})
+		end
+	end
+	b.id = 'open_sky'
 	table.insert(big_rooms, b)
 
 	-- Fire God
@@ -682,7 +652,42 @@ function mod.generate_small_rooms()
 			action = 'cube',
 			node = 'air',
 			location = VN(5, 0, 3),
-			size = VN(2, 1, 5),
+			size = VN(2, 1, 4),
+		})
+		table.insert(d.data, {
+			action = 'cube',
+			node = 'stairs:stair_desert_stonebrick',
+			location = VN(3, 0, 1),
+			param2 = 2,
+			size = VN(4, 1, 1),
+		})
+		table.insert(d.data, {
+			action = 'cube',
+			node = 'stairs:stair_desert_stonebrick',
+			location = VN(7, 0, 2),
+			param2 = 1,
+			size = VN(1, 1, 5),
+		})
+		table.insert(d.data, {
+			action = 'cube',
+			node = 'stairs:stair_inner_desert_stonebrick',
+			location = VN(7, 0, 1),
+			param2 = 2,
+			size = VN(1, 1, 1),
+		})
+		table.insert(d.data, {
+			action = 'cube',
+			node = 'stairs:stair_inner_desert_stonebrick',
+			location = VN(2, 0, 1),
+			param2 = 3,
+			size = VN(1, 1, 1),
+		})
+		table.insert(d.data, {
+			action = 'cube',
+			node = 'stairs:stair_desert_stonebrick',
+			location = VN(2, 0, 2),
+			param2 = 3,
+			size = VN(1, 1, 2),
 		})
 		d.exits.y = { true, true }
 		d.id = 'stair' .. d.id
@@ -730,6 +735,7 @@ function mod.handle_chest(pos)
 		meta:set_string('mapgen_tnt_trap', 'tnt')
 		fill = false
 	end
+	--meta:set_string('mapgen_summon_mob', 'random')
 
 	if fill then
 		local inv = meta:get_inventory()
@@ -738,6 +744,12 @@ function mod.handle_chest(pos)
 			layers_mod.fill_chest(pos, gpr)
 		end
 	end
+
+	local tm = minetest.get_node_timer(pos)
+	if not tm then
+		return
+	end
+	tm:set(180, math.random(90) + 90)
 end
 
 

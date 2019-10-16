@@ -27,6 +27,21 @@ mod.chunk_offset = math.floor(mod.chunksize / 2) * 16;
 
 local axes = { 'x', 'y', 'z' }
 
+mod.summoned_mob_names = {
+	'nmobs:cave_bear',
+	'nmobs:boulder',
+	'nmobs:cockatrice',
+	'nmobs:giant_lizard',
+	'nmobs:rat',
+	'nmobs:scorpion',
+	'nmobs:skeleton',
+	'nmobs:green_slime',
+	'nmobs:deep_spider',
+	'nmobs:goblin',
+	'nmobs:goblin_basher',
+}
+local summoned_mob_names = mod.summoned_mob_names
+
 
 -- This table looks up nodes that aren't already stored.
 mod.node = setmetatable({}, {
@@ -221,6 +236,51 @@ function mod.chest_rightclick(pos, node, clicker, itemstack, pointed_thing)
 
 		return
 	end
+
+	return true
+end
+
+
+local MAX_MOBS = 30
+function mod.chest_timer(pos, elapsed)
+	local mt = minetest.get_meta(pos)
+	if not mt then
+		return true
+	end
+
+	if elapsed < 150 then
+		--print('elapsed error:', elapsed)
+		return true
+	end
+
+	local close
+	for _, player in pairs(minetest.get_connected_players()) do
+		local p = player:get_pos()
+		local rd = vector.abs(vector.subtract(p, pos))
+		if rd.x * rd.x + rd.z * rd.z + 2 * rd.y * rd.y < 2700 then
+			close = true
+			break
+		end
+	end
+
+	if not close then
+		return true
+	end
+
+	local ct = 0
+	for _, o in pairs(minetest.luaentities) do
+		if vector.distance(o.object:get_pos(), pos) < 300 then
+			ct = ct + 1
+			if ct > MAX_MOBS then
+				return true
+			end
+		end
+	end
+
+	local p = table.copy(pos)
+	p.y = p.y + 2
+	local name = summoned_mob_names[math.random(#summoned_mob_names)]
+	minetest.add_entity(p, name)
 
 	return true
 end

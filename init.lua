@@ -136,10 +136,28 @@ end
 
 do
 	local defc = minetest.registered_nodes['default:chest']
+
 	local oldr = defc.on_rightclick
-	defc.on_rightclick = function(pos, node, clicker, itemstack, pointed_thing)
+	function new_rclick(pos, node, clicker, itemstack, pointed_thing)
 		if mod.chest_rightclick(pos, node, clicker, itemstack, pointed_thing) then
-			oldr(pos, node, clicker, itemstack, pointed_thing)
+			if oldr then
+				oldr(pos, node, clicker, itemstack, pointed_thing)
+			end
 		end
 	end
+
+	local oldt = defc.on_timer
+	local function new_timer(pos, elapsed)
+		if mod.chest_timer(pos, elapsed) then
+			if oldt then
+				oldt(pos, elapsed)
+			end
+			return true
+		end
+	end
+
+	minetest.override_item('default:chest', {
+		on_timer = new_timer,
+		on_rightclick = new_rclick,
+	})
 end
