@@ -35,6 +35,9 @@ local cpoints = {
 local stair_dist = 7 * RES
 
 
+dofile(mod.path .. '/dungeon_stuff.lua')
+
+
 do
 	local newnode
 	newnode = layers_mod.clone_node('default:lava_source')
@@ -291,9 +294,14 @@ function mod.generate_rooms(params)
 	local node = layers_mod.node
 	local chunk_offset = layers_mod.chunk_offset
 	local n_air = node['air']
+	local nofill
 
 	params.share.treasure_chest_handler = mod.handle_chest
 	gpr = params.gpr  -- handy for treasure function
+
+	if not mod.carpetable then
+		mod.setup_dungeon_decor(params)
+	end
 
 	local max_y = math.floor((params.realm_maxp.y - ovg) / RES) * RES
 	if params.share.height_min then
@@ -347,6 +355,10 @@ function mod.generate_rooms(params)
 	end
 
 	mod.place_big_room(params)
+
+	if not nofill then
+		mod.dungeon_decor(params, { no_doors = true, no_stains = true })
+	end
 end
 
 
