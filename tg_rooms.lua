@@ -149,17 +149,78 @@ function mod.generate_big_rooms()
 				size = VN(30, 1, 30),
 			})
 		end
-		for o = 0, 10, 5 do
-			table.insert(b.data, {
-				action = 'cube',
-				node = mod_name .. ':glow_air',
-				--node = 'fun_tools:flare_air',
-				--node = 'default:meselamp',
-				location = VN(5 + o, y + 3, 5 + o),
-				size = VN(30 - 2 * o, 1, 30 - 2 * o),
-			})
-		end
 	end
+	-- big tree
+	do
+		table.insert(b.data, {
+			action = 'sphere',
+			node = mod_name .. ':tree_oak',
+			intersect = 'air',
+			location = VN(12, 8, 12),
+			random = 40,
+			size = VN(16, 16, 16),
+		})
+		table.insert(b.data, {
+			action = 'sphere',
+			node = mod_name .. ':leaves_oak',
+			intersect = 'air',
+			location = VN(10, 5, 10),
+			random = 2,
+			size = VN(20, 20, 20),
+		})
+		table.insert(b.data, {
+			action = 'cube',
+			node = 'air',
+			intersect = mod_name .. ':leaves_oak',
+			location = VN(10, 5, 10),
+			size = VN(20, 9, 20),
+		})
+		table.insert(b.data, {
+			action = 'cube',
+			node = 'air',
+			intersect = mod_name .. ':tree_oak',
+			location = VN(10, 5, 10),
+			size = VN(20, 9, 20),
+		})
+		table.insert(b.data, {
+			action = 'cube',
+			node = 'air',
+			intersect = mod_name .. ':leaves_oak',
+			location = VN(10, 14, 10),
+			random = 2,
+			size = VN(20, 1, 20),
+		})
+		table.insert(b.data, {
+			action = 'cube',
+			node = mod_name .. ':tree_oak',
+			location = VN(18, 10, 19),
+			size = VN(4, 11, 2),
+		})
+		table.insert(b.data, {
+			action = 'cube',
+			node = mod_name .. ':tree_oak',
+			location = VN(19, 10, 18),
+			size = VN(2, 11, 4),
+		})
+	end
+	for i = 1, 5 do
+		table.insert(b.data, {
+			action = 'cube',
+			node = 'default:grass_' .. i,
+			intersect = 'air',
+			location = VN(5, 11, 5),
+			random = 30 + i * 20,
+			size = VN(30, 1, 30),
+		})
+	end
+	table.insert(b.data, {
+		action = 'cube',
+		node = mod_name .. ':glow_air',
+		intersect = 'air',
+		location = VN(5, 12, 5),
+		random = 25,
+		size = VN(30, 26, 30),
+	})
 	b.id = 'open_sky'
 	table.insert(big_rooms, b)
 
