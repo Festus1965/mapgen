@@ -209,11 +209,13 @@ function Geomorph:create_shape(t)
 	end
 
 	if not action then
+		minetest.log(mod_name .. ': missing action')
 		return
 	end
 
 	if action_names[action] then
 		if not (location and t.size and (action == 'puzzle' or t.node)) then
+			minetest.log(mod_name .. ': missing location/size')
 			return
 		end
 	else
@@ -263,6 +265,7 @@ end
 
 function Geomorph:write_to_map(rot, replace, loc)
 	if not self.gpr then
+		minetest.log(mod_name .. ': missing gpr')
 		return
 	end
 
@@ -352,26 +355,24 @@ function mod.get_p2(shape, rot)
 
 	local p2 = shape.param2
 
-	if mod.no_rotate[shape.node] then
+	if not p2 or not rot or rot == 0 or mod.no_rotate[shape.node] then
 		return p2
 	end
 
-	if p2 and rot ~= 0 then
-		if wallmounted[shape.node] then
-			local yaw = minetest.dir_to_yaw(minetest.wallmounted_to_dir(p2))
-			yaw = yaw + math.pi
-			for _ = 1, rot do
-				yaw = yaw + math.pi / 2
-			end
-			p2 = minetest.dir_to_wallmounted(minetest.yaw_to_dir(yaw))
-		else
-			local rp2 = p2 % 4
-			local extra = math.floor(p2 / 4)
-			if rot ~= 0 then
-				rp2 = (rp2 + rot) % 4
-			end
-			p2 = rp2 + extra * 4
+	if wallmounted[shape.node] then
+		local yaw = minetest.dir_to_yaw(minetest.wallmounted_to_dir(p2))
+		yaw = yaw + math.pi
+		for _ = 1, rot do
+			yaw = yaw + math.pi / 2
 		end
+		p2 = minetest.dir_to_wallmounted(minetest.yaw_to_dir(yaw))
+	else
+		local rp2 = p2 % 4
+		local extra = math.floor(p2 / 4)
+		if rot ~= 0 then
+			rp2 = (rp2 + rot) % 4
+		end
+		p2 = rp2 + extra * 4
 	end
 
 	return p2
@@ -406,6 +407,7 @@ end
 function Geomorph:write_cube(shape, rot, loc)
 	local min, max = rotate_coords(shape, rot, self.csize)
 	if not min then
+		minetest.log(mod_name .. ': missing min')
 		return
 	end
 

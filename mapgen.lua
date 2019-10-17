@@ -45,6 +45,7 @@ mod.no_rotate = {
 	['default:stonebrick'] = true,
 	['default:stone'] = true,
 	['default:water_source'] = true,
+	[mod_name .. ':ruined_carpet_1'] = true,
 }
 local no_rotate = mod.no_rotate
 
@@ -394,8 +395,8 @@ function mod.generate(minp, maxp, seed)
 end
 
 
-function mod.generate_block_seed(minp)
-	local seed = tonumber(mod.map_seed)
+function mod.generate_block_seed(minp, map_seed)
+	local seed = tonumber(map_seed or mod.map_seed)
 	local data = {}
 
 	while seed > 0 do

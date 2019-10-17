@@ -2,6 +2,7 @@
 
 *.xcf
 *.swp
+*.svg
 old_*.lua
 duane
 not

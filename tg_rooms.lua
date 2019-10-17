@@ -67,6 +67,11 @@ end
 
 
 function mod.generate_big_rooms()
+	local dsb = 'default:stonebrick'
+	local ddsb = 'default:desert_stonebrick'
+	local dssb = 'default:sandstonebrick'
+	local sssb = 'stairs:stair_stonebrick'
+
 	local b
 	local center = VN(20, 20, 20)
 	local desc = {
@@ -75,73 +80,28 @@ function mod.generate_big_rooms()
 		rotate = 0,
 	}
 
-	-- Big Empty
-	b = table.copy(desc)
-	table.insert(b.data, {
-		action = 'cube',
-		node = 'default:stone',
-		location = VN(0, 0, 0),
-		size = VN(40, 10, 40),
-	})
-	table.insert(b.data, {
-		action = 'cube',
-		node = 'default:desert_stonebrick',
-		location = VN(0, 10, 0),
-		size = VN(40, 1, 40),
-	})
-	for y = 20, 30, 10 do
+	do
+		-- Big Empty
+		b = table.copy(desc)
 		table.insert(b.data, {
 			action = 'cube',
-			node = 'default:desert_stonebrick',
-			location = VN(0, y, 0),
+			node = 'default:stone',
+			location = VN(0, 0, 0),
+			size = VN(40, 10, 40),
+		})
+		table.insert(b.data, {
+			action = 'cube',
+			node = ddsb,
+			location = VN(0, 10, 0),
 			size = VN(40, 1, 40),
 		})
-		table.insert(b.data, {
-			action = 'cube',
-			node = 'air',
-			location = VN(5, y, 5),
-			size = VN(30, 1, 30),
-		})
-	end
-	b.id = 'big_empty'
-	table.insert(big_rooms, b)
-
-	-- Open Sky
-	b = table.copy(desc)
-	table.insert(b.data, {
-		action = 'cube',
-		node = 'default:dirt',
-		location = VN(0, 0, 0),
-		size = VN(40, 10, 40),
-	})
-	table.insert(b.data, {
-		action = 'cube',
-		node = 'default:steelblock',
-		location = VN(0, 39, 0),
-		size = VN(40, 1, 40),
-	})
-	table.insert(b.data, {
-		action = 'cube',
-		node = 'default:meselamp',
-		location = VN(0, 39, 0),
-		random = 100,
-		size = VN(40, 1, 40),
-	})
-	for y = 10, 30, 10 do
-		table.insert(b.data, {
-			action = 'cube',
-			node = 'default:desert_stonebrick',
-			location = VN(0, y, 0),
-			size = VN(40, 1, 40),
-		})
-		if y == 10 then
+		for y = 20, 30, 10 do
 			table.insert(b.data, {
 				action = 'cube',
-				node = 'default:dirt_with_grass',
-				location = VN(5, y, 5),
-				size = VN(30, 1, 30),
+				node = ddsb,
+				location = VN(0, y, 0),
+				size = VN(40, 1, 40),
 			})
-		else
 			table.insert(b.data, {
 				action = 'cube',
 				node = 'air',
@@ -149,199 +109,409 @@ function mod.generate_big_rooms()
 				size = VN(30, 1, 30),
 			})
 		end
+		b.id = 'big_empty'
+		table.insert(big_rooms, b)
 	end
-	-- big tree
-	do
-		table.insert(b.data, {
-			action = 'sphere',
-			node = mod_name .. ':tree_oak',
-			intersect = 'air',
-			location = VN(12, 8, 12),
-			random = 40,
-			size = VN(16, 16, 16),
-		})
-		table.insert(b.data, {
-			action = 'sphere',
-			node = mod_name .. ':leaves_oak',
-			intersect = 'air',
-			location = VN(10, 5, 10),
-			random = 2,
-			size = VN(20, 20, 20),
-		})
-		table.insert(b.data, {
-			action = 'cube',
-			node = 'air',
-			intersect = mod_name .. ':leaves_oak',
-			location = VN(10, 5, 10),
-			size = VN(20, 9, 20),
-		})
-		table.insert(b.data, {
-			action = 'cube',
-			node = 'air',
-			intersect = mod_name .. ':tree_oak',
-			location = VN(10, 5, 10),
-			size = VN(20, 9, 20),
-		})
-		table.insert(b.data, {
-			action = 'cube',
-			node = 'air',
-			intersect = mod_name .. ':leaves_oak',
-			location = VN(10, 14, 10),
-			random = 2,
-			size = VN(20, 1, 20),
-		})
-		table.insert(b.data, {
-			action = 'cube',
-			node = mod_name .. ':tree_oak',
-			location = VN(18, 10, 19),
-			size = VN(4, 11, 2),
-		})
-		table.insert(b.data, {
-			action = 'cube',
-			node = mod_name .. ':tree_oak',
-			location = VN(19, 10, 18),
-			size = VN(2, 11, 4),
-		})
-	end
-	for i = 1, 5 do
-		table.insert(b.data, {
-			action = 'cube',
-			node = 'default:grass_' .. i,
-			intersect = 'air',
-			location = VN(5, 11, 5),
-			random = 30 + i * 20,
-			size = VN(30, 1, 30),
-		})
-	end
-	table.insert(b.data, {
-		action = 'cube',
-		node = mod_name .. ':glow_air',
-		intersect = 'air',
-		location = VN(5, 12, 5),
-		random = 25,
-		size = VN(30, 26, 30),
-	})
-	b.id = 'open_sky'
-	table.insert(big_rooms, b)
 
-	-- Fire God
-	b = table.copy(desc)
-	table.insert(b.data, {
-		action = 'cube',
-		node = 'default:obsidian',
-		location = VN(0, 0, 0),
-		size = VN(40, 11, 40),
-	})
-	table.insert(b.data, {
-		action = 'cube',
-		node = 'default:lava_source',
-		location = VN(1, 1, 1),
-		size = VN(38, 10, 38),
-	})
-	table.insert(b.data, {
-		action = 'cube',
-		node = 'default:obsidian',
-		location = VN(RES + HRES - 1, 10, 1),
-		random = 2,
-		size = VN(2, 1, 38),
-	})
-	table.insert(b.data, {
-		action = 'cube',
-		node = 'default:obsidian',
-		location = VN(2 * RES + HRES - 1, 10, 1),
-		random = 2,
-		size = VN(2, 1, 38),
-	})
-	table.insert(b.data, {
-		action = 'cube',
-		node = 'default:obsidian',
-		location = VN(1, 10, RES + HRES - 1),
-		random = 2,
-		size = VN(38, 1, 2),
-	})
-	table.insert(b.data, {
-		action = 'cube',
-		node = 'default:obsidian',
-		location = VN(1, 10, 2 * RES + HRES - 1),
-		random = 2,
-		size = VN(38, 1, 2),
-	})
-	table.insert(b.data, {
-		action = 'cylinder',
-		axis = 'y',
-		node = 'default:obsidian',
-		location = VN(11, 10, 11),
-		size = VN(18, 1, 18),
-	})
-	table.insert(b.data, {
-		action = 'cube',
-		node = 'default:obsidian',
-		location = VN(17, 24, 21),
-		size = VN(6, 6, 6),
-	})
-	table.insert(b.data, {
-		action = 'cube',
-		node = 'default:steelblock',
-		location = VN(17, 24, 21),
-		size = VN(6, 5, 5),
-	})
-	table.insert(b.data, {
-		action = 'cube',
-		node = mod_name .. ':weightless_lava',
-		location = VN(17, 27, 21),
-		size = VN(2, 1, 1),
-	})
-	table.insert(b.data, {
-		action = 'cube',
-		node = mod_name .. ':weightless_lava',
-		location = VN(21, 27, 21),
-		size = VN(2, 1, 1),
-	})
-	table.insert(b.data, {
-		action = 'cube',
-		node = 'default:obsidian',
-		location = VN(14, 20, 22),
-		size = VN(12, 4, 4),
-	})
-	table.insert(b.data, {
-		action = 'cube',
-		node = 'default:steelblock',
-		location = VN(14, 15, 22),
-		size = VN(3, 5, 4),
-	})
-	table.insert(b.data, {
-		action = 'cube',
-		node = 'default:steelblock',
-		location = VN(23, 15, 22),
-		size = VN(3, 5, 4),
-	})
-	table.insert(b.data, {
-		action = 'cube',
-		node = 'default:steelblock',
-		location = VN(14, 15, 16),
-		size = VN(3, 3, 7),
-	})
-	table.insert(b.data, {
-		action = 'cube',
-		node = 'default:steelblock',
-		location = VN(23, 15, 16),
-		size = VN(3, 3, 7),
-	})
-	table.insert(b.data, {
-		action = 'cube',
-		node = 'default:obsidian',
-		location = VN(17, 10, 22),
-		size = VN(6, 14, 4),
-	})
-	table.insert(b.data, {
-		action = 'sphere',
-		node = mod_name .. ':weightless_lava',
-		location = VN(16, 15, 10),
-		size = VN(6, 6, 6),
-	})
-	b.id = 'fire_god'
-	b.rare = true
-	table.insert(big_rooms, b)
+	do
+		-- Open Sky
+		b = table.copy(desc)
+		table.insert(b.data, {
+			action = 'cube',
+			node = 'default:dirt',
+			location = VN(0, 0, 0),
+			size = VN(40, 10, 40),
+		})
+		table.insert(b.data, {
+			action = 'cube',
+			node = 'default:steelblock',
+			location = VN(0, 39, 0),
+			size = VN(40, 1, 40),
+		})
+		table.insert(b.data, {
+			action = 'cube',
+			node = 'default:meselamp',
+			location = VN(0, 39, 0),
+			random = 100,
+			size = VN(40, 1, 40),
+		})
+		for y = 10, 30, 10 do
+			table.insert(b.data, {
+				action = 'cube',
+				node = ddsb,
+				location = VN(0, y, 0),
+				size = VN(40, 1, 40),
+			})
+			if y == 10 then
+				table.insert(b.data, {
+					action = 'cube',
+					node = 'default:dirt_with_grass',
+					location = VN(5, y, 5),
+					size = VN(30, 1, 30),
+				})
+			else
+				table.insert(b.data, {
+					action = 'cube',
+					node = 'air',
+					location = VN(5, y, 5),
+					size = VN(30, 1, 30),
+				})
+			end
+		end
+		-- big tree
+		do
+			table.insert(b.data, {
+				action = 'sphere',
+				node = mod_name .. ':tree_oak',
+				intersect = 'air',
+				location = VN(12, 8, 12),
+				random = 40,
+				size = VN(16, 16, 16),
+			})
+			table.insert(b.data, {
+				action = 'sphere',
+				node = mod_name .. ':leaves_oak',
+				intersect = 'air',
+				location = VN(10, 5, 10),
+				random = 2,
+				size = VN(20, 20, 20),
+			})
+			table.insert(b.data, {
+				action = 'cube',
+				node = 'air',
+				intersect = mod_name .. ':leaves_oak',
+				location = VN(10, 5, 10),
+				size = VN(20, 9, 20),
+			})
+			table.insert(b.data, {
+				action = 'cube',
+				node = 'air',
+				intersect = mod_name .. ':tree_oak',
+				location = VN(10, 5, 10),
+				size = VN(20, 9, 20),
+			})
+			table.insert(b.data, {
+				action = 'cube',
+				node = 'air',
+				intersect = mod_name .. ':leaves_oak',
+				location = VN(10, 14, 10),
+				random = 2,
+				size = VN(20, 1, 20),
+			})
+			table.insert(b.data, {
+				action = 'cube',
+				node = mod_name .. ':tree_oak',
+				location = VN(18, 10, 19),
+				size = VN(4, 11, 2),
+			})
+			table.insert(b.data, {
+				action = 'cube',
+				node = mod_name .. ':tree_oak',
+				location = VN(19, 10, 18),
+				size = VN(2, 11, 4),
+			})
+		end
+		for i = 1, 5 do
+			table.insert(b.data, {
+				action = 'cube',
+				node = 'default:grass_' .. i,
+				intersect = 'air',
+				location = VN(5, 11, 5),
+				random = 30 + i * 20,
+				size = VN(30, 1, 30),
+			})
+		end
+		table.insert(b.data, {
+			action = 'cube',
+			node = mod_name .. ':glow_air',
+			intersect = 'air',
+			location = VN(5, 12, 5),
+			random = 25,
+			size = VN(30, 26, 30),
+		})
+		b.id = 'open_sky'
+		table.insert(big_rooms, b)
+	end
+
+	do
+		-- Bridgeworks
+		b = table.copy(desc)
+		table.insert(b.data, {
+			action = 'cube',
+			node = dsb,
+			location = VN(0, 0, 0),
+			size = VN(40, 8, 40),
+		})
+		table.insert(b.data, {
+			action = 'cube',
+			node = mod_name .. ':sand_gem_glass',
+			location = VN(0, 0, 0),
+			random = 20,
+			size = VN(40, 1, 40),
+		})
+		table.insert(b.data, {
+			action = 'cube',
+			node = 'default:water_source',
+			location = VN(1, 1, 1),
+			size = VN(38, 7, 38),
+		})
+		for y = 10, 30, 10 do
+			local tmp = {}
+
+			table.insert(tmp, {
+				action = 'cube',
+				node = ddsb,
+				location = VN(0, y, 10),
+				size = VN(3, 1, 20),
+			})
+			table.insert(tmp, {
+				action = 'cube',
+				node = ddsb,
+				location = VN(37, y, 10),
+				size = VN(3, 1, 20),
+			})
+
+			for x = 10, 20, 10 do
+				for z = 0, 39, 39 do
+					table.insert(tmp, {
+						action = 'cube',
+						node = dsb,
+						location = VN(x, y, z),
+						size = VN(10, 10, 1),
+					})
+				end
+				table.insert(tmp, {
+					action = 'cube',
+					node = dsb,
+					location = VN(x + 2, y, 0),
+					size = VN(6, 8, 40),
+				})
+				table.insert(tmp, {
+					action = 'cube',
+					node = dsb,
+					location = VN(x + 2, y + 1, 0),
+					size = VN(6, 6, 40),
+				})
+				table.insert(tmp, {
+					action = 'cube',
+					node = 'air',
+					location = VN(x + 3, y + 1, 0),
+					size = VN(4, 7, 40),
+				})
+				for z = 3, 36, 3 do
+					table.insert(tmp, {
+						action = 'cube',
+						node = 'default:torch_ceiling',
+						location = VN(x + 4, y - 1, z),
+						random = 3,
+						size = VN(1, 1, 1),
+					})
+					table.insert(tmp, {
+						action = 'cube',
+						node = 'air',
+						location = VN(x + 2, y + 1, z),
+						size = VN(6, 6, 2),
+					})
+					if x == 10 then
+						table.insert(tmp, {
+							action = 'cube',
+							node = 'default:torch_wall',
+							location = VN(x + 3, y + 4, z + 2),
+							param2 = 3,
+							random = 2,
+							size = VN(1, 1, 1),
+						})
+					elseif x == 20 then
+						table.insert(tmp, {
+							action = 'cube',
+							node = 'default:torch_wall',
+							location = VN(x + 6, y + 4, z + 2),
+							param2 = 2,
+							random = 2,
+							size = VN(1, 1, 1),
+						})
+					end
+					for x2 = 2, 7, 5 do
+						table.insert(tmp, {
+							action = 'cube',
+							node = sssb,
+							location = VN(x + x2, y + 1, z),
+							param2 = 2,
+							size = VN(1, 1, 1),
+						})
+						table.insert(tmp, {
+							action = 'cube',
+							node = sssb,
+							location = VN(x + x2, y + 1, z + 1),
+							param2 = 0,
+							size = VN(1, 1, 1),
+						})
+						table.insert(tmp, {
+							action = 'cube',
+							node = sssb,
+							location = VN(x + x2, y + 6, z),
+							param2 = 22,
+							size = VN(1, 1, 1),
+						})
+						table.insert(tmp, {
+							action = 'cube',
+							node = sssb,
+							location = VN(x + x2, y + 6, z + 1),
+							param2 = 20,
+							size = VN(1, 1, 1),
+						})
+					end
+				end
+			end
+
+			if y == 20 then
+				for _, it in pairs(tmp) do
+					it.size = {x = it.size.z, y = it.size.y, z = it.size.x}
+					it.location = {x = it.location.z, y = it.location.y, z = it.location.x}
+					if it.param2 then
+						if it.node == 'default:torch_wall' then
+							it.param2 = it.param2 + 2
+						else
+							if it.param2 == 20 then
+								it.param2 = 23
+							elseif it.param2 == 22 then
+								it.param2 = 21
+							else
+								it.param2 = it.param2 + 1
+							end
+						end
+					end
+				end
+			end
+
+			for _, it in pairs(tmp) do
+				table.insert(b.data, it)
+			end
+		end
+		b.id = 'bridgeworks'
+		table.insert(big_rooms, b)
+	end
+
+	do
+		-- Fire God
+		b = table.copy(desc)
+		table.insert(b.data, {
+			action = 'cube',
+			node = 'default:obsidian',
+			location = VN(0, 0, 0),
+			size = VN(40, 11, 40),
+		})
+		table.insert(b.data, {
+			action = 'cube',
+			node = 'default:lava_source',
+			location = VN(1, 1, 1),
+			size = VN(38, 10, 38),
+		})
+		table.insert(b.data, {
+			action = 'cube',
+			node = 'default:obsidian',
+			location = VN(RES + HRES - 1, 10, 1),
+			random = 2,
+			size = VN(2, 1, 38),
+		})
+		table.insert(b.data, {
+			action = 'cube',
+			node = 'default:obsidian',
+			location = VN(2 * RES + HRES - 1, 10, 1),
+			random = 2,
+			size = VN(2, 1, 38),
+		})
+		table.insert(b.data, {
+			action = 'cube',
+			node = 'default:obsidian',
+			location = VN(1, 10, RES + HRES - 1),
+			random = 2,
+			size = VN(38, 1, 2),
+		})
+		table.insert(b.data, {
+			action = 'cube',
+			node = 'default:obsidian',
+			location = VN(1, 10, 2 * RES + HRES - 1),
+			random = 2,
+			size = VN(38, 1, 2),
+		})
+		table.insert(b.data, {
+			action = 'cylinder',
+			axis = 'y',
+			node = 'default:obsidian',
+			location = VN(11, 10, 11),
+			size = VN(18, 1, 18),
+		})
+		table.insert(b.data, {
+			action = 'cube',
+			node = 'default:obsidian',
+			location = VN(17, 24, 21),
+			size = VN(6, 6, 6),
+		})
+		table.insert(b.data, {
+			action = 'cube',
+			node = 'default:steelblock',
+			location = VN(17, 24, 21),
+			size = VN(6, 5, 5),
+		})
+		table.insert(b.data, {
+			action = 'cube',
+			node = mod_name .. ':weightless_lava',
+			location = VN(17, 27, 21),
+			size = VN(2, 1, 1),
+		})
+		table.insert(b.data, {
+			action = 'cube',
+			node = mod_name .. ':weightless_lava',
+			location = VN(21, 27, 21),
+			size = VN(2, 1, 1),
+		})
+		table.insert(b.data, {
+			action = 'cube',
+			node = 'default:obsidian',
+			location = VN(14, 20, 22),
+			size = VN(12, 4, 4),
+		})
+		table.insert(b.data, {
+			action = 'cube',
+			node = 'default:steelblock',
+			location = VN(14, 15, 22),
+			size = VN(3, 5, 4),
+		})
+		table.insert(b.data, {
+			action = 'cube',
+			node = 'default:steelblock',
+			location = VN(23, 15, 22),
+			size = VN(3, 5, 4),
+		})
+		table.insert(b.data, {
+			action = 'cube',
+			node = 'default:steelblock',
+			location = VN(14, 15, 16),
+			size = VN(3, 3, 7),
+		})
+		table.insert(b.data, {
+			action = 'cube',
+			node = 'default:steelblock',
+			location = VN(23, 15, 16),
+			size = VN(3, 3, 7),
+		})
+		table.insert(b.data, {
+			action = 'cube',
+			node = 'default:obsidian',
+			location = VN(17, 10, 22),
+			size = VN(6, 14, 4),
+		})
+		table.insert(b.data, {
+			action = 'sphere',
+			node = mod_name .. ':weightless_lava',
+			location = VN(16, 15, 10),
+			size = VN(6, 6, 6),
+		})
+		b.id = 'fire_god'
+		b.rare = true
+		table.insert(big_rooms, b)
+	end
 end
 
 
@@ -994,6 +1164,117 @@ if status_mod_path and status_mod and status_mod.register_status then
 		end,
 	})
 end
+
+
+minetest.register_chatcommand('regeo', {
+	params = '<filename>',
+	description = 'Regenerate a geomorph, destroying all existing nodes.',
+	privs = { mapgen = true },
+	func = function(player_name, param)
+		if not (player_name and param) then
+			return
+		end
+
+		local player = minetest.get_player_by_name(player_name)
+		if not player then
+			return
+		end
+
+		local pos = player:get_pos()
+		if not pos then
+			return
+		end
+
+		local ffn = mod.world .. '/' .. param .. '.lua'
+		local fi = io.open(ffn)
+		if not fi then
+			minetest.log('no file ' .. ffn)
+			return
+		end
+		fi:close()
+		local desc = dofile(ffn)
+		if not type(desc) == 'table' then
+			return
+		end
+
+		local chunksize = tonumber(minetest.settings:get('chunksize') or 5)
+		local chunk_offset = math.floor(chunksize / 2) * 16;
+		local csize = { x=chunksize * 16, y=chunksize * 16, z=chunksize * 16 }
+
+		local chunk = vector.floor(vector.divide(vector.add(pos, chunk_offset), csize.z))
+		local minp = vector.add(vector.multiply(chunk, csize.z), -chunk_offset)
+		local maxp = vector.add(vector.add(minp, -1), csize.z)
+
+		local map_seed = mod.generate_map_seed()
+		local blockseed = mod.generate_block_seed(minp, map_seed)
+
+		local params = {
+			chunk_minp = minp,
+			chunk_maxp = maxp,
+			chunk_csize = vector.add(vector.subtract(maxp, minp), 1),
+			chunk_seed = blockseed,
+			genesis_redo = true,
+			--real_chunk_seed = seed,
+			map_seed = map_seed,
+			gpr = PcgRandom(blockseed + 772),
+		}
+
+		local dist = vector.subtract(pos, minp)
+		if not (dist.x >= 20 and dist.x <= 59 and dist.y >= 20 and dist.y <= 59 and dist.z >= 20 and dist.z <= 59) then
+			minetest.log('not in center')
+			return
+		end
+
+		minp = vector.add(minp, VN(20, 20, 20))
+		maxp = vector.subtract(maxp, VN(20, 20, 20))
+		params.isect_minp = minp
+		params.isect_maxp = maxp
+		params.csize = vector.add(vector.subtract(maxp, minp), 1)
+		params.node = layers_mod.node
+
+		local vm = minetest.get_voxel_manip()
+		if not vm then
+			minetest.log(mod_name .. ': cannot get vm')
+			return
+		end
+		local emin, emax = vm:read_from_map(minp, maxp)
+
+		if not (emin and emax) then
+			return
+		end
+
+		local area = VoxelArea:new({MinEdge = emin, MaxEdge = emax})
+		local data = vm:get_data()
+		local p2data = vm:get_param2_data()
+		local ldata = vm:get_light_data()
+		local n_air = minetest.get_content_id('air')
+
+		for z = minp.z, maxp.z do
+			for y = minp.y, maxp.y do
+				local ivm = area:index(minp.x, y, z)
+				for _ = minp.x, maxp.x do
+					data[ivm] = n_air
+					p2data[ivm] = 0
+					ldata[ivm] = 170
+					ivm = ivm + 1
+				end
+			end
+		end
+
+		params.data = data
+		params.p2data = p2data
+		params.area = area
+		params.ystride = area.ystride
+
+		local geo = Geomorph.new(params, desc)
+		geo:write_to_map(0)
+
+		vm:set_data(data)
+		vm:set_param2_data(p2data)
+		vm:set_light_data(ldata)
+		vm:write_to_map(false)
+	end,
+})
 
 
 -----------------------------------------------

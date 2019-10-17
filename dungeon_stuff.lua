@@ -53,7 +53,6 @@ do
 		groups = {oddly_breakable_by_hand=1},
 	})
 
-	--[[
 	minetest.register_node(mod_name..':ruined_carpet_1', {
 		description = 'Ruined Carpet',
 		tiles = {'ruined_carpet_1.png'},
@@ -70,7 +69,6 @@ do
 		},
 		groups = {oddly_breakable_by_hand=1},
 	})
-	--]]
 
 	minetest.register_node(mod_name..':puddle_ooze', {
 		description = 'Disgusting Ooze',

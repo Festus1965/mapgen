@@ -64,7 +64,8 @@ mod.wallmounted = setmetatable({}, {
 			return
 		end
 
-		t[k] = minetest.registered_nodes[k].paramtype2 == 'wallmounted'
+		local n = minetest.registered_nodes[k]
+		t[k] = (n.paramtype2 == 'wallmounted' and n.paramtype == 'torchlike')
 		return t[k]
 	end
 })
