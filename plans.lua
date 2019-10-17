@@ -21,6 +21,12 @@ local ground = 20
 local vault_width = 7
 local vault_offset = math.floor(vault_width / 2)
 local p
+
+
+if mod.geo_parts then
+	return
+end
+
 mod.geo_parts = {}
 
 

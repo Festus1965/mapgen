@@ -501,7 +501,8 @@ function Geomorph:write_cube(shape, rot, loc)
 		end
 	end
 
-	if shape.treasure and type(shape.treasure) == 'number'
+	if shape.treasure and self.params.share
+	and type(shape.treasure) == 'number'
 	and self.gpr:next(1, shape.treasure) == 1 then
 		if not self.params.share.treasure_chests then
 			self.params.share.treasure_chests = {}

@@ -25,6 +25,7 @@ mod.chunksize = tonumber(minetest.settings:get('chunksize') or 5)
 mod.chunk_offset = math.floor(mod.chunksize / 2) * 16;
 
 
+local VN = vector.new
 local axes = { 'x', 'y', 'z' }
 
 mod.summoned_mob_names = {
@@ -1056,7 +1057,7 @@ minetest.register_chatcommand('genesis', {
 		vm:write_to_map()
 
 		local map_seed = mod.generate_map_seed()
-		local blockseed = mod.generate_block_seed(minp)
+		local blockseed = mod.generate_block_seed(minp, map_seed)
 
 		local params = {
 			chunk_minp = minp,
@@ -1068,6 +1069,146 @@ minetest.register_chatcommand('genesis', {
 			map_seed = map_seed,
 		}
 		mod.generate_all(params)
+	end,
+})
+
+
+minetest.register_chatcommand('regeo', {
+	params = '<filename>',
+	description = 'Regenerate a geomorph, destroying all existing nodes.',
+	privs = { mapgen = true },
+	func = function(player_name, param)
+		dofile(mod.path .. '/plans.lua')
+
+		if not (player_name and param) then
+			return
+		end
+
+		local player = minetest.get_player_by_name(player_name)
+		if not player then
+			return
+		end
+
+		local pos = player:get_pos()
+		if not pos then
+			return
+		end
+
+		local ffn = mod.world .. '/' .. param .. '.lua'
+		local fi = io.open(ffn)
+		if not fi then
+			minetest.log('no file ' .. ffn)
+			return
+		end
+		fi:close()
+		local desc = dofile(ffn)
+		if not (desc and type(desc) == 'table') then
+			minetest.log(mod_name .. ': cannot interpret file')
+			return
+		end
+
+		if not desc.size then
+			desc.size = VN(80, 80, 80)
+		end
+		local geo_sz, loc
+		if desc.size.z == 80 then
+			geo_sz = 80
+		elseif desc.size.z == 40 then
+			geo_sz = 40
+			loc = VN(20, 20, 20)
+		elseif desc.size.z == 10 then
+			geo_sz = 10
+			loc = VN(20, 20, 20)
+		else
+			minetest.log('This file is not an allowed size.')
+			return
+		end
+
+		local chunksize = tonumber(minetest.settings:get('chunksize') or 5)
+		local chunk_offset = math.floor(chunksize / 2) * 16;
+		local csize = { x=chunksize * 16, y=chunksize * 16, z=chunksize * 16 }
+
+		local chunk = vector.floor(vector.divide(vector.add(pos, chunk_offset), csize.z))
+		local minp = vector.subtract(vector.multiply(chunk, csize.z), chunk_offset)
+		local maxp = vector.add(vector.subtract(minp, 1), csize.z)
+
+		local map_seed = mod.generate_map_seed()
+		local blockseed = mod.generate_block_seed(minp, map_seed)
+
+		local params = {
+			chunk_minp = minp,
+			chunk_maxp = maxp,
+			chunk_csize = vector.add(vector.subtract(maxp, minp), 1),
+			chunk_seed = blockseed,
+			genesis_redo = true,
+			gpr = PcgRandom(blockseed + 772),
+			map_seed = map_seed,
+			node = mod.node,
+		}
+
+		local dist = vector.subtract(pos, minp)
+		if geo_sz == 40 and not (dist.x >= 20 and dist.x < 60 and dist.y >= 20 and dist.y < 60 and dist.z >= 20 and dist.z < 60) then
+			minetest.log('not in center')
+			return
+		end
+
+		if geo_sz == 10 then
+			local tenc = vector.floor(vector.divide(vector.add(pos, chunk_offset), 10))
+			tenc = vector.subtract(vector.multiply(tenc, 10), chunk_offset)
+			loc = vector.subtract(tenc, minp)
+			minp = tenc
+		elseif geo_sz == 40 then
+			minp = vector.add(minp, 20)
+		end
+		maxp = vector.add(minp, geo_sz - 1)
+
+		params.isect_minp = minp
+		params.isect_maxp = maxp
+		params.csize = vector.add(vector.subtract(maxp, minp), 1)
+
+		local vm = minetest.get_voxel_manip()
+		if not vm then
+			minetest.log(mod_name .. ': cannot get vm')
+			return
+		end
+		local emin, emax = vm:read_from_map(minp, maxp)
+
+		if not (emin and emax) then
+			minetest.log(mod_name .. ': missing emin/max')
+			return
+		end
+
+		local area = VoxelArea:new({MinEdge = emin, MaxEdge = emax})
+		local data = vm:get_data()
+		local p2data = vm:get_param2_data()
+		local ldata = vm:get_light_data()
+		local n_air = minetest.get_content_id('air')
+
+		for z = minp.z, maxp.z do
+			for y = minp.y, maxp.y do
+				local ivm = area:index(minp.x, y, z)
+				for _ = minp.x, maxp.x do
+					data[ivm] = n_air
+					p2data[ivm] = 0
+					ldata[ivm] = 170
+					ivm = ivm + 1
+				end
+			end
+		end
+
+		params.data = data
+		params.p2data = p2data
+		params.area = area
+		params.ystride = area.ystride
+
+		local geo = Geomorph.new(params, desc)
+		-- Don't need loc, since this is a local vm.
+		geo:write_to_map(0)
+
+		vm:set_data(data)
+		vm:set_param2_data(p2data)
+		vm:set_light_data(ldata)
+		vm:write_to_map(false)
 	end,
 })
 
