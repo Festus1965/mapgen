@@ -1172,22 +1172,7 @@ function mod.save_map(params)
 		meta:from_table(t.meta)
 	end
 
-	-- Call on_construct methods for nodes that request it.
-	-- This is mainly useful for starting timers.
-	for i, n in ipairs(params.data) do
-		if mod.construct_nodes[n] then
-			local pos = params.area:position(i)
-			local node_name = minetest.get_name_from_content_id(n)
-			if minetest.registered_nodes[node_name] and minetest.registered_nodes[node_name].on_construct then
-				minetest.registered_nodes[node_name].on_construct(pos)
-			else
-				local timer = minetest.get_node_timer(pos)
-				if timer then
-					timer:start(math.random(100))
-				end
-			end
-		end
-	end
+	mod.do_on_constructs(params)
 
 	do
 		local ps = PcgRandom(os.time())

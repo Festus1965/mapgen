@@ -235,6 +235,7 @@ function mod.generate_big_rooms()
 
 	do
 		-- Bridgeworks
+		-- add supports?
 		b = table.copy(desc)
 		table.insert(b.data, {
 			action = 'cube',
@@ -571,13 +572,15 @@ function mod.generate_rooms(params)
 		mod.generate_big_rooms()
 	end
 
+	local big = mod.big_room_here(params)
+
 	for z = minp.z - ovg, maxp.z + ovg do
 		if (z + chunk_offset) % RES == 0 then
 			for y = minp.y - ovg, max_y + ovg do
 				if (y + chunk_offset) % RES == 0 then
 					for x = minp.x - ovg, maxp.x + ovg do
 						if (x + chunk_offset) % RES == 0 then
-							mod.place_small_room(params, VN(x, y, z))
+							mod.place_small_room(params, VN(x, y, z), big)
 						end
 					end
 				end
@@ -585,10 +588,31 @@ function mod.generate_rooms(params)
 		end
 	end
 
-	mod.place_big_room(params)
+	if big then
+		mod.place_big_room(params)
+	end
 
 	if not nofill then
 		mod.dungeon_decor(params, { no_doors = true, no_stains = true })
+	end
+end
+
+
+function mod.big_room_here(params)
+	local dung_noise = PerlinNoise(layers_mod.registered_noises['rooms_connections'])
+	local minp = params.isect_minp
+	local t = 0
+	for z = 20, 60, 10 do
+		for y = 20, 60, 10 do
+			for x = 20, 60, 10 do
+				local loc = vector.add(minp, VN(x, y, z), 5)
+				local hn = dung_noise:get_3d(loc)
+				t = t + hn
+			end
+		end
+	end
+	if t <= 0 then
+		return true
 	end
 end
 
@@ -1046,7 +1070,7 @@ function mod.place_big_room(params)
 end
 
 
-function mod.place_small_room(params, loc)
+function mod.place_small_room(params, loc, big)
 	local rot = 0
 	local dung_noise = PerlinNoise(layers_mod.registered_noises['rooms_connections'])
 	local data, p2data, area = params.data, params.p2data, params.area
@@ -1066,7 +1090,7 @@ function mod.place_small_room(params, loc)
 	local center = vector.add(vector.divide(params.chunk_csize, 2), minp)
 	local room_center = vector.add(loc, VN(HRES, HRES, HRES))
 	local rdv = vector.abs(vector.subtract(center, room_center))
-	if rdv.x < 20 and rdv.y < 20 and rdv.z < 20 then
+	if big and rdv.x < 20 and rdv.y < 20 and rdv.z < 20 then
 		return
 	end
 
@@ -1079,7 +1103,8 @@ function mod.place_small_room(params, loc)
 		local level = (loc.y + chunk_offset) % 80
 		local thirdc = (level >= 30 and level <= 50) and (rdv.x < 10 or rdv.z < 10)
 
-		if (outer and hn > 0) or (not outer and thirdc) then
+		if (not big and hn > 0)
+		or (big and ((outer and hn > 0) or (not outer and thirdc))) then
 			ex[caxis][cdir] = true
 			tot_exits = tot_exits + 1
 		end
@@ -1164,6 +1189,9 @@ if status_mod_path and status_mod and status_mod.register_status then
 		end,
 	})
 end
+
+
+mod.add_construct('default:bookshelf')
 
 
 -----------------------------------------------

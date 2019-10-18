@@ -1209,8 +1209,31 @@ minetest.register_chatcommand('regeo', {
 		vm:set_param2_data(p2data)
 		vm:set_light_data(ldata)
 		vm:write_to_map(false)
+
+		mod.do_on_constructs(params)
 	end,
 })
+
+
+function mod.do_on_constructs(params)
+	-- Call on_construct methods for nodes that request it.
+	-- This is mainly useful for starting timers.
+	local data, area = params.data, params.area
+	for i, n in ipairs(data) do
+		if mod.construct_nodes[n] then
+			local pos = area:position(i)
+			local node_name = minetest.get_name_from_content_id(n)
+			if minetest.registered_nodes[node_name] and minetest.registered_nodes[node_name].on_construct then
+				minetest.registered_nodes[node_name].on_construct(pos)
+			else
+				local timer = minetest.get_node_timer(pos)
+				if timer then
+					timer:start(math.random(100))
+				end
+			end
+		end
+	end
+end
 
 
 do
@@ -1381,3 +1404,60 @@ do
 		orig_loot_reg(def)
 	end
 end
+
+
+-- measuring tape
+
+local tape_locs = {}
+minetest.register_tool( mod_name..':measuring_tape',{
+	description = 'Measuring Tape',
+	inventory_image = 'measuring_tape.png',
+	wield_image = 'measuring_tape.png',
+	tool_capabilities = {
+		full_punch_interval = 1.0,
+		max_drop_level=1,
+		groupcaps={
+			cracky = {times={[1]=4.00, [2]=1.60, [3]=0.80}, uses=20, maxlevel=0},
+		},
+		damage_groups = {fleshy=4},
+	},
+	on_use = function(itemstack, user, pointed_thing)
+		if not (pointed_thing and user and itemstack) then
+			return
+		end
+
+		if pointed_thing.type ~= 'node' then
+			return
+		end
+
+		local pos = pointed_thing.under
+		if not pos then
+			return
+		end
+
+		local player_name = user:get_player_name()
+		if not player_name or player_name == '' then
+			return
+		end
+
+		local chunksize = tonumber(minetest.settings:get('chunksize') or 5)
+		local chunk_offset = math.floor(chunksize / 2) * 16;
+		local csize = { x=chunksize * 16, y=chunksize * 16, z=chunksize * 16 }
+
+		local chunk = vector.floor(vector.divide(vector.add(pos, chunk_offset), csize.z))
+		local minp = vector.subtract(vector.multiply(chunk, csize.z), chunk_offset)
+
+		pos = vector.subtract(pos, minp)
+		local last = tape_locs[player_name]
+		if not last then
+			last = pos
+		end
+		local dist = vector.subtract(pos, last)
+		tape_locs[player_name] = pos
+
+		local s = 'Clicked on (' .. pos.x .. ', ' .. pos.y .. ', ' .. pos.z .. ').  [From last position, (' .. dist.x .. ', ' .. dist.y .. ', ' .. dist.z .. ').]'
+		minetest.chat_send_player(player_name, s)
+
+		return itemstack
+	end,
+})
