@@ -76,7 +76,7 @@ minetest.register_on_shutdown(function()
 end)
 
 
-mod.midnight_sun = minetest.setting_getbool('mapgen_midnight_sun')
+mod.midnight_sun = minetest.settings:get_bool('mapgen_midnight_sun')
 if mod.midnight_sun == nil then
 	mod.midnight_sun = true
 end
@@ -121,7 +121,7 @@ if mod.midnight_sun then
 end
 
 
-mod.soft_leaves = minetest.setting_getbool('mapgen_soft_leaves')
+mod.soft_leaves = minetest.settings:get_bool('mapgen_soft_leaves')
 if mod.soft_leaves == nil then
 	mod.soft_leaves = true
 end

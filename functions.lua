@@ -243,6 +243,22 @@ function mod.chest_rightclick(pos, node, clicker, itemstack, pointed_thing)
 end
 
 
+function mod.add_treasure_chest(pos, params)
+	if not (params and params.share) then
+		return
+	end
+
+	if not params.share.treasure_chests then
+		params.share.treasure_chests = {}
+	end
+
+	local ivm = params.area:indexp(pos)
+	if params.data[ivm] == mod.node['default:chest'] then
+		table.insert(params.share.treasure_chests, pos)
+	end
+end
+
+
 local MAX_MOBS = 30
 function mod.chest_timer(pos, elapsed)
 	local mt = minetest.get_meta(pos)

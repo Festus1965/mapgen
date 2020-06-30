@@ -21,6 +21,7 @@ local big_rooms, small_rooms, carpetable
 local emergency_caltrop, gpr
 local ovg = (80 % RES == 0) and 0 or (RES - 1)
 local axes = {'x', 'y', 'z'}
+local treasure_chests = {}
 
 -- These are the points around the current room
 --  to check noise, to determine available exits.
@@ -513,6 +514,215 @@ function mod.generate_big_rooms()
 		b.rare = true
 		table.insert(big_rooms, b)
 	end
+
+	do
+		do
+			-- Towers
+			b = table.copy(desc)
+
+			table.insert(b.data, {
+				action = 'cube',
+				node = ddsb,
+				location = VN(0, 39, 0),
+				size = VN(40, 1, 40),
+			})
+
+			for _, cd in pairs({ VN(23, 39, 11), VN(14, 39, 20), VN(25, 39, 29), VN(21, 39, 21) }) do
+				table.insert(b.data, {
+					action = 'cube',
+					node = 'default:lava_source',
+					location = cd,
+					size = VN(1, 1, 1),
+				})
+			end
+
+			table.insert(b.data, {
+				action = 'cube',
+				node = 'default:obsidian',
+				location = VN(0, 0, 0),
+				size = VN(40, 2, 40),
+			})
+
+			table.insert(b.data, {
+				action = 'cube',
+				node = 'default:lava_source',
+				location = VN(1, 1, 1),
+				size = VN(38, 1, 38),
+			})
+
+			local dy = 21
+			for _, cd in pairs({ VN(6, 0, 22), VN(4, 0, 4), VN(26, 0, 12) }) do
+				local bp = {}
+
+				table.insert(bp, {
+					action = 'cylinder',
+					axis = 'y',
+					node = dsb,
+					location = cd,
+					size = VN(14, dy, 14),
+				})
+
+				local l = vector.add(cd, 1)
+				for y = 0, dy, 5 do
+					local lc = table.copy(l)
+					lc.y = y
+					table.insert(bp, {
+						action = 'cylinder',
+						axis = 'y',
+						node = 'air',
+						location = lc,
+						size = VN(12, 4, 12),
+					})
+					if y < dy - 5 then
+						local ch_pos = vector.add(lc, VN(6, 0, 6))
+						table.insert(treasure_chests, ch_pos)
+						table.insert(bp, {
+							action = 'cube',
+							node = 'default:chest',
+							location = ch_pos,
+							random = 6,
+							size = VN(1, 1, 1),
+						})
+						table.insert(bp, {
+							action = 'stair',
+							node = 'stairs:stair_stonebrick',
+							depth = 1,
+							depth_fill = dsb,
+							param2 = 2,
+							location = VN(lc.x + 1, lc.y, lc.z + 3),
+							size = VN(1, 5, 5),
+						})
+
+						if y > 1 then
+							table.insert(bp, {
+								action = 'cube',
+								node = 'air',
+								location = VN(lc.x + 11, lc.y, lc.z + 5),
+								size = VN(1, 4, 2),
+							})
+
+							table.insert(bp, {
+								action = 'cube',
+								node = 'default:torch_wall',
+								location = VN(lc.x + 11, lc.y + 3, lc.z + 5),
+								param2 = 5,
+								size = VN(1, 1, 1),
+							})
+
+							for z = 0, 11, 11 do
+								table.insert(bp, {
+									action = 'cube',
+									node = 'air',
+									location = VN(lc.x + 5, lc.y, lc.z + z),
+									size = VN(2, 4, 1),
+								})
+
+								table.insert(bp, {
+									action = 'cube',
+									node = 'default:torch_wall',
+									location = VN(lc.x + 6, lc.y + 3, lc.z + z),
+									param2 = 2,
+									size = VN(1, 1, 1),
+								})
+							end
+						end
+					end
+				end
+
+				for _, it in pairs(bp) do
+					if dy == 31 then
+						local it2 = table.copy(it)
+						it2.location.x = 40 - it.location.x - it.size.x + 22
+						if it.node == 'default:torch_wall' then
+							if it.param2 == 2 then
+								it2.param2 = 3
+							else
+								it2.param2 = 5
+							end
+						end
+						table.insert(b.data, it2)
+					else
+						table.insert(b.data, it)
+					end
+				end
+
+				dy = dy + 5
+			end
+		end
+
+		do
+			local bp = {}
+
+			for z = 0, 38, 38 do
+				for y = 10, 30, 10 do
+					for x = 11, 21, 10 do
+						table.insert(bp, {
+							action = 'cube',
+							node = dsb,
+							location = VN(x, y, z),
+							size = VN(8, 2, 2),
+						})
+						table.insert(bp, {
+							action = 'cube',
+							node = dsb,
+							location = VN(x, y + 8, (z == 0) and z or (z + 1)),
+							size = VN(8, 1, 1),
+						})
+						table.insert(bp, {
+							action = 'cube',
+							node = 'default:torch_ceiling',
+							location = VN(x, y + 7, (z == 0) and z or (z + 1)),
+							size = VN(1, 1, 1),
+						})
+						table.insert(bp, {
+							action = 'cube',
+							node = 'default:torch_ceiling',
+							location = VN(x + 7, y + 7, (z == 0) and z or (z + 1)),
+							size = VN(1, 1, 1),
+						})
+						table.insert(bp, {
+							action = 'cube',
+							node = 'air',
+							location = VN(x + 1, y + 1, (z == 0) and z or (z + 1)),
+							size = VN(6, 1, 1),
+						})
+					end
+				end
+			end
+
+			for _, it in pairs(bp) do
+				table.insert(b.data, it)
+				local it2 = table.copy(it)
+				it2.location.x = it.location.z
+				it2.location.z = it.location.x
+				it2.size.x = it.size.z
+				it2.size.z = it.size.x
+				table.insert(b.data, it2)
+			end
+		end
+
+		do
+			for _, cd in pairs({
+				{ VN(19, 14, 28), VN(10, 1, 1) },
+				{ VN(28, 14, 25), VN(1, 1, 4) },
+				{ VN(17, 19, 10), VN(12, 1, 1) },
+				{ VN(28, 19, 10), VN(1, 1, 3) },
+				{ VN(13, 9, 35), VN(1, 1, 3) },
+				{ VN(14, 10, 37), VN(1, 1, 1) },
+			}) do
+				table.insert(b.data, {
+					action = 'cube',
+					node = mod_name .. ':sand_gem_glass',
+					location = cd[1],
+					size = cd[2],
+				})
+			end
+		end
+
+		b.id = 'towers'
+		table.insert(big_rooms, b)
+	end
+
 end
 
 
@@ -530,6 +740,7 @@ function mod.generate_rooms(params)
 
 	params.share.treasure_chest_handler = mod.handle_chest
 	gpr = params.gpr  -- handy for treasure function
+	treasure_chests = {}
 
 	if not mod.carpetable then
 		mod.setup_dungeon_decor(params)
@@ -594,6 +805,10 @@ function mod.generate_rooms(params)
 
 	if not nofill then
 		mod.dungeon_decor(params, { no_doors = true, no_stains = true })
+	end
+
+	for _, p in pairs(treasure_chests) do
+		mod.add_treasure_chest(p, params)
 	end
 end
 
@@ -1141,17 +1356,8 @@ function mod.place_small_room(params, loc, big)
 	end
 	--]]
 
-	do
-		if not params.share.treasure_chests then
-			params.share.treasure_chests = {}
-		end
-
-		local p = vector.add(loc, VN(HRES, 1, HRES))
-		local ivm = area:indexp(p)
-		if data[ivm] == layers_mod.node['default:chest'] then
-			table.insert(params.share.treasure_chests, p)
-		end
-	end
+	local p = vector.add(loc, VN(HRES, 1, HRES))
+	table.insert(treasure_chests, p)
 end
 
 

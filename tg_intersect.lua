@@ -126,8 +126,8 @@ function mod.generate_intersect(params)
 	end
 	--]]
 
-	local cave_noise_1 = minetest.get_perlin_map(cave_noise_def_1, csize):get3dMap_flat(minp)
-	local cave_noise_2 = minetest.get_perlin_map(cave_noise_def_2, csize):get3dMap_flat(minp)
+	local cave_noise_1 = minetest.get_perlin_map(cave_noise_def_1, csize):get_3d_map_flat(minp)
+	local cave_noise_2 = minetest.get_perlin_map(cave_noise_def_2, csize):get_3d_map_flat(minp)
 
 	local base_level = params.share.base_level
 	local height_max = math.max(params.share.height_max - 20, (base_level or 8))

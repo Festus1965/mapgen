@@ -94,7 +94,7 @@ mod.default_ore_intersect = {
 	mod_name .. ':stone_with_moss',
 	mod_name .. ':stone_with_salt',
 	mod_name .. ':hot_rock',
-	mod_name .. ':sunny_stone',
+	--mod_name .. ':sunny_stone',
 }
 
 
@@ -643,7 +643,7 @@ function mod.place_deco(params, ps, deco)
 
             local nval = (
 				deco.noise_params
-				and minetest.get_perlin(deco.noise_params):get2d({x=center.x, y=center.z})
+				and minetest.get_perlin(deco.noise_params):get_2d({x=center.x, y=center.z})
 				or deco.fill_ratio
 			)
 
@@ -698,7 +698,7 @@ function mod.place_deco(params, ps, deco)
 				if y then
 					local biome
 
-					if y < surface.top then
+					if surface.top and y < surface.top then
 						biome = params.share.cave_biome or params.share.biome
 					end
 
@@ -1119,7 +1119,7 @@ function mod.spawnplayer(player)
 	end
 
 	pos.y = pos.y + 2
-	player:setpos(pos)
+	player:set_pos(pos)
 
 	if beds_here and not beds.spawn[player_name] then
 		beds.spawn[player_name] = pos
