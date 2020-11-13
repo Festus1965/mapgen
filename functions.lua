@@ -287,10 +287,12 @@ function mod.chest_timer(pos, elapsed)
 
 	local ct = 0
 	for _, o in pairs(minetest.luaentities) do
-		if vector.distance(o.object:get_pos(), pos) < 300 then
-			ct = ct + 1
-			if ct > MAX_MOBS then
-				return true
+		if o.object:get_luaentity() then
+			if vector.distance(o.object:get_pos(), pos) < 300 then
+				ct = ct + 1
+				if ct > MAX_MOBS then
+					return true
+				end
 			end
 		end
 	end
@@ -1403,19 +1405,30 @@ end)
 do
 	local orig_loot_reg = dungeon_loot.register
 	dungeon_loot.register = function(def)
-		if not def or def.chance <= 0 then
+		if not def then
 			return
 		end
 
-		mod.register_loot({
-			name = def.name,
-			rarity = math.ceil(1 / 2 / def.chance),
-			level = def.level or 1,
-			number = {
-				min = def.count[1] or 1,
-				max = def.count[2] or 1,
-			},
-		})
+		local deft = def
+		if deft.chance then
+			deft = {}
+		end
+
+		for _, deff in pairs(deft) do
+			if deff.chance <= 0 then
+				return
+			end
+
+			mod.register_loot({
+				name = deff.name,
+				rarity = math.ceil(1 / 2 / deff.chance),
+				level = deff.level or 1,
+				number = {
+					min = deff.count[1] or 1,
+					max = deff.count[2] or 1,
+				},
+			})
+		end
 
 		orig_loot_reg(def)
 	end
