@@ -50,7 +50,7 @@ do
 		description = 'Pretty Crystal',
 		tiles = { 'mapgen_70_white.png' },
 		use_texture_alpha = true,
-		--light_source = 8,
+		light_source = 8,
 		inventory_image = 'mapgen_pretty_crystal_inventory.png',
 		drawtype = 'nodebox',
 		node_box = def,
@@ -147,7 +147,7 @@ do
 	newnode = clone_node(mod_name .. ':stone_with_salt')
 	newnode.description = 'Salt With Radioactive Ore'
 	newnode.tiles = { 'mapgen_radioactive_ore.png' }
-	newnode.light_source = 5
+	--newnode.light_source = 5
 	minetest.register_node(mod_name .. ':radioactive_ore', newnode)
 
 	minetest.register_node(mod_name .. ':glowing_fungal_stone', {
@@ -167,7 +167,7 @@ do
 		paramtype = 'light',
 		use_texture_alpha = true,
 		drawtype = 'glasslike',
-		light_source = 5,
+		--light_source = 5,
 		groups = { cracky = 3, stone = 1 },
 		sounds = default.node_sound_stone_defaults(),
 	})
@@ -179,7 +179,7 @@ do
 		paramtype = 'light',
 		--use_texture_alpha = true,
 		drawtype = 'glasslike_framed_optional',
-		light_source = 5,
+		--light_source = 5,
 		groups = { cracky = 3, stone = 1, oddly_breakable_by_hand = 1 },
 		sunlight_propagates = true,
 		sounds = default.node_sound_glass_defaults(),
@@ -227,7 +227,7 @@ do
 		--tiles = { 'default_desert_stone.png^[colorize:#FF0000:50' },
 		is_ground_content = true,
 		groups = { crumbly = 2, surface_hot = 3 },
-		--light_source = 5,
+		light_source = 5,
 		damage_per_second = 1,
 		sounds = default.node_sound_stone_defaults({
 			footstep = { name = 'default_stone_footstep', gain = 0.25 },
@@ -694,7 +694,7 @@ do
 			tiles = { desc.tile },
 			is_ground_content = true,
 			walkable = false,
-			light_source = desc.light,
+			--light_source = desc.light,
 			paramtype = 'light',
 			drop = (desc.drop or mod_name .. ':stalactite'),
 			drawtype = 'nodebox',
@@ -714,7 +714,7 @@ do
 			is_ground_content = true,
 			walkable = false,
 			paramtype = 'light',
-			light_source = desc.light,
+			--light_source = desc.light,
 			drop = mod_name .. ':stalagmite',
 			drawtype = 'nodebox',
 			node_box = { type = 'fixed',

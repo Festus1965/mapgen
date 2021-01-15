@@ -1155,10 +1155,12 @@ function mod.save_map(params)
 	params.vm:set_data(params.data)
 	params.vm:set_param2_data(params.p2data)
 
-	if DEBUG and not params.genesis_redo then
-		params.vm:set_lighting({day = 10, night = 10})
-	elseif not params.genesis_redo then
-		params.vm:set_lighting({day = 0, night = 0})
+	if not params.genesis_redo then
+		if DEBUG then
+			params.vm:set_lighting({day = 10, night = 10})
+		else
+			params.vm:set_lighting({day = 3, night = 3})
+		end
 		params.vm:calc_lighting(nil, nil, params.share.propagate_shadow)
 	end
 
@@ -1186,7 +1188,7 @@ function mod.save_map(params)
 					local inv = meta:get_inventory()
 					local listsz = inv:get_size("main")
 					if listsz > 0 then
-						mod.populate_chest(v, ps)
+						dungeon_loot.populate_chest(v, ps)
 					end
 				end
 			end
