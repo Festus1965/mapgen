@@ -99,7 +99,7 @@ do
 		sunlight_propagates = true,
 		tiles = {'mapgen_plate_glass.png'},
 		light_source = 1,
-		use_texture_alpha = true,
+		use_texture_alpha = 'blend',
 		is_ground_content = false,
 		groups = {cracky = 3, level=2},
 		sounds = default.node_sound_stone_defaults(),

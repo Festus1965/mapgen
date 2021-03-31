@@ -44,7 +44,7 @@ do
 		description = 'Wispy Cloud',
 		tiles = {'mapgen_wisp.png'},
 		sunlight_propagates = true,
-		use_texture_alpha = true,
+		use_texture_alpha = 'blend',
 		drawtype = 'glasslike',
 		paramtype = 'light',
 		walkable = false,

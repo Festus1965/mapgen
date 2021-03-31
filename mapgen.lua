@@ -1159,7 +1159,7 @@ function mod.save_map(params)
 		if DEBUG then
 			params.vm:set_lighting({day = 10, night = 10})
 		else
-			params.vm:set_lighting({day = 3, night = 3})
+			params.vm:set_lighting({day = 5, night = 5})
 		end
 		params.vm:calc_lighting(nil, nil, params.share.propagate_shadow)
 	end

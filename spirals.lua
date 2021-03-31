@@ -44,7 +44,7 @@ do
 		floodable = false,
 		diggable = false,
 		buildable_to = false,
-		use_texture_alpha = true,
+		use_texture_alpha = 'blend',
 		sunlight_propagates = true,
 		post_effect_color = {a = 50, r = 255, g = 255, b = 255},
 	})
